@@ -1,0 +1,162 @@
+# Portfolio Allocation Models
+
+## Alpha-First Selection Philosophy
+
+Raw return is vanity. **Alpha is sanity.**
+
+A fund returning 20% when its benchmark returned 25% has alpha of -5% — the manager destroyed value.
+A fund returning 8% when its benchmark returned 3% has alpha of +5% — genuine skill.
+
+You are paying 1.50–1.80% annually for active management. If the fund merely tracks the benchmark
+(zero alpha), you're paying fees for nothing. **Alpha must justify the cost.**
+
+---
+
+## Fund Selection Engine — 5 Layers
+
+### Layer 1: Universe Filter
+- **Qualified only** — must beat benchmark in ≥60% of available periods
+- **Shariah filter** — apply based on SA Q8 response
+- **Risk Level ceiling** — fund Risk Level must be ≤ profile maximum
+
+### Layer 2: Alpha Ranking (Primary Sort)
+Weighted alpha score across periods:
+
+| Period | Weight | Rationale |
+|--------|--------|-----------|
+| 3Y Alpha | 40% | Current team's track record — most reliable signal |
+| 5Y Alpha | 30% | Market cycle smoothing — structural edge |
+| 1Y Alpha | 20% | Recent execution and momentum |
+| YTD Alpha | 10% | Very recent direction — lowest weight due to noise |
+
+**Calculation:** `Alpha Score = (3Y_Alpha × 0.4) + (5Y_Alpha × 0.3) + (1Y_Alpha × 0.2) + (YTD_Alpha × 0.1)`
+
+**Penalties:**
+- If 3Y or 5Y alpha is negative → halve the fund's total alpha score
+- If alpha < 1% across ALL periods → flag as "benchmark-hugger" (not worth active fees)
+
+### Layer 3: Alpha Efficiency
+`Alpha Efficiency = Alpha / Volatility Factor`
+
+This measures the **quality** of outperformance per unit of risk.
+- High AE = smart alpha (outperforming without taking excessive risk)
+- Low AE = brute-force alpha (outperforming by taking more risk — fragile)
+
+Use 3Y Alpha Efficiency as the tiebreaker when alpha scores are similar.
+
+### Layer 4: Diversification Check
+After selecting top-ranked funds per category, verify:
+- No single sector > 40% of total equity allocation
+- No single country > 60% of total equity allocation (Malaysia exception: up to 80%)
+- At least 2 different fund types in portfolio
+- At least 3 different sectors represented across equity picks
+
+If portfolio is over-concentrated, swap the least-diversifying fund for the next-ranked alternative.
+
+### Layer 5: ATH Momentum Overlay
+Final adjustment based on current market positioning:
+
+| Drawdown Range | Signal | Action |
+|----------------|--------|--------|
+| 0% to -5% | Strong momentum — near ATH | Favor for Growth/Aggressive profiles |
+| -5% to -15% | Neutral | No adjustment — rely on alpha ranking |
+| -15% to -30% | Recovery potential | Neutral to positive for long-horizon profiles |
+| > -30% | Deep value / contrarian | Only for Aggressive + horizon >10Y; flag the risk |
+
+---
+
+## Portfolio Templates by Risk Profile
+
+### Conservative (Score 7–11)
+
+| Category | Allocation | # Funds | Selection Priority |
+|----------|-----------|---------|-------------------|
+| Bond / Sukuk | 40–50% | 2 | Highest alpha, lowest VF |
+| Money Market | 10–20% | 1 | Capital preservation (PMMF, PeMMF, etc.) |
+| Mixed Asset (conservative) | 20–30% | 1 | Low equity component (30-40% type) |
+| Equity (dividend/income) | 10–20% | 1 | Low VF, income-oriented, RL 1-2 only |
+
+**Geographic bias:** 80%+ Malaysia (strongest qualification rates, lowest FX risk)
+**Target weighted VF:** < 7.0 (Low volatility band)
+**DCA suggestion:** Monthly RSP, emphasize ringgit cost averaging benefit
+
+### Moderate (Score 12–17)
+
+| Category | Allocation | # Funds | Selection Priority |
+|----------|-----------|---------|-------------------|
+| Equity (diversified) | 30–40% | 2 | Highest alpha, RL ≤ 3, diversified sectors |
+| Mixed Asset (balanced) | 20–25% | 1 | Built-in diversification, moderate equity split |
+| Bond / Sukuk | 20–30% | 1-2 | Alpha-positive, income component |
+| Money Market | 5–10% | 1 | Liquidity buffer |
+
+**Geographic bias:** 70% Malaysia, 20% Asia, 10% other
+**Target weighted VF:** 7.0–10.0 (Moderate volatility band)
+**DCA suggestion:** Monthly RSP + opportunistic top-ups during >10% corrections
+
+### Growth (Score 18–23)
+
+| Category | Allocation | # Funds | Selection Priority |
+|----------|-----------|---------|-------------------|
+| Equity (core) | 40–55% | 2-3 | Top alpha + alpha efficiency, RL ≤ 4 |
+| Equity (satellite) | 10–15% | 1 | Asia/Greater China exposure for diversification |
+| Mixed Asset (growth) | 15–20% | 1 | Higher equity component (60-70% type) |
+| Bond / Sukuk | 10–15% | 1 | Ballast during equity corrections |
+| Money Market | 5% | 0-1 | Optional liquidity buffer |
+
+**Geographic bias:** 60% Malaysia, 25% Asia/Greater China, 15% other
+**Target weighted VF:** 9.0–12.0 (Moderate-High band)
+**DCA suggestion:** Aggressive RSP + market correction top-up strategy
+
+### Aggressive (Score 24–28)
+
+| Category | Allocation | # Funds | Selection Priority |
+|----------|-----------|---------|-------------------|
+| Equity (core — high alpha) | 50–60% | 2-3 | Absolute top alpha generators, any RL |
+| Equity (thematic/sector) | 15–20% | 1-2 | Sector conviction plays (tech, small-cap) |
+| Equity (regional) | 10–15% | 1 | Asia/Greater China alpha plays |
+| Bond / Sukuk | 5–10% | 1 | Minimal ballast |
+| Money Market | 0–5% | 0 | Optional |
+
+**Geographic bias:** 50% Malaysia, 30% Asia/Greater China, 20% other
+**Target weighted VF:** 11.0+ (High band acceptable)
+**DCA suggestion:** Aggressive RSP + systematic lump-sum during deep corrections (>15%)
+
+---
+
+## Fee Transparency Framework
+
+For every recommended fund, calculate and present:
+
+```
+Annual cost   = Management Fee + Trustee Fee (typically 1.50–1.80% equity, 0.75–1.00% bond)
+Entry cost    = Sales Charge (up to 5–6.5% equity, 0% money market)
+Alpha earned  = 3Y annualised alpha
+Net value-add = Alpha earned − Annual cost
+```
+
+**Decision rule for the client:**
+- Net value-add > 0 → "The fund manager is earning their fee and then some"
+- Net value-add ≈ 0 → "Breaking even on fees — consider cheaper alternatives if available"
+- Net value-add < 0 → Should not be recommended (already filtered out by qualification screen)
+
+---
+
+## Distribution Strategy by Profile
+
+| Profile | Distribution Preference | Rationale |
+|---------|------------------------|-----------|
+| Conservative | Payout (for income-seeking) or Reinvest | Income supplements living expenses |
+| Moderate | Reinvest (default) | Compounding effect, tax-exempt in Malaysia |
+| Growth | Reinvest | Maximize compounding over long horizon |
+| Aggressive | Reinvest | Maximum capital accumulation |
+
+---
+
+## Rebalancing Triggers
+
+Recommend portfolio review when:
+1. **Time-based:** Every 6 months (minimum), or quarterly for Growth/Aggressive
+2. **Drift-based:** Any fund category drifts >10% from target allocation
+3. **Life event:** Job change, marriage, child, property purchase, retirement
+4. **Market event:** Major correction (>15% broad market drawdown) — opportunity to top up equity
+5. **New MFR data:** When a new fund screener run produces updated qualification results

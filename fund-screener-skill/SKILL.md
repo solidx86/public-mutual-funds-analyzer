@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 name: fund-screener
 description: >
   Bulk-screen all Public Mutual unit trust funds from Monthly Fund Report (MFR) PDFs and produce a fund master list as a formatted Excel file (importable to Google Sheets). Applies the 5-Point Code Review framework: filters for funds that beat their benchmark in at least 60% of available return periods (YTD, 1Y, 3Y, 5Y, 10Y). Use this skill whenever the user says things like: "screen the new MFR", "update the fund qualification list", "which funds qualify this month", "run the fund screener", "update with the [month] MFR", "new monthly report is out — re-run the analysis", or any request to produce or refresh a qualified funds shortlist from Public Mutual MFR data. Also trigger when the user wants to compare qualified funds across months, filter by asset class (equity, bond, Shariah), or update the Google Sheet / Excel output. If the user drops new MFR PDFs and says "these are out" or "new reports", use this skill.
@@ -271,3 +272,11 @@ GET  /FundPriceUT/GetAllUTFundPriceByDate?date={YYYY-MM-DD}
 
 Open Google Drive → drag the .xlsx file in → right-click → "Open with Google Sheets".
 All formatting, filters, and conditional formatting carry over automatically.
+
+---
+
+## Changelog
+
+| Version | Date | Type | Summary |
+|---------|------|------|---------|
+| 1.0 | 2026-04-06 | — | Initial versioned release |
