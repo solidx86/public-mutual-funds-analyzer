@@ -1,5 +1,5 @@
 ---
-version: "1.2"
+version: "1.5"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -39,12 +39,16 @@ The user (consultant) will provide the client's risk profile. Accepted profiles:
 - Shariah preference (Yes / No / No preference) — filters the fund universe
 - Investment horizon if specified — adjusts equity ceiling
 - Specific goals (retirement, education, wealth accumulation) — flavors the rationale
+- **Client experience level (New investor / Experienced)** — new investors get a Starter Portfolio (max 4 funds); experienced investors get the full template
 
 **If the user does NOT provide a risk profile**, ask:
 > "What is the client's risk profile? (Conservative / Moderate / Growth / Aggressive)
-> Also, any Shariah compliance preference?"
+> Is this a new investor or someone with existing investment experience?
+> Any Shariah compliance preference?"
 
 Do NOT proceed with fund recommendations until you have the risk profile.
+
+**New investor / first-time lead:** Default to a **Starter Portfolio** — max 4 funds. Additional funds can be layered in during the next portfolio review once the client is comfortable. State this explicitly in the proposal cover page and executive summary.
 
 For reference on how suitability assessments work and what determines each profile, see:
 `fund-consultant-skill/references/sa_guide.md`
@@ -153,12 +157,25 @@ Use 3Y AE as tiebreaker when alpha scores are similar (within 1 point).
 
 Select the template matching the client's risk profile:
 
-| Profile | Equity | Mixed Asset | Bond/Sukuk | Money Market | Target # Funds |
-|---------|--------|-------------|------------|--------------|----------------|
-| Conservative | 10–20% | 20–30% | 40–50% | 10–20% | 4–5 |
-| Moderate | 30–45% | 20–25% | 20–30% | 5–10% | 5–7 |
-| Growth | 50–65% | 15–20% | 10–15% | 5% | 5–7 |
-| Aggressive | 70–85% | 10–15% | 5–10% | 0–5% | 5–8 |
+| Profile | Equity | Mixed Asset | FI/Sukuk | Gold | Money Market | Target Funds | Starter |
+|---------|--------|-------------|----------|------|--------------|--------------|---------|
+| Conservative | 5–12% | 12–18% | 35–45% | 5–8% | 15–20% | 4–5 | 4 |
+| Moderate | 25–35% | 12–18% | 15–22% | 8–10% | 12–15% | 5–6 | 4 |
+| Growth | 45–55% | 8–12% | 5–10% | 8–10% | 10–12% | 4–5 | 4 |
+| Aggressive | 55–68% | 8–12% | 0–3% | 8–12% | 8–12% | 4–5 | 4 |
+
+Allocations are approximate ranges; the actual portfolio should sum to 100%.
+
+**Gold and Money Market are structural positions — always included regardless of profile or investor experience.** The gradient above reflects two competing forces:
+- Gold: Conservative already holds FI/Sukuk as their primary hedge, so gold is supplementary (5–8%). Aggressive has no FI at all — gold is their only non-equity hedge, so it scales up (8–12%).
+- MM: Higher allocation for conservative (capital stability first, dip capture second). Lower for aggressive (maximum equity deployment), but never below 8% — high-VF funds have deeper drawdowns which are also bigger buying opportunities, so the tactical value of dry powder doesn't disappear at aggressive.
+
+**Starter Portfolio composition (new investor default, 4 funds):**
+- 2 high-alpha growth funds (top 2 by alpha score for the profile) — core engines
+- 1 gold fund (PeEMAS) — structural macro hedge (see Step 4b)
+- 1 qualified money market fund — tactical dry powder (see Step 4c)
+
+If the client is **not** a new investor, use the full target fund count with the same gold + MM structural positions.
 
 ### Geographic Allocation
 
@@ -178,6 +195,7 @@ Before finalizing, verify:
 - At least 3 different sectors represented across equity picks
 - At least 2 different fund types in the portfolio
 - Not all equity funds from the same geography
+- **Top Holdings Overlap:** Check column 64 (Top 5 Holdings) across all equity and mixed asset picks. If 2 or more funds share **3 or more of the same top 5 holdings**, they are redundant — keep only the one with the highest alpha score and remove the duplicate. False diversification is worse than concentration: it triples the exposure to the same stocks while adding fee drag.
 
 If over-concentrated, swap the least-diversifying fund for the next-ranked alternative.
 
@@ -192,7 +210,39 @@ If over-concentrated, swap the least-diversifying fund for the next-ranked alter
 
 ---
 
-## Step 4b: Exposure Gap Check
+## Step 4b: Structural Allocations — Gold & Money Market
+
+After selecting alpha-ranked funds, add the two structural positions. These are **always included**
+regardless of risk profile, investor experience, or alpha qualification. The only decision is how
+much to allocate — use the gradient from the Portfolio Templates table above.
+
+### Gold (PeEMAS — PUBLIC e-EMAS GOLD FUND)
+
+**Always include.** Gold bypasses the alpha qualification filter entirely — it is not selected for
+manager skill but for macro hedging properties:
+
+- **Inflation hedge:** Gold historically appreciates when purchasing power is eroded
+- **Decorrelation:** Near-zero or negative correlation to Asia equity — reduces portfolio drawdown depth
+- **MYR hedge:** Gold held in USD terms partially offsets MYR appreciation compressing foreign equity NAV
+- **Central bank tailwind:** Structural de-dollarisation trend supports gold demand multi-year
+
+Gold fund alpha should be interpreted differently from equity funds:
+- The benchmark IS the gold price — near-zero alpha means efficient tracking, not manager failure
+- Slightly negative 3Y alpha (> −2%) is acceptable; it represents tracking cost, not underperformance
+- A fund consistently near-zero vs its gold benchmark is doing its job
+
+**Card styling in proposal HTML:** Standard gold-border card (amber/gold, `#b7791f`) — no warning
+banner, no dashed border. Present it as an evergreen structural position, not an exception.
+
+### Money Market (PMMF-A or PIMMF-A)
+
+See Step 4c for full guidance. Selection:
+- No Shariah restriction: **PMMF-A** (Public Money Market Fund - Class A)
+- Shariah preference: **PIMMF-A** (Public Islamic Money Market Fund - Class A)
+
+---
+
+## Step 4c: Exposure Gap Check
 
 After building the portfolio from qualified funds, check whether macro context (Step 5) identifies
 a desirable exposure that **no qualified fund** covers — e.g., AI/tech, US equity, Greater China,
@@ -207,8 +257,10 @@ Only when ALL of these conditions are met:
 
 ### Rules for Exposure Gap Picks
 
-1. **Must have positive 3Y alpha** — even if overall weighted alpha is negative, the fund must
-   demonstrate manager skill over the most important period
+Note: Gold (PeEMAS) is **not** an Exposure Gap pick — it is a Structural Allocation (Step 4b) and
+does not count toward the Exposure Gap limit.
+
+1. **Must have positive 3Y alpha** — the fund must demonstrate manager skill over the most important period, even if overall weighted alpha is negative
 2. **Maximum 1 exposure gap pick per portfolio** — this is an exception, not a habit
 3. **Maximum 15% portfolio allocation** — limit the unqualified exposure
 4. **Explicit disclosure required** — the fund card must clearly flag this as an Exposure Gap pick
@@ -242,6 +294,43 @@ ALPHA WARNING:
 
 Exposure Gap fund cards use a **dashed amber border** instead of the standard solid border,
 with an amber background banner to visually distinguish them from qualified picks.
+
+---
+
+## Step 4c: Money Market as Tactical Dry Powder
+
+Always include a **qualified Money Market fund** across all risk profiles. This is not idle capital
+— it is a tactical weapon for systematic dip capture. Allocation scales inversely with risk profile:
+higher risk tolerance = more in equity, less in reserve — but the floor never disappears.
+
+### Allocation by Profile
+
+| Profile | MM Allocation | Primary Purpose |
+|---------|--------------|----------------|
+| Conservative | 15–20% | Capital stability first; dip capture second |
+| Moderate | 12–15% | Balanced liquidity and opportunistic reserve |
+| Growth | 10–12% | Active dip capture; minimise capital drag |
+| Aggressive | 8–12% | Minimum floor; high-VF funds have bigger dips = still needs ammo |
+
+### Dip Capture Trigger Rules (include in Investment Strategy section)
+
+**Trigger:** A target equity fund NAV drops ≥10% from its most recent ATH (read from col 72: Drawdown %)
+**Action:** Redeem from the money market fund → switch into the dipping equity fund
+**Maximum per deployment:** Deploy no more than 50% of the money market reserve in a single dip
+**Replenish:** Increase next 2–3 months' RSP to money market to rebuild the reserve before the next dip
+
+### Fund Selection
+
+Prefer the highest-alpha qualified money market fund:
+- No Shariah restriction: **PMMF-A** (Public Money Market Fund - Class A)
+- Shariah preference: **PIMMF-A** (Public Islamic Money Market Fund - Class A)
+- Minimum AUM: RM 200M for liquidity confidence
+
+### Card Styling in Proposal HTML
+
+Present the money market fund under a distinct **"Tactical Dry Powder"** banner with a grey
+(`#718096`) left border. Emphasise its active role as an opportunistic deployment vehicle — not
+a parking space. Include the dip capture trigger rules explicitly in the fund card.
 
 ---
 
@@ -371,7 +460,10 @@ Based on the profile, include:
 ## Step 7: Generate Proposal Document
 
 After presenting the recommendation in-conversation and receiving user approval, generate a professional
-HTML proposal document.
+HTML proposal document using the **`frontend-design` skill** for elevated visual quality.
+
+**Invoke the frontend-design skill** with a detailed prompt describing all sections, data, and
+design requirements below. The frontend-design skill will produce the final HTML file.
 
 **Output file:** `FundProposal_[Profile]_[MonYYYY].html` in the Funds project root.
 Example: `FundProposal_Moderate_Apr2026.html`
@@ -396,12 +488,15 @@ styling guidelines, and section requirements.
 - Name, phone, email, FIMM license number, representative status
 - Display in cover page header and document footer
 
-**Styling:** Self-contained HTML with inline CSS. Navy (#1a365d) headers, fund-type colored card
-borders (equity=blue, FI=green, mixed=amber, MM=grey), green/red alpha indicators, zebra-striped
-tables, print-optimized CSS (`@media print` with page breaks).
-
-**Important:** Generate the HTML using the Write tool as a single self-contained file. Do NOT require
-any external dependencies, scripts, or Python packages. The file must open directly in any browser.
+**Design brief to pass to frontend-design skill:**
+- Brand palette: Navy `#1a365d` primary, `#2b6cb0` accent, white backgrounds
+- Fund card types: equity (blue left border), mixed asset (amber), FI/Sukuk (green), gold (warm gold border), money market (grey), exposure gap (dashed amber)
+- Alpha performance: use a `Period | Fund % | Bench % | Alpha %` table per fund card (not visual bars); alpha column green for positive, red for negative; show `—` for unavailable periods (fund too young)
+- Portfolio summary: zebra-striped table, weighted totals row highlighted
+- Pie chart: CSS conic-gradient only — no JS, no external libraries
+- Print-optimised: `@media print` with page breaks, colour-exact flags
+- Self-contained: single HTML file, all CSS inline, no external dependencies
+- Tone: professional financial document, clean whitespace, readable at 14px body
 
 ---
 
@@ -512,6 +607,17 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.5 | 2026-04-06 | Feature | Step 7 now delegates HTML generation to the `frontend-design` skill — passes full design brief (palette, card types, performance table, pie chart, print CSS) for elevated visual quality; replaced alpha bar visualisation with `Period \| Fund % \| Bench % \| Alpha %` table per fund card |
+| 1.4 | 2026-04-06 | Feature | Gold (PeEMAS) and Money Market promoted to Structural Allocations (Step 4b/4c) — always included across ALL profiles regardless of alpha qualification; profile-graduated allocations for both (gold 5–12%, MM 8–20% scaling inversely with risk); gold removed from Exposure Gap pathway; MM universalised from Growth/Aggressive-only |
+| 1.3 | 2026-04-06 | Feature | Starter portfolio mode (max 4 funds for new investors); Top Holdings Overlap Check in diversification rules; Step 4c — money market as tactical dry powder with dip capture triggers; commodity fund carve-out in Exposure Gap (gold allowed at slightly negative 3Y alpha); ask client experience level in Step 0 |
 | 1.2 | 2026-04-06 | Feature | Add Exposure Gap mechanism (Step 4b) — allows 1 disqualified fund per portfolio when macro demands an exposure no qualified fund covers; update column references for v8 screener (73 cols, Weighted Alpha col 14) |
 | 1.1 | 2026-04-06 | Feature | Add portfolio exposure pie chart (CSS conic-gradient) to proposal — shows actual underlying asset allocation across all recommended funds |
 | 1.0 | 2026-04-06 | — | Initial versioned release |
+
+---
+
+## Future Roadmap (not yet implemented)
+
+- **Add-on mode:** Given an existing portfolio, recommend additional funds that complement current holdings without creating overlap
+- **Rebalancing mode:** Given current holdings and drift percentages, recommend switches to restore target allocation
+- **Portfolio review mode:** Evaluate an existing portfolio against latest MFR data — flag any funds that have lost qualification, identify alpha decay, suggest replacements
