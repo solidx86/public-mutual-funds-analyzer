@@ -99,6 +99,14 @@
   .strategy-card { background: var(--light-grey); border-radius: 8px; padding: 16px 20px; margin: 12px 0; }
   .strategy-card h4 { color: var(--navy); margin-bottom: 8px; }
 
+  /* Pie chart */
+  .exposure-chart-wrap { display: flex; align-items: center; gap: 40px; margin: 24px 0; flex-wrap: wrap; }
+  .pie-chart { width: 280px; height: 280px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.10); flex-shrink: 0; }
+  .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 14px; }
+  .legend-swatch { display: inline-block; width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+  .legend-pct { font-weight: 700; min-width: 50px; text-align: right; }
+  .exposure-note { font-size: 13px; color: var(--text-light); font-style: italic; margin-top: 16px; line-height: 1.6; }
+
   /* Disclaimer */
   .disclaimer { background: #f7fafc; border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-size: 12px; color: var(--text-light); line-height: 1.7; margin-top: 30px; }
 
@@ -119,6 +127,8 @@
     .fund-card { page-break-inside: avoid; }
     h2.section-title { page-break-after: avoid; }
     .no-print { display: none; }
+    .pie-chart { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .legend-swatch { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
@@ -657,9 +667,57 @@
     </table>
   </div>
 
-  <!-- 6. Investment Strategy -->
+  <!-- 6. Portfolio Exposure Breakdown -->
   <div class="section">
     <div class="section-num">Section 6</div>
+    <h2 class="section-title">Portfolio Exposure Breakdown</h2>
+
+    <div class="exposure-chart-wrap">
+      <div class="pie-chart" style="background: conic-gradient(
+        #2b6cb0 0% 29.7%,
+        #2c7a7b 29.7% 41.9%,
+        #276749 41.9% 80.9%,
+        #718096 80.9% 100%
+      );"></div>
+      <div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#2b6cb0;"></span>
+          <span>Equity (Domestic)</span>
+          <span class="legend-pct">29.7%</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#2c7a7b;"></span>
+          <span>Equity (Foreign)</span>
+          <span class="legend-pct">12.2%</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#276749;"></span>
+          <span>Fixed Income / Sukuk</span>
+          <span class="legend-pct">39.0%</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#718096;"></span>
+          <span>Money Market &amp; Deposits</span>
+          <span class="legend-pct">19.1%</span>
+        </div>
+      </div>
+    </div>
+
+    <table style="margin-top:8px;">
+      <tr><th>Asset Class</th><th>Exposure</th><th>Contributing Funds</th></tr>
+      <tr><td><strong>Equity (Domestic)</strong></td><td>29.7%</td><td>PITSEQ (15.4%), PSSF (11.4%), PESMACF (2.3%), PEBF (0.6%)</td></tr>
+      <tr><td><strong>Equity (Foreign)</strong></td><td>12.2%</td><td>PITSEQ (3.8%), PSSF (2.9%), PEBF (3.2%), PESMACF (2.3%)</td></tr>
+      <tr><td><strong>Fixed Income / Sukuk</strong></td><td>39.0%</td><td>PEBF (17.9%), PBASF (12.0%), PESMACF (9.0%)</td></tr>
+      <tr><td><strong>Money Market &amp; Deposits</strong></td><td>19.1%</td><td>PeCDF-A (10.0%), PBASF (3.0%), PEBF (3.3%), PESMACF (1.4%), PITSEQ (0.8%), PSSF (0.6%)</td></tr>
+      <tr class="highlight-row"><td><strong>Total</strong></td><td><strong>100.0%</strong></td><td></td></tr>
+    </table>
+
+    <p class="exposure-note">This chart shows the actual underlying asset exposure of your portfolio &mdash; looking through each fund to what it actually holds. Your total equity exposure (domestic + foreign) is 41.9%, well within the Moderate profile&rsquo;s 55% equity ceiling. Fixed income at 39.0% provides robust defensive ballast, while 19.1% in money market and deposits ensures liquidity and tactical flexibility.</p>
+  </div>
+
+  <!-- 7. Investment Strategy -->
+  <div class="section">
+    <div class="section-num">Section 7</div>
     <h2 class="section-title">Investment Strategy</h2>
 
     <div class="strategy-card">
@@ -705,9 +763,9 @@
     </div>
   </div>
 
-  <!-- 7. Fee Disclosure -->
+  <!-- 8. Fee Disclosure -->
   <div class="section">
-    <div class="section-num">Section 7</div>
+    <div class="section-num">Section 8</div>
     <h2 class="section-title">Fee Disclosure</h2>
     <table>
       <tr>
@@ -728,9 +786,9 @@
     </p>
   </div>
 
-  <!-- 8. Disclaimer -->
+  <!-- 9. Disclaimer -->
   <div class="section">
-    <div class="section-num">Section 8</div>
+    <div class="section-num">Section 9</div>
     <h2 class="section-title">Disclaimer &amp; Disclosures</h2>
     <div class="disclaimer">
       <p><strong>Important Notice:</strong> Past performance is not indicative of future results. This analysis is based on historical fund data from the Public Mutual Monthly Fund Report (MFR) dated February 2026 and current market conditions as of April 2026. It should not be considered personal financial advice.</p>
@@ -742,9 +800,9 @@
     </div>
   </div>
 
-  <!-- 9. Sources -->
+  <!-- 10. Sources -->
   <div class="section">
-    <div class="section-num">Section 9</div>
+    <div class="section-num">Section 10</div>
     <h2 class="section-title">Sources &amp; References</h2>
     <div class="sources">
       <h3>Macroeconomic Data Sources</h3>

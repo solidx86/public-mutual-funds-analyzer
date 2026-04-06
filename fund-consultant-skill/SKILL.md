@@ -1,5 +1,5 @@
 ---
-version: "1.0"
+version: "1.1"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -331,10 +331,11 @@ styling guidelines, and section requirements.
 4. Client risk profile — description, constraints, allocation targets
 5. Fund recommendations — one styled card per fund (alpha story, macro alignment, costs, flags)
 6. Portfolio summary — table with all funds, allocation, alpha, risk level, macro thesis
-7. Investment strategy — DCA/RSP, distribution, rebalancing triggers, tactical playbook
-8. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees
-9. Disclaimer & disclosures — regulatory disclaimer, FIMM compliance
-10. Sources — all web search URLs used for macro context
+7. Portfolio exposure — CSS pie chart of actual underlying asset exposure (see Step 7b)
+8. Investment strategy — DCA/RSP, distribution, rebalancing triggers, tactical playbook
+9. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees
+10. Disclaimer & disclosures — regulatory disclaimer, FIMM compliance
+11. Sources — all web search URLs used for macro context
 
 **Consultant branding** (load from memory or ask user):
 - Name, phone, email, FIMM license number, representative status
@@ -346,6 +347,71 @@ tables, print-optimized CSS (`@media print` with page breaks).
 
 **Important:** Generate the HTML using the Write tool as a single self-contained file. Do NOT require
 any external dependencies, scripts, or Python packages. The file must open directly in any browser.
+
+---
+
+## Step 7b: Portfolio Exposure Pie Chart
+
+After the Portfolio Summary table, generate a **CSS-only pie chart** showing the portfolio's actual
+underlying asset exposure — not by fund type, but by what the funds actually hold.
+
+### How to Calculate
+
+For each recommended fund, read its Asset Allocation columns (cols 34–39):
+- Dom. Equity, For. Equity, FI/Sukuk, Money Mkt, Deposits, Other
+
+Compute the **weighted portfolio exposure** by multiplying each fund's asset allocation percentages
+by its portfolio allocation weight, then summing across all funds:
+
+```
+For each asset class:
+  Portfolio Exposure % = Σ (Fund's allocation weight × Fund's asset class %)
+```
+
+**Example:** If Fund A has 25% portfolio weight and 80% Dom. Equity internally,
+it contributes 25% × 80% = 20% to the portfolio's Dom. Equity exposure.
+
+### Asset Class Mapping & Colors
+
+| Pie Slice | Source Column(s) | Color | Hex |
+|-----------|-----------------|-------|-----|
+| Equity (Domestic) | Dom. Equity | Blue | #2b6cb0 |
+| Equity (Foreign) | For. Equity | Teal | #2c7a7b |
+| Fixed Income / Sukuk | FI/Sukuk | Green | #276749 |
+| Money Market & Deposits | Money Mkt + Deposits | Grey | #718096 |
+| Other | Other | Amber | #b7791f |
+
+### Implementation
+
+Use a **CSS conic-gradient** pie chart — no JavaScript, no external libraries:
+
+```css
+.pie-chart {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #2b6cb0 0% [dom_equity]%,
+    #2c7a7b [dom_equity]% [dom_equity + for_equity]%,
+    #276749 [prev]% [prev + fi]%,
+    #718096 [prev]% [prev + mm]%,
+    #b7791f [prev]% 100%
+  );
+}
+```
+
+Include a **legend** next to the chart with colored squares, asset class labels, and percentages.
+
+### Placement
+
+Insert as a new section between Portfolio Summary (section 6) and Investment Strategy (section 8)
+in the proposal HTML. Use the heading **"Portfolio Exposure Breakdown"**.
+
+### Why This Matters (include a brief note in the proposal)
+
+Add a short explanatory line below the chart:
+> "This chart shows the actual underlying asset exposure of your portfolio — looking through each
+> fund to what it actually holds. This ensures your real-world risk matches your declared risk profile."
 
 ---
 
@@ -391,4 +457,5 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.1 | 2026-04-06 | Feature | Add portfolio exposure pie chart (CSS conic-gradient) to proposal — shows actual underlying asset allocation across all recommended funds |
 | 1.0 | 2026-04-06 | — | Initial versioned release |
