@@ -1,5 +1,5 @@
 ---
-version: "1.1"
+version: "1.2"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -55,27 +55,29 @@ For reference on how suitability assessments work and what determines each profi
 
 **Auto-detect the latest FundMaster workbook:**
 
-1. Glob for `PublicMutual_FundMaster_*_v7.xlsx` in the Funds project folder
+1. Glob for `PublicMutual_FundMaster_*_v8.xlsx` in the Funds project folder
 2. Parse the month and year from each filename (e.g., `Apr2026` → April 2026)
 3. Select the file with the most recent month/year
 4. Read the **Master** sheet — Row 3 is the header row, data starts at Row 4
 
-**The workbook contains 72 columns across these bands:**
+**The workbook contains 73 columns across these bands:**
 
 | Band | Key Columns |
 |------|-------------|
 | FUND DETAILS (1–9) | Fund Name, Abbr, Shariah-compliant, Fund Type, Objective, Risk Level, Distribution, Size (RM M), Launch |
-| SCREENING (10–13) | Status (Qualified/Disqualified), Beat %, Periods, Rationale |
-| ANNUALISED RETURNS (14–28) | YTD, 1Y, 3Y, 5Y, 10Y × (Fund %, Benchmark %, Alpha %) |
-| ALPHA EFFICIENCY (29–33) | AE YTD, AE 1Y, AE 3Y, AE 5Y, AE 10Y (Alpha / VF) |
-| ASSET ALLOCATION (34–39) | Dom. Equity, For. Equity, FI/Sukuk, Money Mkt, Deposits, Other |
-| GEO BREAKDOWN (40–51) | 11 countries + Other |
-| SECTOR BREAKDOWN (52–62) | 10 sectors + Other |
-| TOP 5 (63) | Top 5 Holdings |
-| META (64–67) | VF, VC, Lipper Class, Benchmark |
-| ATH MOMENTUM (68–72) | ATH NAV, ATH Date, Cur NAV, Drawdown (%), Days from ATH |
+| SCREENING (10–14) | Status (Qualified/Disqualified), Beat %, Periods, Rationale, **Weighted Alpha (%)** |
+| ANNUALISED RETURNS (15–29) | YTD, 1Y, 3Y, 5Y, 10Y × (Fund %, Benchmark %, Alpha %) |
+| ALPHA EFFICIENCY (30–34) | AE YTD, AE 1Y, AE 3Y, AE 5Y, AE 10Y (Alpha / VF) |
+| ASSET ALLOCATION (35–40) | Dom. Equity, For. Equity, FI/Sukuk, Money Mkt, Deposits, Other |
+| GEO BREAKDOWN (41–52) | 11 countries + Other |
+| SECTOR BREAKDOWN (53–63) | 10 sectors + Other |
+| TOP 5 (64) | Top 5 Holdings |
+| META (65–68) | VF, VC, Lipper Class, Benchmark |
+| ATH MOMENTUM (69–73) | ATH NAV, ATH Date, Cur NAV, Drawdown (%), Days from ATH |
 
-**Important:** Only work with **Qualified** funds (Status column = "Qualified").
+**Qualification:** Funds qualify based on **Weighted Alpha > 0%** (weighted scoring: YTD 5%, 1Y 15%,
+3Y 40%, 5Y 25%, 10Y 15%). Only work with **Qualified** funds (Status column = "Qualified"),
+except when applying the Exposure Gap mechanism (see Step 4b).
 
 ---
 
@@ -187,6 +189,59 @@ If over-concentrated, swap the least-diversifying fund for the next-ranked alter
 | –5% to –15% | Neutral | No adjustment |
 | –15% to –30% | Recovery potential | Neutral-positive for long-horizon |
 | > –30% | Deep value / contrarian | Only for Aggressive + long horizon; always flag the risk |
+
+---
+
+## Step 4b: Exposure Gap Check
+
+After building the portfolio from qualified funds, check whether macro context (Step 5) identifies
+a desirable exposure that **no qualified fund** covers — e.g., AI/tech, US equity, Greater China,
+a specific sector theme.
+
+### When to Trigger
+
+Only when ALL of these conditions are met:
+1. Macro analysis identifies a specific exposure as important for the client's portfolio
+2. No qualified fund provides meaningful exposure to that asset class/geography/sector
+3. The client's risk profile supports the exposure (e.g., don't add high-VF tech for Conservative)
+
+### Rules for Exposure Gap Picks
+
+1. **Must have positive 3Y alpha** — even if overall weighted alpha is negative, the fund must
+   demonstrate manager skill over the most important period
+2. **Maximum 1 exposure gap pick per portfolio** — this is an exception, not a habit
+3. **Maximum 15% portfolio allocation** — limit the unqualified exposure
+4. **Explicit disclosure required** — the fund card must clearly flag this as an Exposure Gap pick
+
+### Exposure Gap Fund Card Format
+
+Use the standard fund card format but add a distinct **"EXPOSURE GAP"** banner and section:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠ EXPOSURE GAP PICK — NOT ALPHA-QUALIFIED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FUND: [Full Fund Name] ([Abbreviation])
+...standard card fields...
+
+WHY THIS FUND (Exposure Rationale):
+- No qualified fund provides [specific exposure] exposure
+- This fund offers [X%] allocation to [target exposure]
+- 3Y alpha is positive (+X.XX%) — manager adds value over medium term
+
+ALPHA WARNING:
+- Weighted Alpha: [X.XX%] — below qualification threshold
+- The fund manager is NOT consistently beating the benchmark overall
+- This fund is included for EXPOSURE, not for manager alpha
+- [Specific weakness: e.g., "5Y alpha of -5.69% indicates long-term
+  underperformance vs benchmark; the strong 3Y return reflects the
+  asset class (AI/tech sector), not the manager's skill"]
+```
+
+### In the Proposal HTML
+
+Exposure Gap fund cards use a **dashed amber border** instead of the standard solid border,
+with an amber background banner to visually distinguish them from qualified picks.
 
 ---
 
@@ -457,5 +512,6 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.2 | 2026-04-06 | Feature | Add Exposure Gap mechanism (Step 4b) — allows 1 disqualified fund per portfolio when macro demands an exposure no qualified fund covers; update column references for v8 screener (73 cols, Weighted Alpha col 14) |
 | 1.1 | 2026-04-06 | Feature | Add portfolio exposure pie chart (CSS conic-gradient) to proposal — shows actual underlying asset allocation across all recommended funds |
 | 1.0 | 2026-04-06 | — | Initial versioned release |

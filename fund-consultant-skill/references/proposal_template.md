@@ -44,6 +44,14 @@ Load from memory (`user_consultant_details.md`):
 
 Display in cover page header and document footer.
 
+### Exposure Gap Fund Cards
+
+When a portfolio includes an Exposure Gap pick (Step 4b), style its fund card differently:
+- **Border:** 2px dashed amber (#b7791f) instead of solid
+- **Header banner:** Amber background (#975a16) with "⚠ EXPOSURE GAP PICK" label
+- **Alpha Warning box:** Distinct amber/yellow background (#fffff0) with border (#fefcbf),
+  clearly stating the fund's alpha weakness and why it's included for exposure only
+
 ### Styling Guidelines
 
 - **Color palette:** Professional navy (#1a365d) headers, white background, accent blue (#2b6cb0) for tables

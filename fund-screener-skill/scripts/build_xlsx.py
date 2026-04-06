@@ -1,5 +1,5 @@
 """
-Build a professionally formatted Excel workbook for Public Mutual funds (v5).
+Build a professionally formatted Excel workbook for Public Mutual funds (v8).
 Sheet 1: Master (all funds — qualified + disqualified)
 Sheet 2: Summary dashboard matching PDF structure with MEDIAN stats + Top 5 per fund type
 
@@ -23,7 +23,7 @@ from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
 
 # ── Paths (auto-derived from script location: scripts/ → fund-screener-skill/ → Funds/) ──
 WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v7.xlsx")
+OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v8.xlsx")
 
 if not WORK_DIR or not OUT_PATH:
     print("ERROR: Please set WORK_DIR and OUT_PATH at the top of this script.")
@@ -84,16 +84,16 @@ ws.title = "Master"
 ws.sheet_view.showGridLines = False
 
 # Column definitions: (header, csv_key, width, number_format, is_formula)
-# Layout v7:
+# Layout v8:
 #   FUND DETAILS(1-9):  Fund Name, Abbr, Shariah-compliant, Fund Type, Objective, Risk Level, Distribution, Size, Launch
-#   SCREENING(10-13):   Status, Beat %, Periods, Rationale
-#   RETURNS(14-28):     YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) — all store raw % values
-#   ALPHA EFFICIENCY(29-33): AE YTD, AE 1Y, AE 3Y, AE 5Y, AE 10Y (formula: Alpha/VF)
-#   ASSET ALLOCATION(34-39): 6 cols — all store raw % values
-#   GEO BREAKDOWN(40-51): 12 cols — all store raw % values
-#   SECTOR BREAKDOWN(52-62): 11 cols — all store raw % values
-#   TOP 5(63): Holdings text only
-#   META(64-67): VF, VC, Lipper Class, Benchmark
+#   SCREENING(10-14):   Status, Beat %, Periods, Rationale, Weighted Alpha
+#   RETURNS(15-29):     YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) — all store raw % values
+#   ALPHA EFFICIENCY(30-34): AE YTD, AE 1Y, AE 3Y, AE 5Y, AE 10Y (formula: Alpha/VF)
+#   ASSET ALLOCATION(35-40): 6 cols — all store raw % values
+#   GEO BREAKDOWN(41-52): 12 cols — all store raw % values
+#   SECTOR BREAKDOWN(53-63): 11 cols — all store raw % values
+#   TOP 5(64): Holdings text only
+#   META(65-68): VF, VC, Lipper Class, Benchmark
 
 COLS = [
     # ── Fund Details (1-9) ──────────────
@@ -111,90 +111,92 @@ COLS = [
     ("Beat (%)",         "Outperform Rate (%)", 10, "0.0",    False),  # 11
     ("Periods",          "Periods Assessed",    10, "@",       False),  # 12
     ("Rationale",        "Rationale",           48, "@",       False),  # 13
-    # ── Returns (14-28) — all raw % values ──
-    ("YTD Fund (%)",     "YTD Fund (%)",        10, "0.00",   False),  # 14
-    ("YTD Bench (%)",    "YTD Benchmark (%)",   10, "0.00",   False),  # 15
-    ("YTD Alpha (%)",    "YTD Alpha",           10, "0.00",   False),  # 16
-    ("1Y Fund (%)",      "1Y Fund (%)",         10, "0.00",   False),  # 17
-    ("1Y Bench (%)",     "1Y Benchmark (%)",    10, "0.00",   False),  # 18
-    ("1Y Alpha (%)",     "1Y Alpha",            10, "0.00",   False),  # 19
-    ("3Y Fund (%)",      "3Y Fund (%)",         10, "0.00",   False),  # 20
-    ("3Y Bench (%)",     "3Y Benchmark (%)",    10, "0.00",   False),  # 21
-    ("3Y Alpha (%)",     "3Y Alpha",            10, "0.00",   False),  # 22
-    ("5Y Fund (%)",      "5Y Fund (%)",         10, "0.00",   False),  # 23
-    ("5Y Bench (%)",     "5Y Benchmark (%)",    10, "0.00",   False),  # 24
-    ("5Y Alpha (%)",     "5Y Alpha",            10, "0.00",   False),  # 25
-    ("10Y Fund (%)",     "10Y Fund (%)",        10, "0.00",   False),  # 26
-    ("10Y Bench (%)",    "10Y Benchmark (%)",   10, "0.00",   False),  # 27
-    ("10Y Alpha (%)",    "10Y Alpha",           10, "0.00",   False),  # 28
-    # ── Alpha Efficiency (29-33) — formula columns ──
-    ("AE YTD",           "AE_FORMULA",          9,  "0.00",   True),   # 29
-    ("AE 1Y",            "AE_FORMULA",          9,  "0.00",   True),   # 30
-    ("AE 3Y",            "AE_FORMULA",          9,  "0.00",   True),   # 31
-    ("AE 5Y",            "AE_FORMULA",          9,  "0.00",   True),   # 32
-    ("AE 10Y",           "AE_FORMULA",          9,  "0.00",   True),   # 33
-    # ── Asset Allocation (34-39) — raw % values ─
-    ("Dom. Equity (%)",  "Alloc: Domestic Equity",       11, "0.0",   False),  # 34
-    ("For. Equity (%)",  "Alloc: Foreign Equity",        11, "0.0",   False),  # 35
-    ("FI / Sukuk (%)",   "Alloc: Fixed Income / Sukuk",  11, "0.0",   False),  # 36
-    ("Money Mkt (%)",    "Alloc: Money Market",          11, "0.0",   False),  # 37
-    ("Deposits (%)",     "Alloc: Deposits",              10, "0.0",   False),  # 38
-    ("Alloc Other (%)",  "Alloc: Other",                 10, "0.0",   False),  # 39
-    # ── Geo Breakdown (40-51) — raw % values ────
-    ("USA (%)",          "Geo: USA",            8, "0.0",   False),   # 40
-    ("Taiwan (%)",       "Geo: Taiwan",         8, "0.0",   False),   # 41
-    ("Korea (%)",        "Geo: Korea",          8, "0.0",   False),   # 42
-    ("Japan (%)",        "Geo: Japan",          8, "0.0",   False),   # 43
-    ("France (%)",       "Geo: France",         8, "0.0",   False),   # 44
-    ("Germany (%)",      "Geo: Germany",        8, "0.0",   False),   # 45
-    ("China (%)",        "Geo: China",          8, "0.0",   False),   # 46
-    ("Singapore (%)",    "Geo: Singapore",      9, "0.0",   False),   # 47
-    ("Netherlands (%)",  "Geo: Netherlands",    10,"0.0",   False),   # 48
-    ("Indonesia (%)",    "Geo: Indonesia",      9, "0.0",   False),   # 49
-    ("Australia (%)",    "Geo: Australia",      9, "0.0",   False),   # 50
-    ("Geo Other (%)",    "Geo: Geo Other",      9, "0.0",   False),   # 51
-    # ── Sector Breakdown (52-62) — raw % values ─
-    ("Industrial (%)",         "Sector: Industrial",          10, "0.0",   False),  # 52
-    ("Technology (%)",         "Sector: Technology",           10, "0.0",   False),  # 53
-    ("Financial (%)",          "Sector: Financial",            10, "0.0",   False),  # 54
-    ("Comms (%)",              "Sector: Communications",       10, "0.0",   False),  # 55
-    ("Cons. Disc. (%)",        "Sector: Consumer Discretionary",10,"0.0",   False),  # 56
-    ("Cons. Staples (%)",      "Sector: Consumer Staples",     11, "0.0",   False),  # 57
-    ("Utilities (%)",          "Sector: Utilities",            9,  "0.0",   False),  # 58
-    ("Energy (%)",             "Sector: Energy",               8,  "0.0",   False),  # 59
-    ("Materials (%)",          "Sector: Materials",             9,  "0.0",   False),  # 60
-    ("Real Estate (%)",        "Sector: Real Estate",          10, "0.0",   False),  # 61
-    ("Sector Other (%)",       "Sector: Other Sector",         10, "0.0",   False),  # 62
-    # ── Top 5 (63) ──────────────────────────────
-    ("Top 5 Holdings",   "Top 5 Holdings",      55, "@",   False),  # 63
-    # ── Meta (64-67) ────────────────────────────
-    ("VF",               "Volatility Factor",   6,  "0.0", False),   # 64
-    ("VC",               "Volatility Class",    12, "@",   False),   # 65
-    ("Lipper Class",     "Lipper Class",        28, "@",   False),   # 66
-    ("Benchmark",        "Benchmark",           45, "@",   False),   # 67
-    # ── ATH Momentum (68-72) — v6 ───────────────────────────────────
-    ("ATH NAV",          "_ath_nav",            10, "0.0000", False), # 68
-    ("ATH Date",         "_ath_date",           12, "@",      False), # 69
-    ("Cur NAV",          "_cur_nav",            10, "0.0000", False), # 70
-    ("Drawdown (%)",     "_drawdown",           11, "0.00",   False), # 71
-    ("Days from ATH",    "_days_ath",           13, "0",      False), # 72
+    ("Wtd Alpha (%)",    "Weighted Alpha (%)",  12, "0.00",   False),  # 14
+    # ── Returns (15-29) — all raw % values ──
+    ("YTD Fund (%)",     "YTD Fund (%)",        10, "0.00",   False),  # 15
+    ("YTD Bench (%)",    "YTD Benchmark (%)",   10, "0.00",   False),  # 16
+    ("YTD Alpha (%)",    "YTD Alpha",           10, "0.00",   False),  # 17
+    ("1Y Fund (%)",      "1Y Fund (%)",         10, "0.00",   False),  # 18
+    ("1Y Bench (%)",     "1Y Benchmark (%)",    10, "0.00",   False),  # 19
+    ("1Y Alpha (%)",     "1Y Alpha",            10, "0.00",   False),  # 20
+    ("3Y Fund (%)",      "3Y Fund (%)",         10, "0.00",   False),  # 21
+    ("3Y Bench (%)",     "3Y Benchmark (%)",    10, "0.00",   False),  # 22
+    ("3Y Alpha (%)",     "3Y Alpha",            10, "0.00",   False),  # 23
+    ("5Y Fund (%)",      "5Y Fund (%)",         10, "0.00",   False),  # 24
+    ("5Y Bench (%)",     "5Y Benchmark (%)",    10, "0.00",   False),  # 25
+    ("5Y Alpha (%)",     "5Y Alpha",            10, "0.00",   False),  # 26
+    ("10Y Fund (%)",     "10Y Fund (%)",        10, "0.00",   False),  # 27
+    ("10Y Bench (%)",    "10Y Benchmark (%)",   10, "0.00",   False),  # 28
+    ("10Y Alpha (%)",    "10Y Alpha",           10, "0.00",   False),  # 29
+    # ── Alpha Efficiency (30-34) — formula columns ──
+    ("AE YTD",           "AE_FORMULA",          9,  "0.00",   True),   # 30
+    ("AE 1Y",            "AE_FORMULA",          9,  "0.00",   True),   # 31
+    ("AE 3Y",            "AE_FORMULA",          9,  "0.00",   True),   # 32
+    ("AE 5Y",            "AE_FORMULA",          9,  "0.00",   True),   # 33
+    ("AE 10Y",           "AE_FORMULA",          9,  "0.00",   True),   # 34
+    # ── Asset Allocation (35-40) — raw % values ─
+    ("Dom. Equity (%)",  "Alloc: Domestic Equity",       11, "0.0",   False),  # 35
+    ("For. Equity (%)",  "Alloc: Foreign Equity",        11, "0.0",   False),  # 36
+    ("FI / Sukuk (%)",   "Alloc: Fixed Income / Sukuk",  11, "0.0",   False),  # 37
+    ("Money Mkt (%)",    "Alloc: Money Market",          11, "0.0",   False),  # 38
+    ("Deposits (%)",     "Alloc: Deposits",              10, "0.0",   False),  # 39
+    ("Alloc Other (%)",  "Alloc: Other",                 10, "0.0",   False),  # 40
+    # ── Geo Breakdown (41-52) — raw % values ────
+    ("USA (%)",          "Geo: USA",            8, "0.0",   False),   # 41
+    ("Taiwan (%)",       "Geo: Taiwan",         8, "0.0",   False),   # 42
+    ("Korea (%)",        "Geo: Korea",          8, "0.0",   False),   # 43
+    ("Japan (%)",        "Geo: Japan",          8, "0.0",   False),   # 44
+    ("France (%)",       "Geo: France",         8, "0.0",   False),   # 45
+    ("Germany (%)",      "Geo: Germany",        8, "0.0",   False),   # 46
+    ("China (%)",        "Geo: China",          8, "0.0",   False),   # 47
+    ("Singapore (%)",    "Geo: Singapore",      9, "0.0",   False),   # 48
+    ("Netherlands (%)",  "Geo: Netherlands",    10,"0.0",   False),   # 49
+    ("Indonesia (%)",    "Geo: Indonesia",      9, "0.0",   False),   # 50
+    ("Australia (%)",    "Geo: Australia",      9, "0.0",   False),   # 51
+    ("Geo Other (%)",    "Geo: Geo Other",      9, "0.0",   False),   # 52
+    # ── Sector Breakdown (53-63) — raw % values ─
+    ("Industrial (%)",         "Sector: Industrial",          10, "0.0",   False),  # 53
+    ("Technology (%)",         "Sector: Technology",           10, "0.0",   False),  # 54
+    ("Financial (%)",          "Sector: Financial",            10, "0.0",   False),  # 55
+    ("Comms (%)",              "Sector: Communications",       10, "0.0",   False),  # 56
+    ("Cons. Disc. (%)",        "Sector: Consumer Discretionary",10,"0.0",   False),  # 57
+    ("Cons. Staples (%)",      "Sector: Consumer Staples",     11, "0.0",   False),  # 58
+    ("Utilities (%)",          "Sector: Utilities",            9,  "0.0",   False),  # 59
+    ("Energy (%)",             "Sector: Energy",               8,  "0.0",   False),  # 60
+    ("Materials (%)",          "Sector: Materials",             9,  "0.0",   False),  # 61
+    ("Real Estate (%)",        "Sector: Real Estate",          10, "0.0",   False),  # 62
+    ("Sector Other (%)",       "Sector: Other Sector",         10, "0.0",   False),  # 63
+    # ── Top 5 (64) ──────────────────────────────
+    ("Top 5 Holdings",   "Top 5 Holdings",      55, "@",   False),  # 64
+    # ── Meta (65-68) ────────────────────────────
+    ("VF",               "Volatility Factor",   6,  "0.0", False),   # 65
+    ("VC",               "Volatility Class",    12, "@",   False),   # 66
+    ("Lipper Class",     "Lipper Class",        28, "@",   False),   # 67
+    ("Benchmark",        "Benchmark",           45, "@",   False),   # 68
+    # ── ATH Momentum (69-73) — v6 ───────────────────────────────────
+    ("ATH NAV",          "_ath_nav",            10, "0.0000", False), # 69
+    ("ATH Date",         "_ath_date",           12, "@",      False), # 70
+    ("Cur NAV",          "_cur_nav",            10, "0.0000", False), # 71
+    ("Drawdown (%)",     "_drawdown",           11, "0.00",   False), # 72
+    ("Days from ATH",    "_days_ath",           13, "0",      False), # 73
 ]
 
 NUM_COLS = len(COLS)
 
 # Column indices (1-based) for formula references
-# Geography removed (-1) and Rationale added (+1) → cols 14+ net unchanged
-COL_VF = 64       # VF column
-COL_YTD_ALPHA = 16
-COL_1Y_ALPHA = 19
-COL_3Y_ALPHA = 22
-COL_5Y_ALPHA = 25
-COL_10Y_ALPHA = 28
-COL_AE_YTD = 29
-COL_AE_1Y = 30
-COL_AE_3Y = 31
-COL_AE_5Y = 32
-COL_AE_10Y = 33
+# v8: Weighted Alpha col 14 added → all cols after Screening shift +1
+COL_WTD_ALPHA = 14  # Weighted Alpha column
+COL_VF = 65         # VF column
+COL_YTD_ALPHA = 17
+COL_1Y_ALPHA = 20
+COL_3Y_ALPHA = 23
+COL_5Y_ALPHA = 26
+COL_10Y_ALPHA = 29
+COL_AE_YTD = 30
+COL_AE_1Y = 31
+COL_AE_3Y = 32
+COL_AE_5Y = 33
+COL_AE_10Y = 34
 
 # Map AE column index to its source Alpha column
 AE_ALPHA_MAP = {
@@ -221,15 +223,15 @@ ws.row_dimensions[1].height = 28
 # ── Row 2: Group header bands ────────────────────────────────────────────────
 GROUP_BANDS = [
     (1,   9, "FUND DETAILS",     "404040"),
-    (10, 13, "SCREENING",        "C00000"),
-    (14, 28, "ANNUALISED RETURNS vs BENCHMARK (MFR FEB 2026)", "2E75B6"),
-    (29, 33, "ALPHA EFFICIENCY (Alpha / VF)", "1A5276"),
-    (34, 39, "ASSET ALLOCATION (%)", "833C11"),
-    (40, 51, "GEOGRAPHICAL BREAKDOWN (%)", "375623"),
-    (52, 62, "SECTOR BREAKDOWN (%)", "2E4053"),
-    (63, 63, "TOP 5",            "7030A0"),
-    (64, 67, "META",             "808080"),
-    (68, 72, "ATH MOMENTUM",    "1F618D"),
+    (10, 14, "SCREENING",        "C00000"),
+    (15, 29, "ANNUALISED RETURNS vs BENCHMARK (MFR FEB 2026)", "2E75B6"),
+    (30, 34, "ALPHA EFFICIENCY (Alpha / VF)", "1A5276"),
+    (35, 40, "ASSET ALLOCATION (%)", "833C11"),
+    (41, 52, "GEOGRAPHICAL BREAKDOWN (%)", "375623"),
+    (53, 63, "SECTOR BREAKDOWN (%)", "2E4053"),
+    (64, 64, "TOP 5",            "7030A0"),
+    (65, 68, "META",             "808080"),
+    (69, 73, "ATH MOMENTUM",    "1F618D"),
 ]
 
 for start, end, label, color in GROUP_BANDS:
@@ -260,9 +262,9 @@ ws.freeze_panes = "A4"
 
 # ── Data rows ────────────────────────────────────────────────────────────────
 data_start = 4
-text_cols = {1, 2, 3, 4, 5, 7, 9, 10, 12, 13, 63, 65, 66, 67, 69}  # 69=ATH Date
-wrap_cols = {5, 7, 13, 63, 66, 67}
-COL_DRAWDOWN = 71  # Drawdown % column index
+text_cols = {1, 2, 3, 4, 5, 7, 9, 10, 12, 13, 64, 66, 67, 68, 70}  # 70=ATH Date
+wrap_cols = {5, 7, 13, 64, 67, 68}
+COL_DRAWDOWN = 72  # Drawdown % column index
 
 C_DISQ_ROW = "F2F2F2"
 C_DISQ_ROW_ALT = "E8E8E8"
@@ -373,31 +375,43 @@ ws.conditional_formatting.add(
                    mid_type='num', mid_value=60, mid_color="FFEB9C",
                    end_type='num', end_value=100, end_color="C6EFCE"))
 
+# Weighted Alpha (col 14): green positive, red negative
+wa_col = get_column_letter(COL_WTD_ALPHA)
+wa_rng = f"{wa_col}{data_start}:{wa_col}{last_row}"
+ws.conditional_formatting.add(wa_rng,
+    CellIsRule(operator='greaterThan', formula=['0'],
+               fill=PatternFill("solid", fgColor="C6EFCE"),
+               font=Font(name="Arial", size=9, color="276221")))
+ws.conditional_formatting.add(wa_rng,
+    CellIsRule(operator='lessThan', formula=['0'],
+               fill=PatternFill("solid", fgColor="FCE4D6"),
+               font=Font(name="Arial", size=9, color="9C0006")))
+
 # Allocation columns — light bar (34-39)
-for col_idx in range(34, 40):
+for col_idx in range(35, 41):
     col_letter = get_column_letter(col_idx)
     rng = f"{col_letter}{data_start}:{col_letter}{last_row}"
     ws.conditional_formatting.add(rng,
         CellIsRule(operator='greaterThan', formula=['0'],
                    fill=PatternFill("solid", fgColor="FFF2CC")))
 
-# Geo columns — light bar (40-51)
-for col_idx in range(40, 52):
+# Geo columns — light bar (41-52)
+for col_idx in range(41, 53):
     col_letter = get_column_letter(col_idx)
     rng = f"{col_letter}{data_start}:{col_letter}{last_row}"
     ws.conditional_formatting.add(rng,
         CellIsRule(operator='greaterThan', formula=['0'],
                    fill=PatternFill("solid", fgColor="E2EFDA")))
 
-# Sector columns — light bar (52-62)
-for col_idx in range(52, 63):
+# Sector columns — light bar (53-63)
+for col_idx in range(53, 64):
     col_letter = get_column_letter(col_idx)
     rng = f"{col_letter}{data_start}:{col_letter}{last_row}"
     ws.conditional_formatting.add(rng,
         CellIsRule(operator='greaterThan', formula=['0'],
                    fill=PatternFill("solid", fgColor="DAEEF3")))
 
-# Drawdown % column (71): red scale — more negative = deeper red
+# Drawdown % column (72): red scale — more negative = deeper red
 dd_col = get_column_letter(COL_DRAWDOWN)
 dd_rng = f"{dd_col}{data_start}:{dd_col}{last_row}"
 ws.conditional_formatting.add(dd_rng,
@@ -427,15 +441,15 @@ M_SERIES = get_column_letter(3)      # Shariah-compliant col
 M_BEAT = get_column_letter(11)       # Beat %
 M_NAME = get_column_letter(1)        # Fund Name
 M_ABBR = get_column_letter(2)        # Abbr
-M_3Y_FUND = get_column_letter(20)    # 3Y Fund
-M_3Y_ALPHA = get_column_letter(22)   # 3Y Alpha
-M_AE_3Y = get_column_letter(31)      # AE 3Y
+M_3Y_FUND = get_column_letter(21)    # 3Y Fund
+M_3Y_ALPHA = get_column_letter(23)   # 3Y Alpha
+M_AE_3Y = get_column_letter(32)      # AE 3Y
 M_SIZE = get_column_letter(8)        # Size
-M_VC = get_column_letter(65)         # VC
-M_YTD_FUND = get_column_letter(14)   # YTD Fund
-M_1Y_FUND = get_column_letter(17)    # 1Y Fund
-M_5Y_FUND = get_column_letter(23)    # 5Y Fund
-M_10Y_FUND = get_column_letter(26)   # 10Y Fund
+M_VC = get_column_letter(66)         # VC
+M_YTD_FUND = get_column_letter(15)   # YTD Fund
+M_1Y_FUND = get_column_letter(18)    # 1Y Fund
+M_5Y_FUND = get_column_letter(24)    # 5Y Fund
+M_10Y_FUND = get_column_letter(27)   # 10Y Fund
 
 # Color palette for fund types
 CLR_SCREENING = "C00000"
@@ -549,14 +563,14 @@ stats = [
     ("Excluded: Wholesale funds", f"4", f"({wholesale})"),
     ("Retail funds screened", n_screened, ""),
     (None, None, None),  # spacer
-    ("Funds qualified (≥60% beat rate)", len(qual_rows), ""),
+    ("Funds qualified (Weighted Alpha > 0%)", len(qual_rows), ""),
     ("Funds disqualified", len(disq_rows_list), ""),
     ("Pass rate", f"{pass_rate_val*100:.1f}%", ""),
     ("Conventional funds qualified", n_conv, ""),
     ("Shariah-compliant funds qualified", n_shariah, ""),
     (None, None, None),  # spacer
     ("Data source", "MFR February 2026", ""),
-    ("Screening criteria", "≥60% of YTD/1Y/3Y/5Y/10Y periods outperform benchmark", ""),
+    ("Screening criteria", "Weighted Alpha > 0% (YTD×5% + 1Y×15% + 3Y×40% + 5Y×25% + 10Y×15%)", ""),
     ("Minimum data requirement", "≥2 periods (YTD, 1Y, 3Y, 5Y, 10Y)", ""),
     ("Note", "Class-B & Wholesale funds excluded — not available to typical retail investors", ""),
 ]
@@ -699,7 +713,7 @@ def build_fund_type_section(ws, r, fund_type, color, fund_type_label=None):
     r = write_top5(ws, r, f"{label} — TOP 5 BY 3Y ANN. FUND RETURN",
         ["Fund Name", "Abbr", "3Y Fund (%)", "3Y Alpha (%)", "Beat (%)", "AUM (RM M)", "VC", ""],
         fund_type, M_3Y_FUND,
-        [("A", False), ("B", False), ("T", True), ("V", False), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
+        [(M_NAME, False), (M_ABBR, False), (M_3Y_FUND, True), (M_3Y_ALPHA, False), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
         color
     )
 
@@ -707,7 +721,7 @@ def build_fund_type_section(ws, r, fund_type, color, fund_type_label=None):
     r = write_top5(ws, r, f"{label} — TOP 5 BY 3Y ANN. ALPHA",
         ["Fund Name", "Abbr", "3Y Fund (%)", "3Y Alpha (%)", "Beat (%)", "AUM (RM M)", "VC", ""],
         fund_type, M_3Y_ALPHA,
-        [("A", False), ("B", False), ("T", False), ("V", True), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
+        [(M_NAME, False), (M_ABBR, False), (M_3Y_FUND, False), (M_3Y_ALPHA, True), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
         color
     )
 
@@ -715,7 +729,7 @@ def build_fund_type_section(ws, r, fund_type, color, fund_type_label=None):
     r = write_top5(ws, r, f"{label} — TOP 5 BY ALPHA EFFICIENCY",
         ["Fund Name", "Abbr", "Alpha Eff", "3Y Alpha (%)", "Beat (%)", "AUM (RM M)", "VC", ""],
         fund_type, M_AE_3Y,
-        [("A", False), ("B", False), ("AE", True), ("V", False), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
+        [(M_NAME, False), (M_ABBR, False), (M_AE_3Y, True), (M_3Y_ALPHA, False), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
         color
     )
 
@@ -723,7 +737,7 @@ def build_fund_type_section(ws, r, fund_type, color, fund_type_label=None):
     r = write_top5(ws, r, f"{label} — TOP 5 BY AUM",
         ["Fund Name", "Abbr", "AUM (RM M)", "3Y Fund (%)", "3Y Alpha (%)", "Beat (%)", "VC", ""],
         fund_type, M_SIZE,
-        [("A", False), ("B", False), (M_SIZE, True), ("T", False), ("V", False), (M_BEAT, False), (M_VC, False), ("", False)],
+        [(M_NAME, False), (M_ABBR, False), (M_SIZE, True), (M_3Y_FUND, False), (M_3Y_ALPHA, False), (M_BEAT, False), (M_VC, False), ("", False)],
         color,
         nfmts=[None, None, "#,##0.00", "0.00", "0.00", "0.0", None, None]
     )

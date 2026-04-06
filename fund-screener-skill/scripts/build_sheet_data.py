@@ -84,6 +84,48 @@ def standardize_distribution(raw):
 
 qualified_abbrs = set(f['abbr'] for f in qualified_raw)
 
+# ── Weighted Alpha calculation (v8) ─────────────────────────────────────────
+# Recompute weighted alpha for all funds (extract_mfr.py stores it in fund_data,
+# but we recompute here from period_detail to ensure consistency with CSV output)
+WA_WEIGHTS = {'ytd': 0.05, '1-year': 0.15, '3-year': 0.40, '5-year': 0.25, '10-year': 0.15}
+
+def compute_weighted_alpha(fund):
+    """Compute weighted alpha score from period_detail alphas."""
+    pd = fund.get('period_detail', {})
+    available = {}
+    for period_key, weight in WA_WEIGHTS.items():
+        entry = pd.get(period_key, {})
+        alpha = entry.get('alpha')
+        if alpha is not None and alpha != '':
+            try:
+                available[period_key] = (weight, float(alpha))
+            except (ValueError, TypeError):
+                pass
+    # Also check ytd via the separate ytd field if period_detail doesn't have it
+    if 'ytd' not in available:
+        ytd_old = fund.get('ytd') or {}
+        ytd_f = ytd_old.get('fund', '')
+        ytd_b = ytd_old.get('benchmark', '')
+        if ytd_f != '' and ytd_b != '':
+            try:
+                alpha = round(float(ytd_f) - float(ytd_b), 2)
+                available['ytd'] = (WA_WEIGHTS['ytd'], alpha)
+            except (ValueError, TypeError):
+                pass
+    if len(available) < 2:
+        return None
+    total_w = sum(w for w, _ in available.values())
+    return round(sum((w / total_w) * a for w, a in available.values()), 4)
+
+# Rebuild qualified_abbrs using weighted alpha (>0)
+qualified_abbrs = set()
+for f in all_funds_raw:
+    wa = compute_weighted_alpha(f)
+    f['_weighted_alpha'] = wa
+    tp = f.get('total_periods', 0)
+    if wa is not None and wa > 0 and tp >= 2:
+        qualified_abbrs.add(f['abbr'])
+
 
 def build_rationale(fund, status, out_p, total_p):
     """Build a concise text rationale summarising which periods beat/missed the benchmark."""
@@ -122,7 +164,9 @@ def build_rationale(fund, status, out_p, total_p):
 
     periods_str = ' '.join(parts) if parts else 'N/A'
     prefix = 'Qualified' if status == 'Qualified' else 'Disqualified'
-    return f"{prefix} {out_p}/{total_p} — {periods_str}"
+    wa = fund.get('_weighted_alpha')
+    wa_str = f"WA: {wa:+.2f}%" if wa is not None else "WA: N/A"
+    return f"{prefix} ({wa_str}) — {periods_str}"
 
 
 def clean_name(name):
@@ -324,6 +368,7 @@ def build_row(fund):
         'Outperform Rate (%)': rate,
         'Periods Assessed': f"{out_p}/{total_p}",
         'Rationale': build_rationale(fund, status, out_p, total_p),
+        'Weighted Alpha (%)': fmt(fund.get('_weighted_alpha', '')),
         # ── RETURNS ──
         'YTD Fund (%)': fmt(ytd_fund),
         'YTD Benchmark (%)': fmt(ytd_bench),
@@ -368,7 +413,7 @@ def build_row(fund):
     return row
 
 
-# Sort: qualified first, then by fund type, beat rate, 3Y alpha
+# Sort: qualified first, then by fund type, weighted alpha, 3Y alpha
 def sort_key(r):
     type_order = {
         'Equity': 1,
@@ -379,9 +424,9 @@ def sort_key(r):
     }
     status_order = 0 if r['Status'] == 'Qualified' else 1
     ft = type_order.get(r['Fund Type'], 9)
-    rate = -float(r['Outperform Rate (%)'])
+    wa = -float(r['Weighted Alpha (%)']) if r['Weighted Alpha (%)'] else 0
     alpha3 = -float(r['3Y Alpha']) if r['3Y Alpha'] else 0
-    return (status_order, ft, rate, alpha3)
+    return (status_order, ft, wa, alpha3)
 
 
 # Build ALL fund rows

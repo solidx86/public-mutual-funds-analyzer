@@ -14,6 +14,6 @@ master_funds.csv
 fetch_ath.py
 
 # Versioned Excel outputs — keep latest, ignore old versions
-# To track a new file: git add -f PublicMutual_FundMaster_<Month><Year>_v7.xlsx
+# To track a new file: git add -f PublicMutual_FundMaster_<Month><Year>_v8.xlsx
 PublicMutual_FundMaster_*.xlsx
-!PublicMutual_FundMaster_Apr2026_v7.xlsx
+!PublicMutual_FundMaster_Apr2026_v8.xlsx

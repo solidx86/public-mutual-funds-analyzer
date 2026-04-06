@@ -756,11 +756,29 @@ def process_all_mfrs():
             }
             all_funds.append(fund_data)
 
-            qualifies = rate >= 60 and total_p >= 2
+            # Weighted Alpha qualification (v8)
+            # Weights: YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%
+            wa_weights = {'ytd': 0.05, '1-year': 0.15, '3-year': 0.40, '5-year': 0.25, '10-year': 0.15}
+            wa_available = {}
+            for pk, pw in wa_weights.items():
+                pd_entry = detail.get(pk, {})
+                alpha_val = pd_entry.get('alpha')
+                if alpha_val is not None:
+                    wa_available[pk] = (pw, alpha_val)
+            if len(wa_available) >= 2:
+                total_w = sum(w for w, _ in wa_available.values())
+                weighted_alpha = sum((w / total_w) * a for w, a in wa_available.values())
+                weighted_alpha = round(weighted_alpha, 4)
+            else:
+                weighted_alpha = None
+
+            qualifies = weighted_alpha is not None and weighted_alpha > 0 and total_p >= 2
+            fund_data['weighted_alpha'] = weighted_alpha
             status = "QUAL" if qualifies else "    "
             h_count = len(holdings)
             s_count = len(sectors)
-            print(f"  {status} {fund_meta['abbr']:15s} | {rate:5.0f}% | {out_count}/{total_p} | "
+            wa_str = f"{weighted_alpha:+.2f}" if weighted_alpha is not None else "N/A"
+            print(f"  {status} {fund_meta['abbr']:15s} | WA:{wa_str:>7s} | {out_count}/{total_p} | "
                   f"H:{h_count} S:{s_count} | {lc[:40]}")
 
             if qualifies:

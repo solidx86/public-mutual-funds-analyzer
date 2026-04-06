@@ -1,11 +1,11 @@
 ---
-version: "1.0"
+version: "1.1"
 name: fund-screener
 description: >
-  Bulk-screen all Public Mutual unit trust funds from Monthly Fund Report (MFR) PDFs and produce a fund master list as a formatted Excel file (importable to Google Sheets). Applies the 5-Point Code Review framework: filters for funds that beat their benchmark in at least 60% of available return periods (YTD, 1Y, 3Y, 5Y, 10Y). Use this skill whenever the user says things like: "screen the new MFR", "update the fund qualification list", "which funds qualify this month", "run the fund screener", "update with the [month] MFR", "new monthly report is out — re-run the analysis", or any request to produce or refresh a qualified funds shortlist from Public Mutual MFR data. Also trigger when the user wants to compare qualified funds across months, filter by asset class (equity, bond, Shariah), or update the Google Sheet / Excel output. If the user drops new MFR PDFs and says "these are out" or "new reports", use this skill.
+  Bulk-screen all Public Mutual unit trust funds from Monthly Fund Report (MFR) PDFs and produce a fund master list as a formatted Excel file (importable to Google Sheets). Applies weighted alpha scoring: qualifies funds whose weighted alpha (YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%) is positive, ensuring alpha quality matters more than binary pass/fail counts. Use this skill whenever the user says things like: "screen the new MFR", "update the fund qualification list", "which funds qualify this month", "run the fund screener", "update with the [month] MFR", "new monthly report is out — re-run the analysis", or any request to produce or refresh a qualified funds shortlist from Public Mutual MFR data. Also trigger when the user wants to compare qualified funds across months, filter by asset class (equity, bond, Shariah), or update the Google Sheet / Excel output. If the user drops new MFR PDFs and says "these are out" or "new reports", use this skill.
 ---
 
-# Public Mutual Fund Screener (v7)
+# Public Mutual Fund Screener (v8)
 
 You are running a monthly fund-qualification pipeline for a Public Mutual unit trust consultant.
 The pipeline reads MFR PDFs, fetches All-Time High NAV from the Public Mutual website, scores
@@ -19,19 +19,34 @@ every fund against its benchmark, and outputs a formatted Excel workbook with a 
 
 ## How the screening works
 
-**Qualification rule:** A fund qualifies if it beats its benchmark in at least 60% of available
-return periods. The periods assessed are: YTD, 1Y, 3Y, 5Y, 10Y. Minimum 2 periods required.
+**Qualification rule:** A fund qualifies if its **weighted alpha score is positive** (> 0%)
+across available return periods. Minimum 2 periods required.
 
-**Why these periods?**
-- YTD captures very recent momentum and direction
-- 1Y shows current-year performance
-- 3Y reveals the current team's track record
-- 5Y smooths through market cycles
-- 10Y shows long-term structural edge
+**Weighted Alpha Formula:**
+```
+Weighted Alpha = (YTD_Alpha × 5%) + (1Y_Alpha × 15%) + (3Y_Alpha × 40%) + (5Y_Alpha × 25%) + (10Y_Alpha × 15%)
+```
 
-A 60% threshold (e.g., 3/5 periods) is strict enough to filter noise but realistic enough to
-catch strong consistent performers. Including YTD gives the screening a forward-looking tilt
-that pure annualised periods miss.
+When a period is unavailable (fund too young), its weight is redistributed proportionally
+across available periods.
+
+**Why these weights?**
+- 3Y (40%): Current team's track record — most reliable signal of repeatable skill
+- 5Y (25%): Smooths through market cycles — shows structural edge
+- 1Y (15%): Recent execution and momentum
+- 10Y (15%): Long-term structural advantage for mature funds
+- YTD (5%): Very recent direction — lowest weight due to noise
+
+**Why weighted alpha over binary beat rate?**
+The previous system counted each period as an equal pass/fail vote (≥60% needed). This penalized
+funds with strong 3Y/5Y alpha caught in short-term macro headwinds (a single bad YTD could flip
+the result), while letting funds with marginally positive alpha in many periods but negative
+overall alpha sneak through. Weighted scoring measures *how much* alpha was generated, not just
+*how often*, with heavier emphasis on the periods that matter most.
+
+**Legacy columns preserved:** The workbook still shows Beat %, Periods Assessed, and period
+checkmarks (✔/✘) in the Rationale for quick visual reference. The Weighted Alpha (%) column
+is the actual qualification driver.
 
 ---
 
@@ -119,10 +134,10 @@ python3 fund-screener-skill/scripts/build_xlsx.py
 Expected:
 ```
 ATH data loaded: 171 funds
-Saved: .../PublicMutual_FundMaster_[Month][Year]_v7.xlsx
+Saved: .../PublicMutual_FundMaster_[Month][Year]_v8.xlsx
 Sheets: ['Master', 'Summary']
-Columns: 72
-Data rows: 171 (qualified: 111, disqualified: 60)
+Columns: 73
+Data rows: 171 (qualified: ~110, disqualified: ~61)
 ```
 
 ---
@@ -158,24 +173,25 @@ Data rows: 171 (qualified: 111, disqualified: 60)
 
 ---
 
-## Excel output structure (72 columns)
+## Excel output structure (73 columns)
 
 ### Sheet 1: Master
 
 | Band | Cols | Contents | Color |
 |---|---|---|---|
 | FUND DETAILS | 1–9 | Name, Abbr, Shariah-compliant, Type, Objective, Risk Level, Distribution, Size, Launch | Dark Grey |
-| SCREENING | 10–13 | Status, Beat %, Periods, Rationale | Red |
-| ANNUALISED RETURNS | 14–28 | YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) | Blue |
-| ALPHA EFFICIENCY | 29–33 | Alpha/VF per period (formula column) | Dark Blue |
-| ASSET ALLOCATION | 34–39 | Dom. Equity, For. Equity, FI/Sukuk, Money Mkt, Deposits, Other | Brown |
-| GEO BREAKDOWN | 40–51 | 11 countries + Other | Green |
-| SECTOR BREAKDOWN | 52–62 | 10 sectors + Other | Dark Teal |
-| TOP 5 | 63 | Top 5 Holdings | Purple |
-| META | 64–67 | VF, VC, Lipper Class, Benchmark | Grey |
-| **ATH MOMENTUM** | **68–72** | **ATH NAV, ATH Date, Cur NAV, Drawdown (%), Days from ATH** | **Steel Blue** |
+| SCREENING | 10–14 | Status, Beat %, Periods, Rationale, **Weighted Alpha (%)** | Red |
+| ANNUALISED RETURNS | 15–29 | YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) | Blue |
+| ALPHA EFFICIENCY | 30–34 | Alpha/VF per period (formula column) | Dark Blue |
+| ASSET ALLOCATION | 35–40 | Dom. Equity, For. Equity, FI/Sukuk, Money Mkt, Deposits, Other | Brown |
+| GEO BREAKDOWN | 41–52 | 11 countries + Other | Green |
+| SECTOR BREAKDOWN | 53–63 | 10 sectors + Other | Dark Teal |
+| TOP 5 | 64 | Top 5 Holdings | Purple |
+| META | 65–68 | VF, VC, Lipper Class, Benchmark | Grey |
+| **ATH MOMENTUM** | **69–73** | **ATH NAV, ATH Date, Cur NAV, Drawdown (%), Days from ATH** | **Steel Blue** |
 
 Conditional formatting:
+- **Weighted Alpha**: green positive, red negative
 - **Drawdown %**: ColorScaleRule — green (0%) → yellow (−10%) → red (−60%)
 - Status: green/red fill for Qualified/Disqualified
 - Risk Level: color scale 1→3→5 (green/yellow/red)
@@ -193,13 +209,13 @@ Median stats, Top-N tables, and fund type breakdowns all use FILTER/SORTBY/MEDIA
 | Check | Expected |
 |---|---|
 | mfr_results.json — total funds | ~171 (4 MFR series) |
-| Qualified count | 100–120 at 60% threshold |
+| Qualified count | ~110 at weighted alpha > 0% threshold |
 | Risk Level coverage | 171/171 |
 | ath_results.json — total_processed | 171 |
 | ath_results.json — errors | 0 |
 | ath_results.json — drawdown range | All values ≤ 0 (positive = data error) |
 | fund_code_map.json — count | ~190 |
-| Excel — columns | 72 |
+| Excel — columns | 73 |
 | Excel — ATH coverage | 171/171 |
 
 ---
@@ -244,7 +260,7 @@ Median stats, Top-N tables, and fund type breakdowns all use FILTER/SORTBY/MEDIA
 | `fund-screener-skill/scripts/extract_mfr.py` | Step 1 — parse MFR PDFs, produce mfr_results.json |
 | `fund-screener-skill/scripts/fetch_ath.py` | Step 2 — Python ATH fetcher with cold/warm modes |
 | `fund-screener-skill/scripts/build_sheet_data.py` | Step 3 — merge MFR + ATH into master_funds.csv |
-| `fund-screener-skill/scripts/build_xlsx.py` | Step 4 — build formatted Excel workbook (72 cols) |
+| `fund-screener-skill/scripts/build_xlsx.py` | Step 4 — build formatted Excel workbook (73 cols) |
 
 ---
 
@@ -279,4 +295,5 @@ All formatting, filters, and conditional formatting carry over automatically.
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.1 | 2026-04-06 | Major | Replace binary 60% beat rate with weighted alpha scoring (YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%); qualify if weighted alpha > 0; add Weighted Alpha (%) column (col 14); v7→v8 layout (72→73 cols) |
 | 1.0 | 2026-04-06 | — | Initial versioned release |
