@@ -15,10 +15,8 @@ import os
 import sys
 import openpyxl
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  CONFIGURE THESE PATHS before running                          ║
-# ╚══════════════════════════════════════════════════════════════════╝
-WORK_DIR = "/sessions/nifty-vibrant-cannon/mnt/Funds"
+# ── Paths (auto-derived from script location: scripts/ → fund-screener-v7/ → Funds/) ──
+WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # RISK_LEVEL_FILE: leave as "" to auto-detect from the Funds folder
 # (the script looks for funds_risk_level.xlsx one level above BASE_DIR).
 # Set an explicit path only if the file lives somewhere non-standard.

@@ -56,7 +56,7 @@ from datetime import date, datetime, timedelta
 # ── PATHS ────────────────────────────────────────────────────────────────────
 # Script lives in scripts/ but all outputs go to the parent Funds/ folder,
 # consistent with extract_mfr.py → mfr_results.json and build_xlsx.py → .xlsx
-FUNDS_DIR        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FUNDS_DIR        = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUTPUT_PATH      = os.path.join(FUNDS_DIR, "ath_results.json")
 MFR_RESULTS      = os.path.join(FUNDS_DIR, "mfr_results.json")
 CODE_MAP_PATH    = os.path.join(FUNDS_DIR, "fund_code_map.json")  # persisted cache
@@ -170,10 +170,14 @@ def get_all_current_navs(session, token):
         timeout=30,
     )
     # This endpoint may require a fresh token on the Fund-Price-UT page
-    if resp.status_code != 200 or resp.json().get("ResponseCode") != 1:
+    try:
+        data = resp.json()
+    except Exception:
         return {}  # fallback: current NAV will be taken from delta call instead
+    if resp.status_code != 200 or data.get("ResponseCode") != 1:
+        return {}
 
-    funds = resp.json().get("ResultData") or []
+    funds = data.get("ResultData") or []
     return {
         (f.get("FundAbbr") or "").strip(): {
             "nav":  round(float(f.get("Nav") or 0), 4),
@@ -185,29 +189,41 @@ def get_all_current_navs(session, token):
 
 # ── NAV HISTORY (per-fund, date-ranged) ──────────────────────────────────────
 
-def fetch_nav_range(session, token, scheme_code, start_date):
-    """Fetch NAV data from start_date to today for one fund."""
+def fetch_nav_range(session, token, scheme_code, start_date, retries=3):
+    """Fetch NAV data from start_date to today for one fund.
+
+    Retries up to `retries` times on empty/error responses — transient server
+    issues (rate limiting, brief timeouts) occasionally return ResponseCode != 1
+    for a fund that works fine on a retry.
+    """
     payload = {
         "SchemeCode": scheme_code,
         "StartDate":  start_date,
         "EndDate":    TODAY_STR,
         "IndexCode":  "",
     }
-    resp = session.post(
-        f"{BASE_URL}/FundOverview/GetFundPerformanceChartData",
-        json=payload,
-        headers={
-            "Content-Type": "application/json",
-            "RequestVerificationToken": token,
-            "Referer": f"{BASE_URL}/Fund-Overview?sc={scheme_code}",
-        },
-        timeout=60,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("ResponseCode") != 1:
-        return []
-    return data.get("ResultData", {}).get("FundIndex", [])
+    headers = {
+        "Content-Type": "application/json",
+        "RequestVerificationToken": token,
+        "Referer": f"{BASE_URL}/Fund-Overview?sc={scheme_code}",
+    }
+    for attempt in range(1, retries + 1):
+        try:
+            resp = session.post(
+                f"{BASE_URL}/FundOverview/GetFundPerformanceChartData",
+                json=payload,
+                headers=headers,
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("ResponseCode") == 1:
+                return data.get("ResultData", {}).get("FundIndex") or []
+        except Exception:
+            pass
+        if attempt < retries:
+            time.sleep(2 ** attempt)  # 2s, 4s back-off
+    return []
 
 
 # ── ATH COMPUTATION ───────────────────────────────────────────────────────────
@@ -282,21 +298,45 @@ def _load_mfr_abbrs():
         return None
     with open(MFR_RESULTS) as f:
         mfr = json.load(f)
-    return [f.get("abbreviation", "").strip() for f in mfr if f.get("abbreviation")]
+    funds = mfr["all_funds"] if isinstance(mfr, dict) else mfr
+    return [f.get("abbr", "").strip() for f in funds if f.get("abbr")]
 
 
 def _resolve_targets(code_map, mfr_abbrs):
-    """Determine which funds to process and log the outcome."""
-    if mfr_abbrs:
-        found   = [a for a in mfr_abbrs if a in code_map]
-        missing = [a for a in mfr_abbrs if a not in code_map]
-        print(f"  From mfr_results.json: {len(mfr_abbrs)} funds → {len(found)} matched in code map")
-        if missing:
-            print(f"  NOTE: still unmatched after refresh: {missing}")
-        return found
-    else:
+    """Determine which funds to process and log the outcome.
+
+    MFR abbreviations sometimes contain spaces or differ in casing from the API
+    code map keys (e.g. 'P SmallCap' vs 'PSMALLCAP', 'PeSukuk' vs 'PeSUKUK').
+    For any unmatched abbr, fall back to a normalised key (uppercase, no spaces).
+    Matching entries are patched into code_map under the original MFR abbr so the
+    rest of the pipeline can do a plain code_map[abbr] lookup.
+    """
+    if not mfr_abbrs:
         print("  mfr_results.json not found — processing all UT funds from code map")
         return list(code_map.keys())
+
+    # Build normalised reverse index: 'PSMALLCAP' → scheme_code
+    norm_map = {k.upper().replace(" ", ""): v for k, v in code_map.items()}
+
+    found, resolved, still_missing = [], [], []
+    for abbr in mfr_abbrs:
+        if abbr in code_map:
+            found.append(abbr)
+        else:
+            norm_key = abbr.upper().replace(" ", "")
+            if norm_key in norm_map:
+                code_map[abbr] = norm_map[norm_key]  # patch so code_map[abbr] works later
+                resolved.append(abbr)
+            else:
+                still_missing.append(abbr)
+
+    total_matched = len(found) + len(resolved)
+    print(f"  From mfr_results.json: {len(mfr_abbrs)} funds → {total_matched} matched in code map")
+    if resolved:
+        print(f"  Resolved via normalisation: {resolved}")
+    if still_missing:
+        print(f"  NOTE: still unmatched after normalisation: {still_missing}")
+    return found + resolved
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────

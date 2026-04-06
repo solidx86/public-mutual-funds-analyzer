@@ -21,11 +21,9 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  PATHS                                                           ║
-# ╚══════════════════════════════════════════════════════════════════╝
-WORK_DIR = "/sessions/nifty-vibrant-cannon/mnt/Funds"
-OUT_PATH = "/sessions/nifty-vibrant-cannon/mnt/Funds/PublicMutual_FundMaster_Feb2026_v6.xlsx"
+# ── Paths (auto-derived from script location: scripts/ → fund-screener-v7/ → Funds/) ──
+WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v7.xlsx")
 
 if not WORK_DIR or not OUT_PATH:
     print("ERROR: Please set WORK_DIR and OUT_PATH at the top of this script.")

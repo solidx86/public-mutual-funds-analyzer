@@ -17,9 +17,10 @@ from collections import defaultdict
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║  CONFIGURE THESE PATHS before running                          ║
 # ╚══════════════════════════════════════════════════════════════════╝
-BASE_DIR = "/sessions/nifty-vibrant-cannon/mnt/Funds/Unit Trust (UT)"
-PHS_DIR = "/sessions/nifty-vibrant-cannon/mnt/Funds/Unit Trust (UT)/Product Highlight Sheet (PHS)"
-OUT_DIR = "/sessions/nifty-vibrant-cannon/mnt/Funds"
+_FUNDS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE_DIR = os.path.join(_FUNDS_DIR, "Unit Trust (UT)")
+PHS_DIR  = os.path.join(_FUNDS_DIR, "Unit Trust (UT)", "Product Highlight Sheet (PHS)")
+OUT_DIR  = _FUNDS_DIR
 
 TARGET_PERIODS = ["1-year", "3-year", "5-year", "10-year"]
 
