@@ -55,7 +55,7 @@ For reference on how suitability assessments work and what determines each profi
 
 **Auto-detect the latest FundMaster workbook:**
 
-1. Glob for `PublicMutual_FundMaster_*_v8.xlsx` in the Funds project folder
+1. Glob for `PublicMutual_FundMaster_*.xlsx` in the Funds project folder (filename format: `[Name]_[MonYYYY]_v[skill-version].xlsx`)
 2. Parse the month and year from each filename (e.g., `Apr2026` → April 2026)
 3. Select the file with the most recent month/year
 4. Read the **Master** sheet — Row 3 is the header row, data starts at Row 4

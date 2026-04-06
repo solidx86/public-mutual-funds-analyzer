@@ -5,7 +5,7 @@ description: >
   Bulk-screen all Public Mutual unit trust funds from Monthly Fund Report (MFR) PDFs and produce a fund master list as a formatted Excel file (importable to Google Sheets). Applies weighted alpha scoring: qualifies funds whose weighted alpha (YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%) is positive, ensuring alpha quality matters more than binary pass/fail counts. Use this skill whenever the user says things like: "screen the new MFR", "update the fund qualification list", "which funds qualify this month", "run the fund screener", "update with the [month] MFR", "new monthly report is out — re-run the analysis", or any request to produce or refresh a qualified funds shortlist from Public Mutual MFR data. Also trigger when the user wants to compare qualified funds across months, filter by asset class (equity, bond, Shariah), or update the Google Sheet / Excel output. If the user drops new MFR PDFs and says "these are out" or "new reports", use this skill.
 ---
 
-# Public Mutual Fund Screener (v8)
+# Public Mutual Fund Screener (v1.1)
 
 You are running a monthly fund-qualification pipeline for a Public Mutual unit trust consultant.
 The pipeline reads MFR PDFs, fetches All-Time High NAV from the Public Mutual website, scores
@@ -134,7 +134,7 @@ python3 fund-screener-skill/scripts/build_xlsx.py
 Expected:
 ```
 ATH data loaded: 171 funds
-Saved: .../PublicMutual_FundMaster_[Month][Year]_v8.xlsx
+Saved: .../PublicMutual_FundMaster_[Month][Year]_v[skill-version].xlsx
 Sheets: ['Master', 'Summary']
 Columns: 73
 Data rows: 171 (qualified: ~110, disqualified: ~61)

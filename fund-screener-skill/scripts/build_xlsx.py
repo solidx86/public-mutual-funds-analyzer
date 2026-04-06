@@ -23,7 +23,7 @@ from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
 
 # ── Paths (auto-derived from script location: scripts/ → fund-screener-skill/ → Funds/) ──
 WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v8.xlsx")
+OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v1.1.xlsx")
 
 if not WORK_DIR or not OUT_PATH:
     print("ERROR: Please set WORK_DIR and OUT_PATH at the top of this script.")
