@@ -15,7 +15,7 @@ import os
 import sys
 import openpyxl
 
-# ── Paths (auto-derived from script location: scripts/ → fund-screener-v7/ → Funds/) ──
+# ── Paths (auto-derived from script location: scripts/ → fund-screener-skill/ → Funds/) ──
 WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # RISK_LEVEL_FILE: leave as "" to auto-detect from the Funds folder
 # (the script looks for funds_risk_level.xlsx one level above BASE_DIR).

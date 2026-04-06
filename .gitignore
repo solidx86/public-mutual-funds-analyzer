@@ -10,7 +10,7 @@ __pycache__/
 # Intermediate pipeline outputs (regenerated each run)
 master_funds.csv
 
-# Legacy scripts at root level (superseded by fund-screener-v7/scripts/)
+# Legacy scripts at root level (superseded by fund-screener-skill/scripts/)
 fetch_ath.py
 
 # Versioned Excel outputs — keep latest, ignore old versions

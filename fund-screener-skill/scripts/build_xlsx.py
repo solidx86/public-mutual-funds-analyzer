@@ -21,7 +21,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
 
-# ── Paths (auto-derived from script location: scripts/ → fund-screener-v7/ → Funds/) ──
+# ── Paths (auto-derived from script location: scripts/ → fund-screener-skill/ → Funds/) ──
 WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v7.xlsx")
 
