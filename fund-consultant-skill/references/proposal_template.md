@@ -17,20 +17,21 @@ Use `@media print` CSS for clean PDF output when printing from browser.
 ### Required Sections (in order)
 
 1. **Cover Page** — title, client profile, date, consultant branding
-2. **Executive Summary** — 3-4 bullet points: profile, portfolio composition, weighted alpha, key thesis
-3. **Global & Local Macro Context** — on-going events table + medium-to-long horizon themes
-4. **Client Risk Profile** — profile description, constraints (max RL, max equity %, min bond %)
-5. **Fund Recommendations** — one card per fund with:
+2. **New Investor Foundation** *(new investors only)* — education section; omit for experienced investors
+3. **Executive Summary** — 3-4 bullet points: profile, composition, weighted alpha, key thesis
+4. **Global & Local Macro Context** — on-going events table + medium-to-long horizon themes
+5. **Client Risk Profile** — profile description, constraints (max RL, max equity %, min bond %)
+6. **Fund Recommendations** — one card per fund with:
    - Fund header (name, abbr, type, RL, VF, AUM, allocation %)
    - Alpha story (beat rate, alpha across periods, alpha score, AE)
    - Macro alignment (how this fund connects to macro themes for medium-long horizon)
    - What to watch (flags/risks)
    - Cost & alpha justification (fees vs alpha = net value-add)
-6. **Portfolio Summary** — table with all funds, allocation, alpha, RL, macro thesis
-7. **Portfolio Exposure Breakdown** — CSS conic-gradient pie chart of actual underlying asset exposure (see below)
-8. **Investment Strategy** — DCA/RSP, distribution policy, rebalancing triggers, tactical playbook
-9. **Fee Disclosure** — transparent breakdown of sales charges and annual fees per fund
-10. **Disclaimer & Disclosures** — regulatory disclaimer, FIMM compliance note
+7. **Portfolio Summary** — table with all funds, allocation, alpha, RL, macro thesis
+8. **Portfolio Exposure Breakdown** — CSS conic-gradient pie chart of actual underlying asset exposure (see below)
+9. **Investment Strategy** — distribution policy, rebalancing triggers, tactical playbook
+10. **Fee Disclosure** — transparent breakdown of sales charges and annual fees per fund
+11. **Disclaimer & Disclosures** — regulatory disclaimer, FIMM compliance note
 
 ### Consultant Branding
 
@@ -114,3 +115,36 @@ asset exposure across all recommended funds (each fund's asset allocation × its
 
 ### Sources Section
 Include all web search sources used for macro context as clickable links at the end of the document.
+
+---
+
+### New Investor Foundation Section
+
+**When to include:** Only when the consultant declares this is a new investor. Omit for experienced investors.
+
+**Placement:** Immediately after the Cover Page, before Executive Summary.
+
+**Contents (in order):**
+
+1. **What is a Unit Trust?**
+   > "A unit trust is a pool of money from many investors, professionally managed and invested across a basket of assets — stocks, bonds, cash — on your behalf. You own units; the fund manager does the work."
+
+2. **How Does Your Investment Grow?**
+   > "Your investment grows in two ways: the price per unit (NAV) rises as the underlying assets appreciate, and some funds distribute income periodically. Reinvesting distributions compounds your growth tax-free in Malaysia."
+
+3. **Your Cooling-Off Right**
+   > "As a first-time investor with Public Mutual, you have a 6 business day cooling-off period from the date of your first purchase. If you change your mind, you may redeem your units at the original NAV paid — no loss on the principal."
+
+4. **Realistic Expectations**
+   > "Unit trusts are medium-to-long term investments (3–5+ years). Short-term price fluctuations are normal — the data in this proposal reflects historical performance over full market cycles, which is what matters."
+
+**Styling:**
+```html
+<div style="background:#ebf8ff; border-left:4px solid #2b6cb0; border-radius:4px;
+  padding:20px 24px; margin:24px 0;">
+  <h2 style="color:#2b6cb0; margin-top:0;">Your Investment Basics</h2>
+  <!-- section content -->
+</div>
+```
+
+Label it clearly as an introductory section — not part of the formal recommendation. Use plain language throughout; avoid jargon.

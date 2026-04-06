@@ -1,5 +1,5 @@
 ---
-version: "1.5"
+version: "1.6"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -32,7 +32,7 @@ The user (consultant) will provide the client's risk profile. Accepted profiles:
 |---------|-------------|
 | **Conservative** | Capital preservation priority. Minimal loss tolerance. |
 | **Moderate** | Balanced growth with controlled risk. Accepts some fluctuation. |
-| **Growth** | Growth-oriented. Comfortable with significant volatility. |
+| **Moderately Aggressive** | Growth-oriented. Comfortable with significant volatility. |
 | **Aggressive** | Maximum growth. High tolerance for drawdowns. Long time horizon. |
 
 **Also accept from the user:**
@@ -42,7 +42,7 @@ The user (consultant) will provide the client's risk profile. Accepted profiles:
 - **Client experience level (New investor / Experienced)** — new investors get a Starter Portfolio (max 4 funds); experienced investors get the full template
 
 **If the user does NOT provide a risk profile**, ask:
-> "What is the client's risk profile? (Conservative / Moderate / Growth / Aggressive)
+> "What is the client's risk profile? (Conservative / Moderate / Moderately Aggressive / Aggressive)
 > Is this a new investor or someone with existing investment experience?
 > Any Shariah compliance preference?"
 
@@ -103,7 +103,7 @@ Apply these filters sequentially:
 |---------|-------------------|
 | Conservative | 2 |
 | Moderate | 3 |
-| Growth | 4 |
+| Moderately Aggressive | 4 |
 | Aggressive | 5 (no ceiling) |
 
 ### Filter 4: Fund Type Eligibility
@@ -111,7 +111,7 @@ Apply these filters sequentially:
 |---------|-------------------|
 | Conservative | Bond, Sukuk, Money Market, Mixed Asset (conservative: ≤40% equity) |
 | Moderate | All types, but equity allocation capped at 55% of portfolio |
-| Growth | All types, equity up to 75% |
+| Moderately Aggressive | All types, equity up to 75% |
 | Aggressive | All types, equity up to 90% |
 
 ---
@@ -161,7 +161,7 @@ Select the template matching the client's risk profile:
 |---------|--------|-------------|----------|------|--------------|--------------|---------|
 | Conservative | 5–12% | 12–18% | 35–45% | 5–8% | 15–20% | 4–5 | 4 |
 | Moderate | 25–35% | 12–18% | 15–22% | 8–10% | 12–15% | 5–6 | 4 |
-| Growth | 45–55% | 8–12% | 5–10% | 8–10% | 10–12% | 4–5 | 4 |
+| Moderately Aggressive | 45–55% | 8–12% | 5–10% | 8–10% | 10–12% | 4–5 | 4 |
 | Aggressive | 55–68% | 8–12% | 0–3% | 8–12% | 8–12% | 4–5 | 4 |
 
 Allocations are approximate ranges; the actual portfolio should sum to 100%.
@@ -171,9 +171,18 @@ Allocations are approximate ranges; the actual portfolio should sum to 100%.
 - MM: Higher allocation for conservative (capital stability first, dip capture second). Lower for aggressive (maximum equity deployment), but never below 8% — high-VF funds have deeper drawdowns which are also bigger buying opportunities, so the tactical value of dry powder doesn't disappear at aggressive.
 
 **Starter Portfolio composition (new investor default, 4 funds):**
-- 2 high-alpha growth funds (top 2 by alpha score for the profile) — core engines
-- 1 gold fund (PeEMAS) — structural macro hedge (see Step 4b)
-- 1 qualified money market fund — tactical dry powder (see Step 4c)
+
+| Profile | Slot 1 | Slot 2 | Slot 3 | Slot 4 |
+|---------|--------|--------|--------|--------|
+| Conservative | Bond/Sukuk — top alpha, RL ≤ 2 | Mixed Asset conservative — top alpha, RL ≤ 2 | Gold (PeEMAS) | Money Market |
+| Moderate | Mixed Asset balanced — top alpha, RL ≤ 3 | Malaysia Equity — top alpha, RL ≤ 3 | Gold (PeEMAS) | Money Market |
+| Moderately Aggressive | Malaysia Equity #1 — top alpha, RL ≤ 4 | Asia/Global Equity — top alpha, RL ≤ 4 | Gold (PeEMAS) | Money Market |
+| Aggressive | Malaysia/Asia Equity #1 — top alpha, any RL | Global/US/Sector Equity #2 — top alpha, any RL | Gold (PeEMAS) | Money Market |
+
+Notes:
+- **Conservative/New:** No pure equity — Bond + Mixed Asset provides growth potential without equity concentration risk
+- **Aggressive/New:** Still capped at 4 funds; the 2 equity slots can include a US/global or sector fund if macro context supports it
+- For **Aggressive + new investor**: note in the proposal that a starter with aggressive-risk products carries high drawdown risk and should be reviewed after 6 months
 
 If the client is **not** a new investor, use the full target fund count with the same gold + MM structural positions.
 
@@ -181,12 +190,15 @@ If the client is **not** a new investor, use the full target fund count with the
 
 Malaysia-focused funds have the strongest alpha (83% qualification rate). Use as portfolio core:
 
-| Profile | Malaysia Core | Asia/Greater China | Global/Other |
-|---------|--------------|-------------------|--------------|
-| Conservative | 80%+ | 10–15% | 0–10% |
-| Moderate | 70% | 20% | 10% |
-| Growth | 60% | 25% | 15% |
-| Aggressive | 50% | 30% | 20% |
+| Profile | Malaysia Core | Asia/Greater China | Global (US/Europe) | Emerging (ex-Asia) |
+|---------|--------------|-------------------|-------------------|-------------------|
+| Conservative | 80%+ | 10–15% | 0–5% | 0% |
+| Moderate | 70% | 15–20% | 10% | 0–5% |
+| Moderately Aggressive | 55–60% | 20–25% | 15% | 5% |
+| Aggressive | 45–50% | 20–25% | 20–25% | 5–10% |
+
+> US/Europe exposure is typically accessed via Exposure Gap picks (Step 4c) unless a qualified
+> Public Mutual fund with meaningful US/Europe holdings exists in the screened universe.
 
 ### Diversification Rules
 
@@ -203,7 +215,7 @@ If over-concentrated, swap the least-diversifying fund for the next-ranked alter
 
 | Drawdown | Signal | Action |
 |----------|--------|--------|
-| 0% to –5% | Strong momentum | Favor for Growth/Aggressive |
+| 0% to –5% | Strong momentum | Favor for Moderately Aggressive/Aggressive |
 | –5% to –15% | Neutral | No adjustment |
 | –15% to –30% | Recovery potential | Neutral-positive for long-horizon |
 | > –30% | Deep value / contrarian | Only for Aggressive + long horizon; always flag the risk |
@@ -309,7 +321,7 @@ higher risk tolerance = more in equity, less in reserve — but the floor never 
 |---------|--------------|----------------|
 | Conservative | 15–20% | Capital stability first; dip capture second |
 | Moderate | 12–15% | Balanced liquidity and opportunistic reserve |
-| Growth | 10–12% | Active dip capture; minimise capital drag |
+| Moderately Aggressive | 10–12% | Active dip capture; minimise capital drag |
 | Aggressive | 8–12% | Minimum floor; high-VF funds have bigger dips = still needs ammo |
 
 ### Dip Capture Trigger Rules (include in Investment Strategy section)
@@ -436,10 +448,9 @@ MACRO CONTEXT & ALIGNMENT
 Based on the profile, include:
 
 **DCA / Regular Savings Plan (RSP):**
-- Conservative: "Monthly RSP of RM [suggest based on income context] across your bond and mixed
-  asset funds. Consistency is key — ringgit cost averaging smooths out entry points."
+- Conservative: "Monthly RSP across your bond and mixed asset funds. Consistency is key — ringgit cost averaging smooths out entry points."
 - Moderate: "Monthly RSP + consider lump-sum top-ups during market corrections of 10%+."
-- Growth: "Aggressive monthly RSP. Market dips are your friend — buy more units at lower prices."
+- Moderately Aggressive: "Aggressive monthly RSP. Market dips are your friend — buy more units at lower prices."
 - Aggressive: "Maximum RSP commitment + systematic lump-sum deployment during corrections of 15%+."
 
 **Distribution policy:**
@@ -447,7 +458,7 @@ Based on the profile, include:
 - Exception: Conservative clients seeking income may prefer payout on bond/income funds
 
 **Rebalancing triggers:**
-- Time-based: every 6 months (Growth/Aggressive: quarterly)
+- Time-based: every 6 months (Moderately Aggressive/Aggressive: quarterly)
 - Drift-based: when any category drifts >10% from target
 - Event-based: major life changes or market corrections
 
@@ -607,8 +618,9 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.6 | 2026-04-06 | Feature | Rename "Growth" → "Moderately Aggressive" to match Public Mutual official profile names; profile-specific Starter Portfolio compositions for all 4 profiles (incl. Aggressive/New); expand geographic allocation to 4 tiers (Malaysia \| Asia \| Global US/Europe \| Emerging ex-Asia); plain-language glossary in sa_guide; New Investor Foundation section in proposal template |
 | 1.5 | 2026-04-06 | Feature | Step 7 now delegates HTML generation to the `frontend-design` skill — passes full design brief (palette, card types, performance table, pie chart, print CSS) for elevated visual quality; replaced alpha bar visualisation with `Period \| Fund % \| Bench % \| Alpha %` table per fund card |
-| 1.4 | 2026-04-06 | Feature | Gold (PeEMAS) and Money Market promoted to Structural Allocations (Step 4b/4c) — always included across ALL profiles regardless of alpha qualification; profile-graduated allocations for both (gold 5–12%, MM 8–20% scaling inversely with risk); gold removed from Exposure Gap pathway; MM universalised from Growth/Aggressive-only |
+| 1.4 | 2026-04-06 | Feature | Gold (PeEMAS) and Money Market promoted to Structural Allocations (Step 4b/4c) — always included across ALL profiles regardless of alpha qualification; profile-graduated allocations for both (gold 5–12%, MM 8–20% scaling inversely with risk); gold removed from Exposure Gap pathway; MM universalised from Moderately Aggressive/Aggressive-only |
 | 1.3 | 2026-04-06 | Feature | Starter portfolio mode (max 4 funds for new investors); Top Holdings Overlap Check in diversification rules; Step 4c — money market as tactical dry powder with dip capture triggers; commodity fund carve-out in Exposure Gap (gold allowed at slightly negative 3Y alpha); ask client experience level in Step 0 |
 | 1.2 | 2026-04-06 | Feature | Add Exposure Gap mechanism (Step 4b) — allows 1 disqualified fund per portfolio when macro demands an exposure no qualified fund covers; update column references for v8 screener (73 cols, Weighted Alpha col 14) |
 | 1.1 | 2026-04-06 | Feature | Add portfolio exposure pie chart (CSS conic-gradient) to proposal — shows actual underlying asset allocation across all recommended funds |

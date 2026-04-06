@@ -42,7 +42,7 @@ Present all 8 questions at once. Score each answer, then sum for risk profile.
 |--------|-------|---------|
 | Below RM 3,000 | 1 | Conservative sizing |
 | RM 3,000 – RM 7,000 | 2 | Moderate sizing |
-| RM 7,000 – RM 15,000 | 3 | Growth sizing |
+| RM 7,000 – RM 15,000 | 3 | Moderately Aggressive sizing |
 | Above RM 15,000 | 4 | Aggressive sizing |
 
 **Q5. Do you have an emergency fund (3–6 months of expenses)?**
@@ -88,7 +88,7 @@ Present all 8 questions at once. Score each answer, then sum for risk profile.
 |-------------|-------------|-------------|
 | 7–11 | **Conservative** | Capital preservation priority. Minimal tolerance for loss. Prefers stability over growth. |
 | 12–17 | **Moderate** | Balanced approach. Accepts some fluctuation for moderate growth. Wants a mix of safety and returns. |
-| 18–23 | **Growth** | Growth-oriented. Comfortable with significant volatility. Focuses on medium-to-long-term capital appreciation. |
+| 18–23 | **Moderately Aggressive** | Growth-oriented. Comfortable with significant volatility. Focuses on medium-to-long-term capital appreciation. |
 | 24–28 | **Aggressive** | Maximum growth. High tolerance for drawdowns. Long time horizon. Willing to concentrate in high-alpha equity. |
 
 ---
@@ -99,7 +99,7 @@ Present all 8 questions at once. Score each answer, then sum for risk profile.
 |---------|---------------|--------------|---------------|-------------------|
 | Conservative | 2 | 30% | 50% | Detailed, reassuring |
 | Moderate | 3 | 55% | 25% | Balanced detail |
-| Growth | 4 | 75% | 15% | Data-focused |
+| Moderately Aggressive | 4 | 75% | 15% | Data-focused |
 | Aggressive | 5 | 90% | 5% | Concise, alpha-focused |
 
 ---
@@ -114,3 +114,19 @@ Present all 8 questions at once. Score each answer, then sum for risk profile.
 4. **Emergency fund first** — if Q5 = "No emergency fund", always recommend allocating to a
    money market fund (e.g., PMMF, PeMMF) first before any other investment
 5. **Cooling-off** — remind first-time investors of the 6 business day cooling-off right
+
+---
+
+## Plain-Language Term Reference
+
+Use these explanations when talking to a new investor who is unfamiliar with unit trust terminology:
+
+| Technical Term | Plain Language |
+|---------------|---------------|
+| Alpha | "Extra return above what the market average gives you" |
+| Benchmark | "The market average the fund tries to beat" |
+| Volatility Factor (VF) | "How bumpy the ride is — higher number means more ups and downs" |
+| Alpha Efficiency | "Getting outperformance without taking on extra risk" |
+| NAV | "The price per unit of the fund today" |
+| Distribution | "Profit paid out to you (payout mode) or reinvested back to grow your units (reinvest mode)" |
+| Unit Trust | "A pool of money from many investors, managed by a professional fund manager who invests it across many assets on your behalf" |
