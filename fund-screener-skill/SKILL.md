@@ -163,8 +163,8 @@ Data rows: 171 (qualified: 111, disqualified: 60)
 
 | Band | Cols | Contents | Color |
 |---|---|---|---|
-| FUND DETAILS | 1–10 | Name, Abbr, Series, Type, Geography, Objective, Risk Level, Distribution, Size, Launch | Dark Grey |
-| SCREENING | 11–13 | Status, Beat %, Periods | Red |
+| FUND DETAILS | 1–9 | Name, Abbr, Shariah-compliant, Type, Objective, Risk Level, Distribution, Size, Launch | Dark Grey |
+| SCREENING | 10–13 | Status, Beat %, Periods, Rationale | Red |
 | ANNUALISED RETURNS | 14–28 | YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) | Blue |
 | ALPHA EFFICIENCY | 29–33 | Alpha/VF per period (formula column) | Dark Blue |
 | ASSET ALLOCATION | 34–39 | Dom. Equity, For. Equity, FI/Sukuk, Money Mkt, Deposits, Other | Brown |

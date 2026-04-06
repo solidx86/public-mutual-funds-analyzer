@@ -85,6 +85,46 @@ def standardize_distribution(raw):
 qualified_abbrs = set(f['abbr'] for f in qualified_raw)
 
 
+def build_rationale(fund, status, out_p, total_p):
+    """Build a concise text rationale summarising which periods beat/missed the benchmark."""
+    period_detail = fund.get('period_detail', {})
+
+    # YTD alpha — mirror the same fallback logic used in build_row()
+    ytd_d = period_detail.get('ytd', {})
+    ytd_f = ytd_d.get('fund', '')
+    ytd_b = ytd_d.get('benchmark', '')
+    ytd_a = ytd_d.get('alpha', '')
+    if ytd_f == '':
+        ytd_old = fund.get('ytd') or {}
+        ytd_f = ytd_old.get('fund', '')
+        ytd_b = ytd_old.get('benchmark', '')
+    if ytd_a == '' and ytd_f != '' and ytd_b != '':
+        try:
+            ytd_a = round(float(ytd_f) - float(ytd_b), 2)
+        except (ValueError, TypeError):
+            pass
+
+    checks = [
+        ('YTD', ytd_a),
+        ('1Y',  period_detail.get('1-year',  {}).get('alpha', '')),
+        ('3Y',  period_detail.get('3-year',  {}).get('alpha', '')),
+        ('5Y',  period_detail.get('5-year',  {}).get('alpha', '')),
+        ('10Y', period_detail.get('10-year', {}).get('alpha', '')),
+    ]
+
+    parts = []
+    for label, alpha in checks:
+        if alpha != '' and alpha is not None:
+            try:
+                parts.append(f"{label}{'✔' if float(alpha) > 0 else '✘'}")
+            except (ValueError, TypeError):
+                pass
+
+    periods_str = ' '.join(parts) if parts else 'N/A'
+    prefix = 'Qualified' if status == 'Qualified' else 'Disqualified'
+    return f"{prefix} {out_p}/{total_p} — {periods_str}"
+
+
 def clean_name(name):
     return name.replace('EPF Qualified Fund', '').replace('EPFQualifiedFund', '').replace('Fund Award Won', '').strip()
 
@@ -283,6 +323,7 @@ def build_row(fund):
         'Status': status,
         'Outperform Rate (%)': rate,
         'Periods Assessed': f"{out_p}/{total_p}",
+        'Rationale': build_rationale(fund, status, out_p, total_p),
         # ── RETURNS ──
         'YTD Fund (%)': fmt(ytd_fund),
         'YTD Benchmark (%)': fmt(ytd_bench),

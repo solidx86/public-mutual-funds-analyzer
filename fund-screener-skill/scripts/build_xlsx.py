@@ -84,33 +84,33 @@ ws.title = "Master"
 ws.sheet_view.showGridLines = False
 
 # Column definitions: (header, csv_key, width, number_format, is_formula)
-# Layout v5:
-#   FUND DETAILS(1-10): Fund Name, Abbr, Series, Fund Type, Geography, Objective, Risk Level, Distribution, Size, Launch
-#   SCREENING(11-13): Status, Beat %, Periods
-#   RETURNS(14-28): YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) — all store raw % values
+# Layout v7:
+#   FUND DETAILS(1-9):  Fund Name, Abbr, Shariah-compliant, Fund Type, Objective, Risk Level, Distribution, Size, Launch
+#   SCREENING(10-13):   Status, Beat %, Periods, Rationale
+#   RETURNS(14-28):     YTD/1Y/3Y/5Y/10Y × (Fund, Bench, Alpha) — all store raw % values
 #   ALPHA EFFICIENCY(29-33): AE YTD, AE 1Y, AE 3Y, AE 5Y, AE 10Y (formula: Alpha/VF)
 #   ASSET ALLOCATION(34-39): 6 cols — all store raw % values
 #   GEO BREAKDOWN(40-51): 12 cols — all store raw % values
 #   SECTOR BREAKDOWN(52-62): 11 cols — all store raw % values
-#   TOP 5(63): Holdings text only (Top 5 Sectors removed)
+#   TOP 5(63): Holdings text only
 #   META(64-67): VF, VC, Lipper Class, Benchmark
 
 COLS = [
-    # ── Fund Details (1-10) ─────────────
+    # ── Fund Details (1-9) ──────────────
     ("Fund Name",        "Fund Name",           40, "@",       False),  # 1
     ("Abbr",             "Abbr",                12, "@",       False),  # 2
-    ("Series",           "Series",              14, "@",       False),  # 3
+    ("Shariah-compliant","Series",              14, "@",       False),  # 3
     ("Fund Type",        "Fund Type",           22, "@",       False),  # 4
-    ("Geography",        "Geography",           16, "@",       False),  # 5
-    ("Objective",        "Objective",           24, "@",       False),  # 6
-    ("Risk Level",       "Risk Level",          10, "0",       False),  # 7
-    ("Distribution",     "Distribution Policy", 16, "@",       False),  # 8
-    ("Size (RM M)",      "Fund Size (RM Mil)",  14, "#,##0.00",False),  # 9
-    ("Launch",           "Launch Date",         12, "@",       False),  # 10
-    # ── Screening (11-13) ────────────────
-    ("Status",           "Status",              14, "@",       False),  # 11
-    ("Beat (%)",         "Outperform Rate (%)", 10, "0.0",    False),  # 12
-    ("Periods",          "Periods Assessed",    10, "@",       False),  # 13
+    ("Objective",        "Objective",           24, "@",       False),  # 5
+    ("Risk Level",       "Risk Level",          10, "0",       False),  # 6
+    ("Distribution",     "Distribution Policy", 16, "@",       False),  # 7
+    ("Size (RM M)",      "Fund Size (RM Mil)",  14, "#,##0.00",False),  # 8
+    ("Launch",           "Launch Date",         12, "@",       False),  # 9
+    # ── Screening (10-13) ───────────────
+    ("Status",           "Status",              14, "@",       False),  # 10
+    ("Beat (%)",         "Outperform Rate (%)", 10, "0.0",    False),  # 11
+    ("Periods",          "Periods Assessed",    10, "@",       False),  # 12
+    ("Rationale",        "Rationale",           48, "@",       False),  # 13
     # ── Returns (14-28) — all raw % values ──
     ("YTD Fund (%)",     "YTD Fund (%)",        10, "0.00",   False),  # 14
     ("YTD Bench (%)",    "YTD Benchmark (%)",   10, "0.00",   False),  # 15
@@ -183,7 +183,8 @@ COLS = [
 NUM_COLS = len(COLS)
 
 # Column indices (1-based) for formula references
-COL_VF = 64       # VF column (shifted from 65)
+# Geography removed (-1) and Rationale added (+1) → cols 14+ net unchanged
+COL_VF = 64       # VF column
 COL_YTD_ALPHA = 16
 COL_1Y_ALPHA = 19
 COL_3Y_ALPHA = 22
@@ -219,8 +220,8 @@ ws.row_dimensions[1].height = 28
 
 # ── Row 2: Group header bands ────────────────────────────────────────────────
 GROUP_BANDS = [
-    (1,  10, "FUND DETAILS",     "404040"),
-    (11, 13, "SCREENING",        "C00000"),
+    (1,   9, "FUND DETAILS",     "404040"),
+    (10, 13, "SCREENING",        "C00000"),
     (14, 28, "ANNUALISED RETURNS vs BENCHMARK (MFR FEB 2026)", "2E75B6"),
     (29, 33, "ALPHA EFFICIENCY (Alpha / VF)", "1A5276"),
     (34, 39, "ASSET ALLOCATION (%)", "833C11"),
@@ -259,8 +260,8 @@ ws.freeze_panes = "A4"
 
 # ── Data rows ────────────────────────────────────────────────────────────────
 data_start = 4
-text_cols = {1, 2, 3, 4, 5, 6, 8, 10, 11, 13, 63, 65, 66, 67, 69}  # 69=ATH Date
-wrap_cols = {6, 8, 63, 66, 67}
+text_cols = {1, 2, 3, 4, 5, 7, 9, 10, 12, 13, 63, 65, 66, 67, 69}  # 69=ATH Date
+wrap_cols = {5, 7, 13, 63, 66, 67}
 COL_DRAWDOWN = 71  # Drawdown % column index
 
 C_DISQ_ROW = "F2F2F2"
@@ -301,7 +302,7 @@ for row_idx, fund in enumerate(rows, start=data_start):
         cell.number_format = nfmt
         font_color = "999999" if is_disq else "000000"
         cell.font = Font(name="Arial", size=9, color=font_color,
-                         italic=(is_shariah and col_idx <= 5))
+                         italic=(is_shariah and col_idx <= 4))
         cell.fill = PatternFill("solid", fgColor=bg)
         cell.alignment = Alignment(
             vertical="center",
@@ -316,8 +317,8 @@ last_row = data_start + len(rows) - 1
 
 # ── Conditional formatting ──────────────────────────────────────────────────
 
-# Status column (11): green/red
-status_col = get_column_letter(11)
+# Status column (10): green/red
+status_col = get_column_letter(10)
 ws.conditional_formatting.add(
     f"{status_col}{data_start}:{status_col}{last_row}",
     CellIsRule(operator='equal', formula=['"Qualified"'],
@@ -329,8 +330,8 @@ ws.conditional_formatting.add(
                fill=PatternFill("solid", fgColor="FCE4D6"),
                font=Font(name="Arial", size=9, color="9C0006")))
 
-# Risk Level (col 7): color scale
-rl_col = get_column_letter(7)
+# Risk Level (col 6): color scale
+rl_col = get_column_letter(6)
 ws.conditional_formatting.add(
     f"{rl_col}{data_start}:{rl_col}{last_row}",
     ColorScaleRule(start_type='num', start_value=1, start_color="C6EFCE",
@@ -364,8 +365,8 @@ for col_idx in range(COL_AE_YTD, COL_AE_10Y + 1):
                    fill=PatternFill("solid", fgColor="FCE4D6"),
                    font=Font(name="Arial", size=9, color="9C0006")))
 
-# Beat % color scale (col 12) — now 0-100 instead of 0.0-1.0
-beat_col = get_column_letter(12)
+# Beat % color scale (col 11)
+beat_col = get_column_letter(11)
 ws.conditional_formatting.add(
     f"{beat_col}{data_start}:{beat_col}{last_row}",
     ColorScaleRule(start_type='num', start_value=0, start_color="FCE4D6",
@@ -420,17 +421,17 @@ SUMMARY_COLS = 8  # columns A-H
 
 # Master sheet reference prefix and column letters for formulas
 MASTER_REF = "Master!"
-M_STATUS = get_column_letter(11)     # Status col
+M_STATUS = get_column_letter(10)     # Status col
 M_FUND_TYPE = get_column_letter(4)   # Fund Type col
-M_SERIES = get_column_letter(3)      # Series col
-M_BEAT = get_column_letter(12)       # Beat %
+M_SERIES = get_column_letter(3)      # Shariah-compliant col
+M_BEAT = get_column_letter(11)       # Beat %
 M_NAME = get_column_letter(1)        # Fund Name
 M_ABBR = get_column_letter(2)        # Abbr
 M_3Y_FUND = get_column_letter(20)    # 3Y Fund
 M_3Y_ALPHA = get_column_letter(22)   # 3Y Alpha
 M_AE_3Y = get_column_letter(31)      # AE 3Y
-M_SIZE = get_column_letter(9)        # Size
-M_VC = get_column_letter(65)         # VC (shifted from 66)
+M_SIZE = get_column_letter(8)        # Size
+M_VC = get_column_letter(65)         # VC
 M_YTD_FUND = get_column_letter(14)   # YTD Fund
 M_1Y_FUND = get_column_letter(17)    # 1Y Fund
 M_5Y_FUND = get_column_letter(23)    # 5Y Fund
@@ -694,35 +695,35 @@ def build_fund_type_section(ws, r, fund_type, color, fund_type_label=None):
     write_formula_row(ws, r, med_formulas, alt=False, number_formats=["@", "0.00", "0.00", "0.00", "0.00", "0.00", "0.00", "0.00"])
     r += 2
 
-    # ── Top 5 by 3Y Ann. Fund Return (sort by M_3Y_FUND = col T = 20) ──
+    # ── Top 5 by 3Y Ann. Fund Return (sort by M_3Y_FUND) ──
     r = write_top5(ws, r, f"{label} — TOP 5 BY 3Y ANN. FUND RETURN",
         ["Fund Name", "Abbr", "3Y Fund (%)", "3Y Alpha (%)", "Beat (%)", "AUM (RM M)", "VC", ""],
         fund_type, M_3Y_FUND,
-        [("A", False), ("B", False), ("T", True), ("V", False), ("L", False), ("I", False), (M_VC, False), ("", False)],
+        [("A", False), ("B", False), ("T", True), ("V", False), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
         color
     )
 
-    # ── Top 5 by 3Y Ann. Alpha (sort by M_3Y_ALPHA = col V = 22) ──
+    # ── Top 5 by 3Y Ann. Alpha (sort by M_3Y_ALPHA) ──
     r = write_top5(ws, r, f"{label} — TOP 5 BY 3Y ANN. ALPHA",
         ["Fund Name", "Abbr", "3Y Fund (%)", "3Y Alpha (%)", "Beat (%)", "AUM (RM M)", "VC", ""],
         fund_type, M_3Y_ALPHA,
-        [("A", False), ("B", False), ("T", False), ("V", True), ("L", False), ("I", False), (M_VC, False), ("", False)],
+        [("A", False), ("B", False), ("T", False), ("V", True), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
         color
     )
 
-    # ── Top 5 by Alpha Efficiency (sort by M_AE_3Y = col AE = 31) ──
+    # ── Top 5 by Alpha Efficiency (sort by M_AE_3Y) ──
     r = write_top5(ws, r, f"{label} — TOP 5 BY ALPHA EFFICIENCY",
         ["Fund Name", "Abbr", "Alpha Eff", "3Y Alpha (%)", "Beat (%)", "AUM (RM M)", "VC", ""],
         fund_type, M_AE_3Y,
-        [("A", False), ("B", False), ("AE", True), ("V", False), ("L", False), ("I", False), (M_VC, False), ("", False)],
+        [("A", False), ("B", False), ("AE", True), ("V", False), (M_BEAT, False), (M_SIZE, False), (M_VC, False), ("", False)],
         color
     )
 
-    # ── Top 5 by AUM (sort by M_SIZE = col I = 9) ──
+    # ── Top 5 by AUM (sort by M_SIZE) ──
     r = write_top5(ws, r, f"{label} — TOP 5 BY AUM",
         ["Fund Name", "Abbr", "AUM (RM M)", "3Y Fund (%)", "3Y Alpha (%)", "Beat (%)", "VC", ""],
         fund_type, M_SIZE,
-        [("A", False), ("B", False), ("I", True), ("T", False), ("V", False), ("L", False), (M_VC, False), ("", False)],
+        [("A", False), ("B", False), (M_SIZE, True), ("T", False), ("V", False), (M_BEAT, False), (M_VC, False), ("", False)],
         color,
         nfmts=[None, None, "#,##0.00", "0.00", "0.00", "0.0", None, None]
     )
