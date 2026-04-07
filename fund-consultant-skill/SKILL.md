@@ -1,5 +1,5 @@
 ---
-version: "1.7"
+version: "1.8"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -49,6 +49,13 @@ The user (consultant) will provide the client's risk profile. Accepted profiles:
 Do NOT proceed with fund recommendations until you have the risk profile.
 
 **New investor / first-time lead:** Default to a **Starter Portfolio** — max 4 funds. Additional funds can be layered in during the next portfolio review once the client is comfortable. State this explicitly in the proposal cover page and executive summary.
+
+**Investor experience also governs output style** — not just fund count. Record this for use in Step 6:
+
+| Experience Level | Layer 1 — Inline definitions | Layer 2 — Narrative register |
+|-----------------|------------------------------|------------------------------|
+| New Investor | Apply to ALL jargon terms on first use in narrative prose | Full plain-language rewrite — lead every bullet with the implication ("so what"), jargon secondary |
+| Experienced Investor | Apply only to uncommon terms (e.g. Look-Through, Lipper Class, Alpha Efficiency) | Technical shorthand acceptable; no need to lead every bullet with the "so what" |
 
 For reference on how suitability assessments work and what determines each profile, see:
 `fund-consultant-skill/references/sa_guide.md`
@@ -477,6 +484,70 @@ Use these findings to:
 
 ## Step 6: Present the Recommendation
 
+### Jargon Reference — Canonical Plain-English Definitions
+
+These are the authoritative one-line definitions to use for Layer 1 inline parentheticals. Use the
+exact wording below for consistency across all proposals.
+
+| Term | Plain-English Definition |
+|------|--------------------------|
+| Alpha | How much the fund beat its benchmark — expressed as a percentage per year |
+| Weighted Alpha | An overall alpha score combining all available periods, with 3Y carrying the most weight |
+| Beat Rate | How many time periods out of the available history the fund outperformed its benchmark |
+| VF (Volatility Factor) | How sharply the fund's price can swing; higher = wilder price movements day to day |
+| RL / Risk Level | A 1–5 scale; RL5 = highest risk, suitable only for investors comfortable with large drawdowns |
+| ATH | All-time high — the highest price the fund has ever reached |
+| Drawdown from ATH | How far the current price has fallen from the all-time high |
+| Benchmark | The index or standard the fund is measured against — the "passing grade" the manager must beat |
+| RSP | Regular Savings Plan — an automatic monthly investment, like a standing order |
+| Look-Through | Analysing what a fund actually holds rather than relying on its official category label |
+| Lipper Class | The official fund category label assigned by a third-party data provider — may not reflect actual holdings |
+| Dip Trigger | The price-drop threshold at which money market reserves get switched into the falling fund |
+| Alpha Efficiency | Alpha earned per unit of volatility taken — measures how smartly the manager outperforms |
+
+### Two-Layer Jargon Rule (apply based on investor experience from Step 0)
+
+**Layer 1 — Inline parenthetical on first use:**
+
+When a term from the Jargon Reference Table first appears in *narrative prose* (executive summary,
+alpha story bullets, risk descriptions, strategy section), append the plain-English definition in
+parentheses immediately after. On subsequent uses of the same term, use the term alone — never
+repeat the definition.
+
+- New investor: apply to ALL terms in the table
+- Experienced investor: apply only to uncommonly-known terms (Look-Through, Lipper Class, Alpha Efficiency)
+
+**Exempt from Layer 1:** Tables, metadata rows, and performance grids. These are reference data,
+not prose — adding parentheticals clutters them. The column headers provide sufficient context.
+
+Example (new investor):
+> "The 3Y Alpha (how much the fund beat its benchmark per year, over 3 years) is +16.70% — the
+> highest in the 110-fund universe."
+
+Subsequent mention:
+> "This 3Y alpha is sustained across a full market cycle."
+
+**Layer 2 — Narrative register:**
+
+In the alpha story bullets, executive summary, and risk warnings, always lead with the *implication*
+(the "so what") before the number or technical detail.
+
+- New investor: mandatory — every bullet must pass the "friend test": would someone who has never
+  invested before understand *why this matters*, not just *what the number is*?
+- Experienced investor: optional — technical shorthand acceptable
+
+Examples:
+
+| ❌ Analyst register | ✓ Informed-layman register |
+|---|---|
+| "3Y alpha +16.70% — 5/5 beat rate" | "The fund manager added 16.70% per year above the market benchmark over 3 years — confirmed across a full cycle, not a lucky streak" |
+| "VF 21.1 — corrections of 25–35% possible" | "This fund's price can drop 25–35% during market panics. That is normal for this type of fund — holding through it is the strategy, not a reason to exit" |
+| "ATH drawdown -7.01% (39 days)" | "The fund is currently 7% below its highest-ever price, where it has sat for 39 days. It is approaching the 10% level that triggers our reserve deployment rule" |
+| "RSP: 45% PIATAF, 33% PISTF..." | "Set up a standing monthly investment: 45% into PIATAF, 33% into PISTF..." |
+
+**Layer 2 is NOT applied to:** Tables, performance grids, metadata, cost calculations, and the
+portfolio summary table. These are data references, not reading material.
+
 ### For Each Recommended Fund
 
 ```
@@ -607,6 +678,7 @@ styling guidelines, and section requirements.
 - Print-optimised: `@media print` with page breaks, colour-exact flags
 - Self-contained: single HTML file, all CSS inline, no external dependencies
 - Tone: professional financial document, clean whitespace, readable at 14px body
+- Jargon layer (new investor): apply the two-layer rule from Step 6 — inline definitions on first use in all narrative sections (exec summary, alpha story, risk descriptions, strategy); Layer 2 informed-layman register in all prose sections; tables and grids are exempt and remain technical
 
 ---
 
@@ -717,6 +789,7 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.8 | 2026-04-07 | Feature | Two-layer jargon approach for new investor proposals — Layer 1: inline plain-English parentheticals on first use of each technical term in narrative prose (13-term canonical reference table added to Step 6); Layer 2: informed-layman narrative register in alpha story bullets, exec summary, and risk descriptions, leading with "so what" implication before number/label; investor experience level (Step 0) now governs output style in addition to fund count; tables and grids remain technical and are explicitly exempt |
 | 1.7 | 2026-04-07 | Fix + Feature | Replace Fund Type label filter (Filter 4) with actual equity look-through using Dom.Equity% + For.Equity% — eliminates false exclusions from Lipper label mismatches; add Step 4d Alpha Outlier satellite mechanism — scans full qualified universe post-portfolio-build and surfaces top-alpha funds as satellite positions (5–15% cap, profile-calibrated, mandatory risk disclosure) so no star fund is invisible to any profile |
 | 1.6 | 2026-04-06 | Feature | Rename "Growth" → "Moderately Aggressive" to match Public Mutual official profile names; profile-specific Starter Portfolio compositions for all 4 profiles (incl. Aggressive/New); expand geographic allocation to 4 tiers (Malaysia \| Asia \| Global US/Europe \| Emerging ex-Asia); plain-language glossary in sa_guide; New Investor Foundation section in proposal template |
 | 1.5 | 2026-04-06 | Feature | Step 7 now delegates HTML generation to the `frontend-design` skill — passes full design brief (palette, card types, performance table, pie chart, print CSS) for elevated visual quality; replaced alpha bar visualisation with `Period \| Fund % \| Bench % \| Alpha %` table per fund card |
