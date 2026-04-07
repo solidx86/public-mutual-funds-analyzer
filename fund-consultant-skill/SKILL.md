@@ -1,5 +1,5 @@
 ---
-version: "1.6"
+version: "1.7"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -106,13 +106,38 @@ Apply these filters sequentially:
 | Moderately Aggressive | 4 |
 | Aggressive | 5 (no ceiling) |
 
-### Filter 4: Fund Type Eligibility
-| Profile | Eligible Fund Types |
-|---------|-------------------|
-| Conservative | Bond, Sukuk, Money Market, Mixed Asset (conservative: ≤40% equity) |
-| Moderate | All types, but equity allocation capped at 55% of portfolio |
-| Moderately Aggressive | All types, equity up to 75% |
-| Aggressive | All types, equity up to 90% |
+### Filter 4: Actual Equity Look-Through Classification
+
+**Do not filter by the `Fund Type` label column.** The Lipper/regulatory label is a classification
+artefact that does not reliably reflect what a fund actually holds. A "Mixed Asset" fund may run
+97% equity in practice; a "Balanced" fund may hold 60% bonds. Use the actual asset allocation data.
+
+**Step 1 — Compute actual equity exposure for every fund:**
+```
+actual_equity_pct = (Dom. Equity % or 0) + (For. Equity % or 0)
+```
+Read both values from the Asset Allocation columns (cols 35–36). Treat missing/blank as 0.
+
+**Step 2 — Assign a derived class:**
+
+| Derived Class | actual_equity_pct | Behaves like |
+|---|---|---|
+| **Equity-equivalent** | ≥ 70% | Pure equity fund — fills equity slots, counts toward equity ceiling |
+| **Balanced** | 30–69% | True mixed asset — fills Mixed Asset slot |
+| **Defensive** | < 30% | Bond/FI/MM-equivalent — fills FI or MM slot |
+
+**Step 3 — Apply profile eligibility by derived class (not by label):**
+
+| Profile | Eligible derived classes |
+|---|---|
+| Conservative | Defensive only; Balanced only if actual_equity_pct ≤ 40% |
+| Moderate | All classes |
+| Moderately Aggressive | All classes |
+| Aggressive | All classes |
+
+This ensures that any fund — regardless of its Lipper label — is evaluated by what it actually
+holds today. The classification is recomputed fresh from each FundMaster workbook, so it remains
+accurate as fund compositions shift over time.
 
 ---
 
@@ -346,6 +371,80 @@ a parking space. Include the dip capture trigger rules explicitly in the fund ca
 
 ---
 
+## Step 4d: Alpha Outlier — Star Fund Satellite Check
+
+After the main portfolio is assembled (Steps 2–4c), run one final scan of the **entire qualified
+universe** — no profile filters, no type filters, no RL ceiling — to check whether an exceptional
+alpha performer has been left out. If one qualifies under the rules below, include it as a small
+satellite position.
+
+**This step exists because outstanding manager skill is rare and transcends profile boundaries.**
+A fund that beats its benchmark 5/5 periods at high alpha is worth a small allocation for any
+client, provided the risk is disclosed and the position is sized appropriately.
+
+### Algorithm (fully data-driven — no fund names hardcoded)
+
+**1. Score the full universe.**
+Compute alpha scores for all funds with Status = "Qualified" — ignore Risk Level, ignore derived
+class, ignore Fund Type. Apply the same alpha score formula and penalties as Step 3.
+
+**2. Identify candidates.**
+Take the top 5 by alpha score. Remove any fund already in the portfolio.
+
+**3. Apply three gates to each candidate (in order):**
+- **Gate A — Alpha quality:** 3Y alpha must be positive. If 5Y alpha is available it must also be
+  positive (if missing due to fund age, acceptable with disclosure).
+- **Gate B — Shariah filter:** Must match the client's Shariah preference.
+- **Gate C — Holdings overlap:** Check top 5 holdings against every fund already in the portfolio.
+  If the candidate shares 3 or more of its top 5 holdings with any existing fund, discard it and
+  try the next candidate. Redundant overlap adds no value.
+
+**4. Select at most one.**
+Take the highest-scoring candidate that passes all three gates. If no candidate passes, skip this
+step entirely — do not force an outlier.
+
+**5. Size the satellite position** using the profile-calibrated cap below:
+
+| Profile | Satellite Allocation Cap | RL Ceiling for Core |
+|---|---|---|
+| Conservative | 5–10% | Satellite may exceed RL 2 — mandatory disclosure |
+| Moderate | 8–12% | Satellite may exceed RL 3 — disclosure required |
+| Moderately Aggressive | 10–15% | Satellite may exceed RL 4 — disclosure required |
+| Aggressive | Alpha Outlier already visible in main universe — skip this step | — |
+
+**6. Carve the allocation** from the core portfolio fund with the lowest alpha score, reducing it
+pro-rata. The total portfolio must still sum to 100%.
+
+### Fund Card Treatment
+
+Use a distinct **"ALPHA OUTLIER — SATELLITE POSITION"** card with a deep teal left border
+(`#2c7a7b`, solid). Do not use the dashed amber Exposure Gap border — this fund IS qualified.
+
+The card must include an explicit **"Why Satellite, Not Core"** section explaining:
+- Its alpha score rank in the full qualified universe (e.g., "#1 of 171 funds")
+- The specific mismatch that prevents core inclusion (RL above profile ceiling, or derived class
+  mismatch after look-through)
+- The deliberate sizing rationale: "Sized at X% because [risk mismatch]. The full portfolio risk
+  profile remains [Conservative/Moderate/etc] — this is a precision tilt, not a profile change."
+- If RL exceeds the profile ceiling: add a clear **"ELEVATED RISK — SATELLITE ONLY"** warning
+  banner and quantify the VF difference vs the core portfolio average.
+
+### In the Proposal HTML
+
+Alpha Outlier card: deep teal solid left border (`#2c7a7b`), with a teal header banner labelled
+**"ALPHA OUTLIER — SATELLITE POSITION"**. Visually distinct from both standard fund cards and the
+dashed-amber Exposure Gap card.
+
+### Limits
+
+- **Maximum 1 Alpha Outlier satellite per portfolio.** This is a precision addition, not a habit.
+- **Never force it.** If no candidate clears all three gates cleanly, omit the step and note that
+  no outlier was identified. An absent outlier is not a problem.
+- **Starter Portfolio (new investor):** The satellite counts as one of the 4 fund slots. If adding
+  it pushes the portfolio to 5 funds, replace the weakest core fund instead.
+
+---
+
 ## Step 5: Search for Current Macro Context
 
 **Web search** for the latest macroeconomic data to align recommendations. Search for:
@@ -501,7 +600,7 @@ styling guidelines, and section requirements.
 
 **Design brief to pass to frontend-design skill:**
 - Brand palette: Navy `#1a365d` primary, `#2b6cb0` accent, white backgrounds
-- Fund card types: equity (blue left border), mixed asset (amber), FI/Sukuk (green), gold (warm gold border), money market (grey), exposure gap (dashed amber)
+- Fund card types: equity (blue left border), mixed asset (amber), FI/Sukuk (green), gold (warm gold border), money market (grey), exposure gap (dashed amber), alpha outlier satellite (solid deep teal `#2c7a7b`)
 - Alpha performance: use a `Period | Fund % | Bench % | Alpha %` table per fund card (not visual bars); alpha column green for positive, red for negative; show `—` for unavailable periods (fund too young)
 - Portfolio summary: zebra-striped table, weighted totals row highlighted
 - Pie chart: CSS conic-gradient only — no JS, no external libraries
@@ -618,6 +717,7 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.7 | 2026-04-07 | Fix + Feature | Replace Fund Type label filter (Filter 4) with actual equity look-through using Dom.Equity% + For.Equity% — eliminates false exclusions from Lipper label mismatches; add Step 4d Alpha Outlier satellite mechanism — scans full qualified universe post-portfolio-build and surfaces top-alpha funds as satellite positions (5–15% cap, profile-calibrated, mandatory risk disclosure) so no star fund is invisible to any profile |
 | 1.6 | 2026-04-06 | Feature | Rename "Growth" → "Moderately Aggressive" to match Public Mutual official profile names; profile-specific Starter Portfolio compositions for all 4 profiles (incl. Aggressive/New); expand geographic allocation to 4 tiers (Malaysia \| Asia \| Global US/Europe \| Emerging ex-Asia); plain-language glossary in sa_guide; New Investor Foundation section in proposal template |
 | 1.5 | 2026-04-06 | Feature | Step 7 now delegates HTML generation to the `frontend-design` skill — passes full design brief (palette, card types, performance table, pie chart, print CSS) for elevated visual quality; replaced alpha bar visualisation with `Period \| Fund % \| Bench % \| Alpha %` table per fund card |
 | 1.4 | 2026-04-06 | Feature | Gold (PeEMAS) and Money Market promoted to Structural Allocations (Step 4b/4c) — always included across ALL profiles regardless of alpha qualification; profile-graduated allocations for both (gold 5–12%, MM 8–20% scaling inversely with risk); gold removed from Exposure Gap pathway; MM universalised from Moderately Aggressive/Aggressive-only |
