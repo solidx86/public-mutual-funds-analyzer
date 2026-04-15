@@ -1,5 +1,5 @@
 ---
-version: "1.9"
+version: "1.12"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -190,9 +190,16 @@ growth-oriented investors.
 CFS = (w_A × Alpha_N) + (w_R × ReturnFit_N) + (w_E × Efficiency_N) + (w_M × Momentum_N)
 ```
 
-All four dimensions are normalised to **0–100** within each **derived class** (Equity-equivalent,
-Balanced, Defensive) separately. This ensures a bond fund's alpha is compared against other bond
-funds — not against equity funds — before entering the composite score.
+**Alpha, Return Fit, and Efficiency** are normalised to **0–100** via percentile rank within each
+**derived class** (Equity-equivalent, Balanced, Defensive) separately. This ensures a bond fund's
+alpha is compared against other bond funds — not against equity funds — before entering the score.
+
+**Momentum** uses an **absolute score (0–100)** from the scoring formula directly — no percentile
+normalization. Reason: Momentum's output is already bounded and semantically calibrated (ATH
+proximity has a clear meaning independent of peers). Percentile-ranking Momentum causes clustering
+distortion in bull markets — when many funds are simultaneously at ATH, all score at the same raw
+value and collapse to the same low percentile, incorrectly penalizing funds with strong price
+momentum simply because conditions are broad-market-positive.
 
 ---
 
@@ -225,10 +232,25 @@ the bottom scores 0.
 
 This dimension answers: *"Can this fund actually deliver what the investor expects?"*
 
-**Primary return period:** 5Y annualised fund return (long-term 5Y+ is always the default pitch).
-Fall back to 3Y if 5Y unavailable, then 1Y.
+**Return period: weighted blend (mirrors Alpha methodology)**
 
-**Scoring curve** (piecewise linear on `Return_Ratio = Fund_Return_Primary / E_target`):
+```
+Wtd_Return = (3Y_Fund × 0.4) + (5Y_Fund × 0.3) + (1Y_Fund × 0.2) + (YTD_Fund × 0.1)
+```
+
+Use the same period weights as the Alpha dimension. If a period is unavailable, redistribute its
+weight proportionally across available periods (same missing-period logic as Alpha).
+
+**Rationale:** Using 5Y alone as the primary period biases ReturnFit against funds whose
+performance is concentrated in the recent market regime (e.g. the AI/tech supercycle from 2022
+onward). A fund with 3Y=22% but 5Y=8% (because 2021–2022 were weak) is being judged by its
+least-representative period. Weighting return periods the same way as alpha periods produces a
+return estimate that is consistent, regime-aware, and more reflective of current team capability.
+
+**Young fund handling:** If 5Y and 3Y are both unavailable, note "Limited track record —
+Return Fit based on 1Y/YTD only" in the fund card.
+
+**Scoring curve** (piecewise linear on `Return_Ratio = Wtd_Return / E_target`):
 
 | Return_Ratio | ReturnFit_N Score |
 |---|---|
@@ -241,12 +263,9 @@ Fall back to 3Y if 5Y unavailable, then 1Y.
 
 Interpolate linearly between anchors.
 
-**Bear market exception:** If ALL funds in a derived class have negative primary-period returns,
-ReturnFit_N becomes relative (best negative = 100, worst = 0). Add a note in the CFS diagnostic
-block: "Bear market mode — Return Fit is relative within class."
-
-**Young fund flag:** If 5Y and 3Y are both unavailable, note "Limited track record — Return Fit
-based on 1Y only" in the fund card.
+**Bear market exception:** If ALL funds in a derived class have negative `Wtd_Return`, ReturnFit_N
+becomes relative (best = 100, worst = 0). Add a note in the CFS diagnostic block: "Bear market
+mode — Return Fit is relative within class."
 
 ---
 
@@ -288,21 +307,27 @@ Based on ATH Drawdown (%) from col 72 and Days from ATH from col 73:
 
 Clamp final Momentum_N to [0, 100].
 
+**Implementation note — zero drawdown:** When reading Drawdown (%) from col 72, use an explicit
+`None` check before defaulting (e.g. `dd = drawdown if drawdown is not None else -50`). Do NOT
+use a falsy `or` check — a drawdown of exactly `0.0` (fund at ATH) is valid and must be preserved.
+Using `0.0 or -50` would silently score an ATH fund as if it had a −50% drawdown.
+
 ---
 
 ### Profile-Adaptive Weights (Base)
 
 | Dimension | Conservative | Moderate | Mod. Aggressive | Aggressive |
 |---|---|---|---|---|
-| Alpha `w_A` | 40% | 35% | 30% | 25% |
-| Return Fit `w_R` | 15% | 25% | 30% | 35% |
+| Alpha `w_A` | 40% | 35% | 30% | 35% |
+| Return Fit `w_R` | 15% | 25% | 30% | 30% |
 | Efficiency `w_E` | 35% | 25% | 20% | 15% |
-| Momentum `w_M` | 10% | 15% | 20% | 25% |
+| Momentum `w_M` | 10% | 15% | 20% | 20% |
 
 **Rationale:**
 - Conservative: skill and risk efficiency dominate — modest targets are achievable by many funds, so quality of outperformance matters most
 - Moderate: balanced across all four dimensions
-- Moderately Aggressive / Aggressive: return delivery and momentum rise — the investor needs higher absolute returns, so a fund must demonstrate both the capability and current strength to deliver
+- Moderately Aggressive: return delivery and momentum rise — the investor needs higher absolute returns
+- Aggressive: Alpha weight rises back to 35% (matching Moderate) because at the aggressive end, the best differentiator is genuine manager skill — return delivery is table stakes and momentum is secondary to alpha quality. Momentum is reduced from 25% to 20% since aggressive investors hold through volatility by definition and should not be penalised for Momentum clustering in bull markets.
 
 ### Weight Modifier — Expected Return Stretch
 
@@ -451,11 +476,12 @@ Gold fund alpha should be interpreted differently from equity funds:
 **Card styling in proposal HTML:** Standard gold-border card (amber/gold, `#b7791f`) — no warning
 banner, no dashed border. Present it as an evergreen structural position, not an exception.
 
-### Money Market (PMMF-A or PIMMF-A)
+### Money Market (PeCDF-A for Starter; PMMF-A or PIMMF-A for full portfolios)
 
 See Step 4c for full guidance. Selection:
-- No Shariah restriction: **PMMF-A** (Public Money Market Fund - Class A)
-- Shariah preference: **PIMMF-A** (Public Islamic Money Market Fund - Class A)
+- **Starter portfolio (new investor):** Always use **PeCDF-A** (Public e-Cash Deposit — Class A) regardless of Shariah preference. PeCDF-A is the de facto dry-powder vehicle for all 4-fund starter builds.
+- **Full portfolio (experienced investor), no Shariah restriction:** **PMMF-A** (Public Money Market Fund - Class A)
+- **Full portfolio (experienced investor), Shariah preference:** **PIMMF-A** (Public Islamic Money Market Fund - Class A)
 
 ---
 
@@ -538,9 +564,9 @@ higher risk tolerance = more in equity, less in reserve — but the floor never 
 
 ### Fund Selection
 
-Prefer the highest-alpha qualified money market fund:
-- No Shariah restriction: **PMMF-A** (Public Money Market Fund - Class A)
-- Shariah preference: **PIMMF-A** (Public Islamic Money Market Fund - Class A)
+- **Starter portfolio (new investor):** Always **PeCDF-A** (Public e-Cash Deposit — Class A). This is the de facto dry-powder fund for all 4-fund starter builds, regardless of Shariah preference.
+- **Full portfolio (experienced investor), no Shariah restriction:** **PMMF-A** (Public Money Market Fund - Class A)
+- **Full portfolio (experienced investor), Shariah preference:** **PIMMF-A** (Public Islamic Money Market Fund - Class A)
 - Minimum AUM: RM 200M for liquidity confidence
 
 ### Card Styling in Proposal HTML
@@ -977,6 +1003,9 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.12 | 2026-04-15 | Config | PeCDF-A (Public e-Cash Deposit — Class A) is now the de facto money market fund for all new investor Starter Portfolios (4-fund builds), regardless of Shariah preference. Full portfolios (experienced investors) retain the existing PMMF-A / PIMMF-A selection logic. Updated both Step 4b and Step 4c fund selection rules. |
+| 1.11 | 2026-04-15 | Fix | ReturnFit switches from 5Y-primary to weighted-period blend (3Y×40%, 5Y×30%, 1Y×20%, YTD×10%) — mirrors the Alpha dimension's methodology. Fix eliminates systematic bias against funds whose returns are concentrated in the recent market regime: a fund with 3Y=22% but 5Y=8% (pre-AI era drag) was being judged by its worst period. With the weighted blend, PIATAF's Return Fit goes from raw 31 to 100 (wtd return 24.96% vs 14% target), correctly reflecting its demonstrated ability to exceed the investor's target. |
+| 1.10 | 2026-04-15 | Fix | Two CFS scoring fixes: (1) Momentum uses absolute raw score (0–100) instead of percentile rank — percentile normalization caused clustering distortion in bull markets where many funds simultaneously sit at ATH, incorrectly burying high-momentum funds at low percentile ranks; (2) Aggressive base Momentum weight reduced from 25% to 20%, Alpha raised from 25% to 35% — aggressive investors hold through volatility by definition, so Momentum should not dominate over alpha quality at this profile. Also fixes Python falsy-zero bug: `0.0 drawdown or -50` must use explicit None check to preserve exact-ATH funds correctly. Net effect: funds at ATH with exceptional alpha (e.g. PIATAF) now correctly surface as top-ranked rather than being buried by Momentum clustering. |
 | 1.9 | 2026-04-15 | Feature | Composite Fund Score (CFS) replaces alpha-only Step 3 ranking. Four dimensions: Alpha (manager skill, existing formula), Return Fit (absolute return vs E_target, 5Y primary), Efficiency (3Y alpha / VF), Momentum (ATH drawdown + days). Profile-adaptive base weights with E_target stretch modifier. E_target collected in Step 0 with guide ranges per profile and mismatch guard. Step 4d outlier gains Alpha_N ≥ 80 gate. Fund card gains CFS section with per-dimension scores and weights. Portfolio summary table gains CFS column and weighted portfolio CFS footer. Two new jargon terms (CFS, Return Fit). Philosophy updated from alpha-only to alpha-anchored multi-factor. |
 | 1.8 | 2026-04-07 | Feature | Two-layer jargon approach for new investor proposals — Layer 1: inline plain-English parentheticals on first use of each technical term in narrative prose (13-term canonical reference table added to Step 6); Layer 2: informed-layman narrative register in alpha story bullets, exec summary, and risk descriptions, leading with "so what" implication before number/label; investor experience level (Step 0) now governs output style in addition to fund count; tables and grids remain technical and are explicitly exempt |
 | 1.7 | 2026-04-07 | Fix + Feature | Replace Fund Type label filter (Filter 4) with actual equity look-through using Dom.Equity% + For.Equity% — eliminates false exclusions from Lipper label mismatches; add Step 4d Alpha Outlier satellite mechanism — scans full qualified universe post-portfolio-build and surfaces top-alpha funds as satellite positions (5–15% cap, profile-calibrated, mandatory risk disclosure) so no star fund is invisible to any profile |
