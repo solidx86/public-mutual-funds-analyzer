@@ -15,19 +15,63 @@ New in v5:
 import csv
 import json
 import os
+import re
 import sys
+from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
 
 # ── Paths (auto-derived from script location: scripts/ → fund-screener-skill/ → Funds/) ──
-WORK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT_PATH = os.path.join(WORK_DIR, "PublicMutual_FundMaster_Apr2026_v1.1.xlsx")
+SCRIPTS_DIR  = os.path.dirname(os.path.abspath(__file__))
+SKILL_DIR    = os.path.dirname(SCRIPTS_DIR)
+WORK_DIR     = os.path.dirname(SKILL_DIR)
 
-if not WORK_DIR or not OUT_PATH:
-    print("ERROR: Please set WORK_DIR and OUT_PATH at the top of this script.")
-    sys.exit(1)
+# ── Derive MFR month/year from mfr_results.json source files ──────────────────
+MONTH_SHORT = {"JAN":"Jan","FEB":"Feb","MAR":"Mar","APR":"Apr",
+               "MAY":"May","JUN":"Jun","JUL":"Jul","AUG":"Aug",
+               "SEP":"Sep","OCT":"Oct","NOV":"Nov","DEC":"Dec"}
+MONTH_FULL  = {"JAN":"January","FEB":"February","MAR":"March","APR":"April",
+               "MAY":"May","JUN":"June","JUL":"July","AUG":"August",
+               "SEP":"September","OCT":"October","NOV":"November","DEC":"December"}
+
+def _mfr_labels():
+    """Return (short_label, full_label) e.g. ('Mar2026', 'March 2026')."""
+    mfr_path = os.path.join(WORK_DIR, "mfr_results.json")
+    try:
+        with open(mfr_path) as f:
+            data = json.load(f)
+        for fund in data.get("all_funds", []):
+            src = fund.get("source_file", "")
+            m = re.search(r'\[MFR ([A-Z]{3})(\d{2})\]', src, re.IGNORECASE)
+            if m:
+                key = m.group(1).upper()
+                yr  = "20" + m.group(2)
+                return MONTH_SHORT.get(key, key.capitalize()) + yr, \
+                       MONTH_FULL.get(key, key.capitalize()) + " " + yr
+    except Exception:
+        pass
+    return "Unknown", "Unknown"
+
+# ── Derive skill version from SKILL.md frontmatter ────────────────────────────
+def _skill_version():
+    skill_md = os.path.join(SKILL_DIR, "SKILL.md")
+    try:
+        with open(skill_md) as f:
+            for line in f:
+                m = re.match(r'^version:\s*["\']?([^"\']+)["\']?', line.strip())
+                if m:
+                    return m.group(1).strip()
+    except Exception:
+        pass
+    return "1.0"
+
+MFR_LABEL, MFR_FULL_LABEL = _mfr_labels()
+SKILL_VER    = _skill_version()
+GENERATED_LABEL = datetime.now().strftime("%B %Y")
+OUT_PATH  = os.path.join(WORK_DIR, f"PublicMutual_FundMaster_{MFR_LABEL}_v{SKILL_VER}.xlsx")
+print(f"Output: {os.path.basename(OUT_PATH)}")
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 C_HEADER_BG = "1F3864"
@@ -211,7 +255,7 @@ AE_ALPHA_MAP = {
 total_screened = len(mfr_data['all_funds'])
 total_qual = sum(1 for r in rows if r.get("Status") == "Qualified")
 title_text = (f"PUBLIC MUTUAL — FUND MASTER  |  "
-              f"Data: MFR February 2026  |  "
+              f"Data: MFR {MFR_FULL_LABEL}  |  "
               f"{total_qual} Qualified / {total_screened} Total Funds")
 title_cell = ws.cell(row=1, column=1, value=title_text)
 title_cell.font = Font(name="Arial", bold=True, size=12, color="FFFFFF")
@@ -527,7 +571,7 @@ for ci, w in enumerate([32, 14, 12, 12, 12, 12, 14, 14], start=1):
 
 # ── Title row ────────────────────────────────────────────────────────────────
 r = 1
-t = ws2.cell(row=r, column=1, value="PUBLIC MUTUAL FUND SCREENER — SUMMARY  |  MFR February 2026")
+t = ws2.cell(row=r, column=1, value=f"PUBLIC MUTUAL FUND SCREENER — SUMMARY  |  MFR {MFR_FULL_LABEL}")
 t.font = Font(name="Arial", bold=True, size=14, color="FFFFFF")
 t.fill = PatternFill("solid", fgColor="1F3864")
 t.alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -569,7 +613,7 @@ stats = [
     ("Conventional funds qualified", n_conv, ""),
     ("Shariah-compliant funds qualified", n_shariah, ""),
     (None, None, None),  # spacer
-    ("Data source", "MFR February 2026", ""),
+    ("Data source", f"MFR {MFR_FULL_LABEL}", ""),
     ("Screening criteria", "Weighted Alpha > 0% (YTD×5% + 1Y×15% + 3Y×40% + 5Y×25% + 10Y×15%)", ""),
     ("Minimum data requirement", "≥2 periods (YTD, 1Y, 3Y, 5Y, 10Y)", ""),
     ("Note", "Class-B & Wholesale funds excluded — not available to typical retail investors", ""),
@@ -760,7 +804,7 @@ for ft, color, label in FUND_TYPE_SECTIONS:
 # ── Footer ────────────────────────────────────────────────────────────────────
 r += 1
 ws2.cell(row=r, column=1,
-    value="Source: Public Mutual MFR February 2026 | Screened by 5-Point Code Review Framework | Generated April 2026")
+    value=f"Source: Public Mutual MFR {MFR_FULL_LABEL} | Screened by 5-Point Code Review Framework | Generated {GENERATED_LABEL}")
 ws2.cell(row=r, column=1).font = Font(name="Arial", size=8, italic=True, color="808080")
 ws2.merge_cells(start_row=r, start_column=1, end_row=r, end_column=SUMMARY_COLS)
 

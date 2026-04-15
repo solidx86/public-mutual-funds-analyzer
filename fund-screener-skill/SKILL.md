@@ -1,5 +1,5 @@
 ---
-version: "1.1"
+version: "1.2"
 name: fund-screener
 description: >
   Bulk-screen all Public Mutual unit trust funds from Monthly Fund Report (MFR) PDFs and produce a fund master list as a formatted Excel file (importable to Google Sheets). Applies weighted alpha scoring: qualifies funds whose weighted alpha (YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%) is positive, ensuring alpha quality matters more than binary pass/fail counts. Use this skill whenever the user says things like: "screen the new MFR", "update the fund qualification list", "which funds qualify this month", "run the fund screener", "update with the [month] MFR", "new monthly report is out — re-run the analysis", or any request to produce or refresh a qualified funds shortlist from Public Mutual MFR data. Also trigger when the user wants to compare qualified funds across months, filter by asset class (equity, bond, Shariah), or update the Google Sheet / Excel output. If the user drops new MFR PDFs and says "these are out" or "new reports", use this skill.
@@ -295,5 +295,6 @@ All formatting, filters, and conditional formatting carry over automatically.
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.2 | 2026-04-15 | Feature | Auto-derive output filename, sheet titles, and footer from MFR month/year (parsed from mfr_results.json) and skill version (parsed from SKILL.md frontmatter) — no manual hardcoding required each month; generated date also dynamic |
 | 1.1 | 2026-04-06 | Major | Replace binary 60% beat rate with weighted alpha scoring (YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%); qualify if weighted alpha > 0; add Weighted Alpha (%) column (col 14); v7→v8 layout (72→73 cols) |
 | 1.0 | 2026-04-06 | — | Initial versioned release |
