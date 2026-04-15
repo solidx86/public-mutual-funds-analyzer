@@ -23,11 +23,13 @@ Use `@media print` CSS for clean PDF output when printing from browser.
 5. **Client Risk Profile** — profile description, constraints (max RL, max equity %, min bond %)
 6. **Fund Recommendations** — one card per fund with:
    - Fund header (name, abbr, type, RL, VF, AUM, allocation %)
-   - Alpha story (beat rate, alpha across periods, alpha score, AE)
+   - Alpha performance table (period | Fund % | Bench % | Alpha %)
+   - CFS mini-bar (see below)
+   - Score breakdown narrative (alpha story, return delivery vs target, risk efficiency)
    - Macro alignment (how this fund connects to macro themes for medium-long horizon)
    - What to watch (flags/risks)
    - Cost & alpha justification (fees vs alpha = net value-add)
-7. **Portfolio Summary** — table with all funds, allocation, alpha, RL, macro thesis
+7. **Portfolio Summary** — table with all funds, allocation, CFS, alpha, RL, macro thesis
 8. **Portfolio Exposure Breakdown** — CSS conic-gradient pie chart of actual underlying asset exposure (see below)
 9. **Investment Strategy** — distribution policy, rebalancing triggers, tactical playbook
 10. **Fee Disclosure** — transparent breakdown of sales charges and annual fees per fund
@@ -44,6 +46,92 @@ Load from memory (`user_consultant_details.md`):
 - Representative from: Public Mutual Berhad
 
 Display in cover page header and document footer.
+
+### CFS Mini-Bar (Fund Card Component)
+
+After the performance table, before the score breakdown narrative, include a CFS mini-bar for each
+fund card. Use CSS-only horizontal bars — no JavaScript:
+
+```html
+<div style="background:#f7fafc; border:1px solid #e2e8f0; border-radius:6px; padding:14px 16px; margin:12px 0;">
+  <div style="font-weight:700; font-size:13px; color:#1a365d; margin-bottom:10px;">
+    COMPOSITE FUND SCORE: <span style="font-size:16px;">[XX.X]</span> / 100
+  </div>
+  <!-- Repeat for each dimension -->
+  <div style="margin-bottom:6px;">
+    <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a5568; margin-bottom:2px;">
+      <span>Alpha (Manager Skill)</span>
+      <span>[XX] / 100 &nbsp;·&nbsp; [X%] weight</span>
+    </div>
+    <div style="background:#e2e8f0; border-radius:3px; height:8px;">
+      <div style="background:#1a365d; width:[XX]%; height:8px; border-radius:3px;"></div>
+    </div>
+  </div>
+  <div style="margin-bottom:6px;">
+    <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a5568; margin-bottom:2px;">
+      <span>Return Fit (vs [X%] target)</span>
+      <span>[XX] / 100 &nbsp;·&nbsp; [X%] weight</span>
+    </div>
+    <div style="background:#e2e8f0; border-radius:3px; height:8px;">
+      <div style="background:#2c7a7b; width:[XX]%; height:8px; border-radius:3px;"></div>
+    </div>
+  </div>
+  <div style="margin-bottom:6px;">
+    <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a5568; margin-bottom:2px;">
+      <span>Efficiency (Risk-Adjusted)</span>
+      <span>[XX] / 100 &nbsp;·&nbsp; [X%] weight</span>
+    </div>
+    <div style="background:#e2e8f0; border-radius:3px; height:8px;">
+      <div style="background:#276749; width:[XX]%; height:8px; border-radius:3px;"></div>
+    </div>
+  </div>
+  <div>
+    <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a5568; margin-bottom:2px;">
+      <span>Momentum (ATH Proximity)</span>
+      <span>[XX] / 100 &nbsp;·&nbsp; [X%] weight</span>
+    </div>
+    <div style="background:#e2e8f0; border-radius:3px; height:8px;">
+      <div style="background:#b7791f; width:[XX]%; height:8px; border-radius:3px;"></div>
+    </div>
+  </div>
+</div>
+```
+
+**Dimension colors:**
+- Alpha: Navy `#1a365d`
+- Return Fit: Teal `#2c7a7b`
+- Efficiency: Green `#276749`
+- Momentum: Amber `#b7791f`
+
+**For new investors** (Layer 1 jargon rule): on the fund's first CFS mini-bar in the document,
+add parenthetical definitions after each label — e.g., "Alpha (Manager Skill — how much this
+fund beat its benchmark)". Subsequent fund cards use the labels alone.
+
+### Portfolio Summary Table
+
+Include a CFS column between Alloc% and 3Y Alpha. Show weighted portfolio CFS in the footer row:
+
+```html
+<table>
+  <thead>
+    <tr>
+      <th>Fund</th><th>Type</th><th>Alloc %</th><th>CFS</th><th>3Y Alpha</th><th>Risk Level</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>[Abbr]</td><td>Equity</td><td>XX%</td><td>XX.X</td><td>+X.XX%</td><td>[1-5]</td></tr>
+    <!-- ... -->
+    <tr style="font-weight:700; background:#ebf8ff;">
+      <td>PORTFOLIO</td><td></td><td>100%</td><td>[Wtd CFS]</td><td>[Wtd Alpha]</td><td>[Wtd RL]</td>
+    </tr>
+  </tbody>
+</table>
+<p style="font-size:12px; color:#4a5568;">
+  Weighted Portfolio CFS: <strong>[XX.X] / 100</strong> &nbsp;|&nbsp;
+  Weighted Portfolio Alpha (3Y): <strong>[+X.XX%]</strong> &nbsp;|&nbsp;
+  Weighted Portfolio VF: <strong>[X.XX] ([Volatility Class])</strong>
+</p>
+```
 
 ### Exposure Gap Fund Cards
 

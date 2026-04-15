@@ -1,14 +1,15 @@
 # Portfolio Allocation Models
 
-## Alpha-First Selection Philosophy
+## Alpha-Anchored Multi-Factor Philosophy
 
-Raw return is vanity. **Alpha is sanity.**
+Raw return is vanity. **Alpha is sanity.** But alpha alone is an incomplete answer.
 
-A fund returning 20% when its benchmark returned 25% has alpha of -5% — the manager destroyed value.
-A fund returning 8% when its benchmark returned 3% has alpha of +5% — genuine skill.
+A fund returning 8% when its benchmark returned 3% has alpha of +5% — genuine skill. But for an
+aggressive investor targeting 15% p.a., that 8% absolute return is still insufficient regardless
+of how excellent the alpha is. Both dimensions matter.
 
-You are paying 1.50–1.80% annually for active management. If the fund merely tracks the benchmark
-(zero alpha), you're paying fees for nothing. **Alpha must justify the cost.**
+You are paying 1.50–1.80% annually for active management. Alpha must justify the cost — and the
+fund's absolute return must match the investor's goals. The selection engine weights both.
 
 ---
 
@@ -19,8 +20,17 @@ You are paying 1.50–1.80% annually for active management. If the fund merely t
 - **Shariah filter** — apply based on SA Q8 response
 - **Risk Level ceiling** — fund Risk Level must be ≤ profile maximum
 
-### Layer 2: Alpha Ranking (Primary Sort)
-Weighted alpha score across periods:
+### Layer 2: Composite Fund Score (CFS) Ranking
+
+Funds are ranked by CFS = weighted combination of four normalised dimensions:
+
+```
+CFS = (w_A × Alpha_N) + (w_R × ReturnFit_N) + (w_E × Efficiency_N) + (w_M × Momentum_N)
+```
+
+All dimensions normalised 0–100 within each derived class (Equity-equivalent / Balanced / Defensive).
+
+**Dimension 1 — Alpha (Manager Skill):**
 
 | Period | Weight | Rationale |
 |--------|--------|-----------|
@@ -29,22 +39,36 @@ Weighted alpha score across periods:
 | 1Y Alpha | 20% | Recent execution and momentum |
 | YTD Alpha | 10% | Very recent direction — lowest weight due to noise |
 
-**Calculation:** `Alpha Score = (3Y_Alpha × 0.4) + (5Y_Alpha × 0.3) + (1Y_Alpha × 0.2) + (YTD_Alpha × 0.1)`
+Penalties: halve score if 3Y or 5Y alpha is negative; flag "benchmark-hugger" if all periods < 1%.
 
-**Penalties:**
-- If 3Y or 5Y alpha is negative → halve the fund's total alpha score
-- If alpha < 1% across ALL periods → flag as "benchmark-hugger" (not worth active fees)
+**Dimension 2 — Return Fit (Absolute Return vs E_target):**
+- Primary period: 5Y annualised fund return (long-term pitch)
+- Score 100 if Return_Ratio ≥ 1.5; 80 if = 1.0; 50 if = 0.75; 20 if = 0.5; 0 if negative
+- Return_Ratio = Fund_Return_5Y / E_target
 
-### Layer 3: Alpha Efficiency
-`Alpha Efficiency = Alpha / Volatility Factor`
+**Dimension 3 — Efficiency (Risk-Adjusted Skill):**
+- `3Y Alpha / Volatility Factor` — normalised within derived class
+- High score = manager earns alpha without taking excessive risk
 
-This measures the **quality** of outperformance per unit of risk.
-- High AE = smart alpha (outperforming without taking excessive risk)
-- Low AE = brute-force alpha (outperforming by taking more risk — fragile)
+**Dimension 4 — Momentum (ATH Proximity):**
+- Base score from ATH Drawdown (0% to −5% = 80, >−40% = 10)
+- Recovery velocity bonus: <30 days from ATH = +15, >365 days = −10
 
-Use 3Y Alpha Efficiency as the tiebreaker when alpha scores are similar.
+**Profile-Adaptive Weights:**
 
-### Layer 4: Diversification Check
+| Dimension | Conservative | Moderate | Mod. Aggressive | Aggressive |
+|---|---|---|---|---|
+| Alpha `w_A` | 40% | 35% | 30% | 25% |
+| Return Fit `w_R` | 15% | 25% | 30% | 35% |
+| Efficiency `w_E` | 35% | 25% | 20% | 15% |
+| Momentum `w_M` | 10% | 15% | 20% | 25% |
+
+Weights shift further based on E_target deviation from profile midpoint (up to ±10%).
+See SKILL.md Step 3 for full specification.
+
+**Tiebreaker:** CFS within 2 points → break by Alpha_N, then Efficiency_N.
+
+### Layer 3: Alpha Efficiency (embedded in CFS Dimension 3)
 After selecting top-ranked funds per category, verify:
 - No single sector > 40% of total equity allocation
 - No single country > 60% of total equity allocation (Malaysia exception: up to 80%)
