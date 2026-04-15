@@ -1,5 +1,5 @@
 ---
-version: "1.12"
+version: "1.13"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -112,9 +112,12 @@ For reference on how suitability assessments work and what determines each profi
 | META (65–68) | VF, VC, Lipper Class, Benchmark |
 | ATH MOMENTUM (69–73) | ATH NAV, ATH Date, Cur NAV, Drawdown (%), Days from ATH |
 
-**Qualification:** Funds qualify based on **Weighted Alpha > 0%** (weighted scoring: YTD 5%, 1Y 15%,
-3Y 40%, 5Y 25%, 10Y 15%). Only work with **Qualified** funds (Status column = "Qualified"),
-except when applying the Exposure Gap mechanism (see Step 4b).
+**Qualification status** (Weighted Alpha > 0%) is stored in the Status column ("Qualified" /
+"Disqualified") and is used for **disclosure only** — it does not filter the fund universe.
+All funds that pass Filters 2–4 (Shariah, Risk Level, Look-Through) are eligible for CFS
+ranking. CFS inherently deprioritizes disqualified funds through Alpha_N penalties (halved
+for negative 3Y/5Y alpha) and Efficiency_N — no explicit gate is needed. When a disqualified
+fund earns a recommendation slot, its card must carry an **ALPHA WARNING** block (see Step 4).
 
 ---
 
@@ -122,9 +125,15 @@ except when applying the Exposure Gap mechanism (see Step 4b).
 
 Apply these filters sequentially:
 
-### Filter 1: Qualification
-- Only include funds where Status = "Qualified"
-- This means the fund beats its benchmark in ≥60% of available return periods
+### Filter 1: ~~Qualification Gate~~ (removed)
+
+All funds enter the CFS pool regardless of Status. CFS handles quality signaling:
+- Disqualified funds score low on **Alpha_N** (penalised for negative 3Y/5Y alpha) and
+  **Efficiency_N** (poor risk-adjusted alpha), naturally ranking below qualified peers
+- No hard alpha gate — multi-dimensional scoring is the filter
+
+**Disclosure rule:** If a recommended fund has Status = "Disqualified", its fund card must
+include an ALPHA WARNING block (see Step 4). Qualified funds need no such block.
 
 ### Filter 2: Shariah Preference
 - If Shariah = Yes → only include funds where the **Shariah-compliant** column = Yes
@@ -183,6 +192,13 @@ dynamically based on the client's risk profile and expected return target.
 This replaces the previous alpha-only sort. Alpha remains a major dimension but no longer the
 sole criterion — a high-alpha fund with low absolute returns is an incomplete answer for
 growth-oriented investors.
+
+**Scope:** Compute CFS for **all** funds that pass Filters 2–4, regardless of qualification
+status. Disqualified funds are not excluded — they compete on CFS merit and are disclosed
+via ALPHA WARNING if selected. Alpha_N penalties (3Y/5Y negative → halve) mean most
+disqualified funds naturally rank low, but funds with strong ReturnFit + Momentum (e.g.,
+thematic AI/tech funds that lagged their benchmark but still delivered high absolute returns)
+may rank competitively for Moderately Aggressive and Aggressive profiles.
 
 ### CFS Formula
 
@@ -450,6 +466,27 @@ If over-concentrated, swap the least-diversifying fund for the next-ranked alter
 | –15% to –30% | Recovery potential | Neutral-positive for long-horizon |
 | > –30% | Deep value / contrarian | Only for Aggressive + long horizon; always flag the risk |
 
+### ALPHA WARNING — Required for Disqualified Fund Cards
+
+When any recommended fund has **Status = "Disqualified"** (Weighted Alpha ≤ 0%), add the
+following block **inside** its standard fund card, after the CFS section:
+
+```
+ALPHA WARNING:
+- Weighted Alpha: [X.XX%] — below the qualification threshold (≤ 0%)
+- The fund does NOT consistently beat its benchmark across all available periods
+- Why it was selected: CFS score of [XX.X] ranked #[X] in its derived class —
+  driven by [e.g., "ReturnFit 94/100: 3Y fund return of X% vs X% target" /
+  "Momentum 85/100: fund is X% from ATH"]
+- Why weighted alpha is negative: [specific explanation, e.g., "The AI/tech
+  benchmark outpaced the fund during 2020–2022; 3Y alpha remains +X.XX% —
+  positive in the current cycle, but older periods drag the weighted score down"]
+- Review trigger: if 3Y alpha turns negative at the next MFR, remove this fund
+  from the portfolio
+```
+
+Do NOT add this block to qualified funds (Weighted Alpha > 0%).
+
 ---
 
 ## Step 4b: Structural Allocations — Gold & Money Market
@@ -476,12 +513,11 @@ Gold fund alpha should be interpreted differently from equity funds:
 **Card styling in proposal HTML:** Standard gold-border card (amber/gold, `#b7791f`) — no warning
 banner, no dashed border. Present it as an evergreen structural position, not an exception.
 
-### Money Market (PeCDF-A for Starter; PMMF-A or PIMMF-A for full portfolios)
+### Money Market (PeCDF-A default; PIMMF-A for Shariah)
 
 See Step 4c for full guidance. Selection:
-- **Starter portfolio (new investor):** Always use **PeCDF-A** (Public e-Cash Deposit — Class A) regardless of Shariah preference. PeCDF-A is the de facto dry-powder vehicle for all 4-fund starter builds.
-- **Full portfolio (experienced investor), no Shariah restriction:** **PMMF-A** (Public Money Market Fund - Class A)
-- **Full portfolio (experienced investor), Shariah preference:** **PIMMF-A** (Public Islamic Money Market Fund - Class A)
+- **No Shariah restriction (all portfolios):** Always use **PeCDF-A** (Public e-Cash Deposit — Class A). This is the de facto dry-powder vehicle for all builds — starter and full portfolio alike.
+- **Shariah preference:** **PIMMF-A** (Public Islamic Money Market Fund - Class A)
 
 ---
 
@@ -564,9 +600,8 @@ higher risk tolerance = more in equity, less in reserve — but the floor never 
 
 ### Fund Selection
 
-- **Starter portfolio (new investor):** Always **PeCDF-A** (Public e-Cash Deposit — Class A). This is the de facto dry-powder fund for all 4-fund starter builds, regardless of Shariah preference.
-- **Full portfolio (experienced investor), no Shariah restriction:** **PMMF-A** (Public Money Market Fund - Class A)
-- **Full portfolio (experienced investor), Shariah preference:** **PIMMF-A** (Public Islamic Money Market Fund - Class A)
+- **No Shariah restriction (all portfolios):** Always **PeCDF-A** (Public e-Cash Deposit — Class A). This is the de facto dry-powder fund for all builds — starter and full portfolio alike.
+- **Shariah preference:** **PIMMF-A** (Public Islamic Money Market Fund - Class A)
 - Minimum AUM: RM 200M for liquidity confidence
 
 ### Card Styling in Proposal HTML
@@ -591,9 +626,11 @@ client, provided the risk is disclosed and the position is sized appropriately.
 ### Algorithm (fully data-driven — no fund names hardcoded)
 
 **1. Score the full universe.**
-Compute CFS for all funds with Status = "Qualified" — ignore Risk Level, ignore derived class,
-ignore Fund Type. Apply the same CFS formula as Step 3 (using the same E_target and profile weights).
-Also compute Alpha_N for each fund normalised within its derived class.
+Compute CFS for all funds with **Status = "Qualified" (Weighted Alpha > 0%)** — ignore Risk
+Level, ignore derived class, ignore Fund Type. The Alpha Outlier concept requires exceptional
+multi-period manager skill; disqualified funds (Weighted Alpha ≤ 0%) are ineligible for this
+step regardless of their CFS score. Apply the same CFS formula as Step 3 (using the same
+E_target and profile weights). Also compute Alpha_N for each fund normalised within its derived class.
 
 **2. Identify candidates.**
 Take the top 5 by CFS. Remove any fund already in the portfolio.
@@ -873,7 +910,7 @@ styling guidelines, and section requirements.
 4. Client risk profile — description, constraints, allocation targets
 5. Fund recommendations — one styled card per fund (alpha story, macro alignment, costs, flags)
 6. Portfolio summary — table with all funds, allocation, alpha, risk level, macro thesis
-7. Portfolio exposure — CSS pie chart of actual underlying asset exposure (see Step 7b)
+7. Portfolio exposure — CSS pie charts: (a) asset class breakdown, (b) country/geographic breakdown (see Steps 7b–7c)
 8. Investment strategy — DCA/RSP, distribution, rebalancing triggers, tactical playbook
 9. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees
 10. Disclaimer & disclosures — regulatory disclaimer, FIMM compliance
@@ -951,13 +988,83 @@ Include a **legend** next to the chart with colored squares, asset class labels,
 ### Placement
 
 Insert as a new section between Portfolio Summary (section 6) and Investment Strategy (section 8)
-in the proposal HTML. Use the heading **"Portfolio Exposure Breakdown"**.
+in the proposal HTML. Use the heading **"Portfolio Exposure Breakdown"**. This section contains
+**two charts**: Asset Class first, then Geographic.
 
 ### Why This Matters (include a brief note in the proposal)
 
-Add a short explanatory line below the chart:
-> "This chart shows the actual underlying asset exposure of your portfolio — looking through each
-> fund to what it actually holds. This ensures your real-world risk matches your declared risk profile."
+Add a short explanatory line below the charts:
+> "These charts show the actual underlying exposure of your portfolio — looking through each fund
+> to what it actually holds. Asset class breakdown confirms your real-world risk level; geographic
+> breakdown shows where your capital is deployed globally."
+
+---
+
+## Step 7c: Country/Geographic Exposure Pie Chart
+
+After the asset class pie chart (Step 7b), generate a second CSS pie chart showing the portfolio's
+weighted **country exposure** — where the underlying holdings are actually domiciled.
+
+### How to Calculate
+
+**Malaysia** is not in the Geo columns — use **Dom. Equity %** (col 35) as the Malaysia proxy:
+
+```
+Malaysia exposure = Σ (Fund's portfolio weight × Fund's Dom. Equity %)
+```
+
+For all other countries, use the **GEO BREAKDOWN columns** (cols 41–52):
+
+| Column | Country | Column | Country |
+|--------|---------|--------|---------|
+| 41 | USA | 47 | China |
+| 42 | Taiwan | 48 | Singapore |
+| 43 | Korea | 49 | Netherlands |
+| 44 | Japan | 50 | Indonesia |
+| 45 | France | 51 | Australia |
+| 46 | Germany | 52 | Geo Other |
+
+```
+Portfolio Country % = Σ (Fund's portfolio weight × Fund's country %)
+```
+
+**Grouping rule:** After computing weighted exposures, any country with < 2% portfolio exposure
+is merged into "Other" (combined with Geo Other col 52). This keeps the chart readable for
+Malaysia-heavy portfolios where most foreign slices are thin.
+
+### Country Color Map
+
+| Slice | Color | Hex |
+|-------|-------|-----|
+| Malaysia | Navy | `#1a365d` |
+| USA | Red | `#c53030` |
+| China | Deep orange | `#c05621` |
+| Taiwan | Teal | `#2c7a7b` |
+| Japan | Rose | `#b83280` |
+| Korea | Purple | `#6b46c1` |
+| Singapore | Gold | `#b7791f` |
+| France | Blue-grey | `#4a5568` |
+| Germany | Steel | `#2d3748` |
+| Netherlands | Medium teal | `#319795` |
+| Indonesia | Olive | `#744210` |
+| Australia | Moss | `#276749` |
+| Other | Light grey | `#a0aec0` |
+
+### Implementation
+
+Same CSS conic-gradient pattern as the asset class chart. Place immediately after the asset
+class chart under the same **"Portfolio Exposure Breakdown"** section heading. Side-by-side
+on wide screens (each chart ~280px, displayed as flex row), stacked on print.
+
+Include a legend next to the chart with colored squares, country labels, and percentages.
+Only show countries that appear in the legend (i.e., those above the 2% threshold + "Other").
+
+### Concentration Check
+
+Cross-reference the geographic chart against the diversification rules from Step 4:
+- If any single country (excluding Malaysia) exceeds **60%** of the portfolio, flag it
+- Malaysia may go up to **80%** (domestic core for most profiles)
+- Note any flag in the "What to Watch" section of the affected fund card
 
 ---
 
@@ -1003,6 +1110,8 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.13 | 2026-04-15 | Feature | Single-pool CFS ranking: removed hard qualification gate (Filter 1). All funds passing Filters 2–4 (Shariah, RL, look-through) now compete in one CFS pool regardless of Status. CFS inherently deprioritizes disqualified funds via Alpha_N penalties (halved for negative 3Y/5Y alpha) and Efficiency_N — no explicit alpha gate needed. Disqualified funds selected by CFS require an ALPHA WARNING block on their card (weighted alpha, selection reason, why alpha is negative, review trigger). Step 4d Alpha Outlier retains Weighted Alpha > 0% requirement. Also added Step 7c: country/geographic exposure pie chart in the proposal — weighted country breakdown from Dom. Equity % (Malaysia) + GEO BREAKDOWN cols 41–52, countries < 2% merged into Other, CSS conic-gradient alongside the existing asset class chart. |
+| 1.13.1 | 2026-04-15 | Config | PeCDF-A is now the de facto money market fund for ALL portfolios (starter and full) when Shariah is not required. PMMF-A retired as default. Shariah portfolios continue to use PIMMF-A. Updated Step 4b and Step 4c. |
 | 1.12 | 2026-04-15 | Config | PeCDF-A (Public e-Cash Deposit — Class A) is now the de facto money market fund for all new investor Starter Portfolios (4-fund builds), regardless of Shariah preference. Full portfolios (experienced investors) retain the existing PMMF-A / PIMMF-A selection logic. Updated both Step 4b and Step 4c fund selection rules. |
 | 1.11 | 2026-04-15 | Fix | ReturnFit switches from 5Y-primary to weighted-period blend (3Y×40%, 5Y×30%, 1Y×20%, YTD×10%) — mirrors the Alpha dimension's methodology. Fix eliminates systematic bias against funds whose returns are concentrated in the recent market regime: a fund with 3Y=22% but 5Y=8% (pre-AI era drag) was being judged by its worst period. With the weighted blend, PIATAF's Return Fit goes from raw 31 to 100 (wtd return 24.96% vs 14% target), correctly reflecting its demonstrated ability to exceed the investor's target. |
 | 1.10 | 2026-04-15 | Fix | Two CFS scoring fixes: (1) Momentum uses absolute raw score (0–100) instead of percentile rank — percentile normalization caused clustering distortion in bull markets where many funds simultaneously sit at ATH, incorrectly burying high-momentum funds at low percentile ranks; (2) Aggressive base Momentum weight reduced from 25% to 20%, Alpha raised from 25% to 35% — aggressive investors hold through volatility by definition, so Momentum should not dominate over alpha quality at this profile. Also fixes Python falsy-zero bug: `0.0 drawdown or -50` must use explicit None check to preserve exact-ATH funds correctly. Net effect: funds at ATH with exceptional alpha (e.g. PIATAF) now correctly surface as top-ranked rather than being buried by Momentum clustering. |

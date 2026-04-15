@@ -30,7 +30,7 @@ Use `@media print` CSS for clean PDF output when printing from browser.
    - What to watch (flags/risks)
    - Cost & alpha justification (fees vs alpha = net value-add)
 7. **Portfolio Summary** — table with all funds, allocation, CFS, alpha, RL, macro thesis
-8. **Portfolio Exposure Breakdown** — CSS conic-gradient pie chart of actual underlying asset exposure (see below)
+8. **Portfolio Exposure Breakdown** — two CSS pie charts: (a) asset class breakdown, (b) country/geographic breakdown (see below)
 9. **Investment Strategy** — distribution policy, rebalancing triggers, tactical playbook
 10. **Fee Disclosure** — transparent breakdown of sales charges and annual fees per fund
 11. **Disclaimer & Disclosures** — regulatory disclaimer, FIMM compliance note
@@ -155,11 +155,21 @@ When a portfolio includes an Exposure Gap pick (Step 4b), style its fund card di
 - **Typography:** System fonts (Arial/Helvetica), clean readable sizes
 - **Alpha bar charts:** CSS-only horizontal bars showing alpha magnitude per period
 
-### Portfolio Exposure Pie Chart
+### Portfolio Exposure Breakdown (Two Charts)
 
-Place between Portfolio Summary and Investment Strategy sections.
+Place between Portfolio Summary and Investment Strategy sections as section **"Portfolio Exposure
+Breakdown"**. Contains two side-by-side CSS pie charts:
 
-**Layout:** Flexbox row — pie chart (280×280px) on the left, legend on the right.
+1. **Asset Class Breakdown** — what the portfolio holds by asset type
+2. **Geographic Breakdown** — where the portfolio's capital is deployed by country
+
+On wide screens: both charts displayed as a flex row (side by side). On print: stacked vertically.
+
+---
+
+#### Chart 1: Asset Class Breakdown
+
+**Layout:** Flexbox row — pie chart (280×280px) left, legend right.
 
 **Pie chart:** CSS-only using `conic-gradient`. Compute cumulative percentages from the weighted
 asset exposure across all recommended funds (each fund's asset allocation × its portfolio weight).
@@ -195,11 +205,38 @@ asset exposure across all recommended funds (each fund's asset allocation × its
 | Money Market & Deposits | Grey | #718096 |
 | Other | Amber | #b7791f |
 
-**Explanatory note** below the chart:
-> "This chart shows the actual underlying asset exposure of your portfolio — looking through each
-> fund to what it actually holds, ensuring your real-world risk matches your declared risk profile."
+---
 
-**Print CSS:** Ensure the pie chart renders in print (`-webkit-print-color-adjust: exact; print-color-adjust: exact;`).
+#### Chart 2: Geographic Breakdown
+
+**Data source:**
+- Malaysia = weighted sum of Dom. Equity % (col 35) across all funds
+- Foreign countries = weighted sum of GEO BREAKDOWN cols 41–52
+
+**Grouping:** Merge any country with portfolio exposure < 2% into "Other" (combined with Geo Other col 52).
+
+**Country colors:**
+| Slice | Hex | Slice | Hex |
+|-------|-----|-------|-----|
+| Malaysia | `#1a365d` | China | `#c05621` |
+| USA | `#c53030` | Singapore | `#b7791f` |
+| Taiwan | `#2c7a7b` | France | `#4a5568` |
+| Japan | `#b83280` | Germany | `#2d3748` |
+| Korea | `#6b46c1` | Netherlands | `#319795` |
+| Indonesia | `#744210` | Australia | `#276749` |
+| Other | `#a0aec0` | | |
+
+**Same CSS conic-gradient pattern as Chart 1.** Only include countries that exceed the 2% threshold
+in the legend (plus "Other").
+
+---
+
+**Explanatory note** below both charts:
+> "These charts show the actual underlying exposure of your portfolio — looking through each fund
+> to what it actually holds. Asset class breakdown confirms your real-world risk level; geographic
+> breakdown shows where your capital is deployed globally."
+
+**Print CSS:** Ensure both charts render in print (`-webkit-print-color-adjust: exact; print-color-adjust: exact;`).
 
 ### Sources Section
 Include all web search sources used for macro context as clickable links at the end of the document.

@@ -16,9 +16,13 @@ fund's absolute return must match the investor's goals. The selection engine wei
 ## Fund Selection Engine — 5 Layers
 
 ### Layer 1: Universe Filter
-- **Qualified only** — must beat benchmark in ≥60% of available periods
 - **Shariah filter** — apply based on SA Q8 response
 - **Risk Level ceiling** — fund Risk Level must be ≤ profile maximum
+- **No qualification gate** — all funds passing the above two filters enter CFS ranking.
+  Qualification status (Weighted Alpha > 0%) is used for ALPHA WARNING disclosure only.
+  CFS penalizes disqualified funds through Alpha_N (halved for negative 3Y/5Y alpha) and
+  Efficiency_N — the scoring itself acts as the quality filter.
+  Exception: Step 4d Alpha Outlier requires Weighted Alpha > 0%.
 
 ### Layer 2: Composite Fund Score (CFS) Ranking
 
