@@ -1,5 +1,5 @@
 ---
-version: "1.13"
+version: "1.14"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -41,6 +41,7 @@ The user (consultant) will provide the client's risk profile. Accepted profiles:
 - Shariah preference (Yes / No / No preference) — filters the fund universe
 - Specific goals (retirement, education, wealth accumulation) — flavors the rationale
 - **Client experience level (New investor / Experienced)** — new investors get a Starter Portfolio (max 4 funds); experienced investors get the full template
+- **Upfront capital available (RM amount)** — determines if e-Series Shortlist Mode applies (see below)
 - **Expected annualised return (`E_target`)** — see below
 
 **Investment horizon** is not collected — long-term (5Y+) is always the default pitch.
@@ -48,6 +49,7 @@ The user (consultant) will provide the client's risk profile. Accepted profiles:
 **If the user does NOT provide a risk profile**, ask:
 > "What is the client's risk profile? (Conservative / Moderate / Moderately Aggressive / Aggressive)
 > Is this a new investor or someone with existing investment experience?
+> How much is the client starting with (upfront investment amount in RM)?
 > Any Shariah compliance preference?
 > What annualised return is the client targeting per year?"
 
@@ -75,6 +77,8 @@ Record E_target alongside risk profile, Shariah, and experience level — it is 
 Do NOT proceed with fund recommendations until you have the risk profile.
 
 **New investor / first-time lead:** Default to a **Starter Portfolio** — max 4 funds. Additional funds can be layered in during the next portfolio review once the client is comfortable. State this explicitly in the proposal cover page and executive summary.
+
+**e-Series Shortlist Mode** (new investor AND upfront capital < RM 1,000): Public Mutual's e-series funds (Pe-prefix) support lower minimum investment entry via digital channels — making them the natural match for clients who cannot yet commit RM 1,000. In this mode, skip the standard Starter Portfolio build and use **Step 4e** instead. Produce a shortlist of 3 e-series candidates for the consultant's review at the client meeting. No allocation is assigned — fund selection is not yet concluded. The proposal cover states: "Shortlist for Consultant Review — Allocation Not Finalised."
 
 **Investor experience also governs output style** — not just fund count. Record this for use in Step 6:
 
@@ -692,6 +696,33 @@ dashed-amber Exposure Gap card.
 
 ---
 
+## Step 4e: e-Series Shortlist Mode (New Investor, Upfront Capital < RM 1,000)
+
+When both conditions apply — **new investor** AND **upfront capital < RM 1,000** — skip Steps 4, 4a, 4b, 4c, and 4d entirely. Use this step instead.
+
+### Fund Universe
+
+Filter the FundMaster to e-series funds only: funds whose `Abbr` column value starts with `"Pe"`.
+
+Apply the same pre-filters as Step 2:
+1. **Shariah filter** — if client has Shariah preference, retain only Shariah-compliant Pe funds
+2. **RL filter** — retain only funds with RL ≤ profile max (Conservative ≤ 2, Moderate ≤ 3, Moderately Aggressive ≤ 4, Aggressive ≤ 5)
+3. **Exclude RL 1 Money Market funds** from ranking pool — they are too conservative to serve as primary candidates for any growth-oriented profile. Exception: if the filtered pool would otherwise be empty (e.g., Conservative + Shariah with very few Pe funds), include MM funds as a last resort and note this explicitly.
+
+### Selection
+
+Score all qualifying Pe funds using the same CFS formula and profile-adaptive weights from Step 3. Select the **top 3 by CFS score**.
+
+No gold or money market structural positions are forced — this is a shortlist for discussion, not a portfolio build. If PeEMAS or a Pe-MM fund happens to rank in the top 3 by CFS, include it naturally.
+
+**Tiebreaker:** If 2 funds are within 2 CFS points, prefer the one with higher Alpha_N.
+
+### Output
+
+Label the three fund cards **Candidate 1, Candidate 2, Candidate 3** in CFS rank order (not "Core", "Satellite", or slot names). Allocation % is not assigned to any fund. The proposal makes clear that fund selection and allocation will be concluded at the client meeting.
+
+---
+
 ## Step 5: Search for Current Macro Context
 
 **Web search** for the latest macroeconomic data to align recommendations. Search for:
@@ -900,6 +931,9 @@ design requirements below. The frontend-design skill will produce the final HTML
 **Output file:** `FundProposal_[Profile]_[MonYYYY].html` in the Funds project root.
 Example: `FundProposal_Moderate_Apr2026.html`
 
+**e-Series Shortlist Mode output file:** `FundShortlist_[Profile]_[ClientName]_[MonYYYY].html`
+Example: `FundShortlist_Moderate_AhmadRazif_Apr2026.html`
+
 **Template reference:** See `fund-consultant-skill/references/proposal_template.md` for full structure,
 styling guidelines, and section requirements.
 
@@ -915,6 +949,25 @@ styling guidelines, and section requirements.
 9. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees
 10. Disclaimer & disclosures — regulatory disclaimer, FIMM compliance
 11. Sources — all web search URLs used for macro context
+
+### e-Series Shortlist Mode — Proposal Differences
+
+When Step 4e was used, the following deviations apply from the standard template:
+
+| Section | Standard | e-Series Shortlist |
+|---------|----------|-------------------|
+| Cover title | "Fund Portfolio Proposal" | "e-Series Fund Shortlist" |
+| Cover subtitle | Client profile + date | "For Consultant Review — Allocation Not Finalised" |
+| Executive summary | Portfolio composition, weighted alpha | 3 candidates shortlisted by CFS; allocation to be decided at client meeting |
+| Fund cards | 4 cards with allocation % in header | 3 cards labelled **Candidate 1 / 2 / 3**; no allocation % shown |
+| Portfolio Summary table | All funds, alloc%, CFS, alpha, RL | **Candidate Comparison Table**: Candidate # \| Fund Name \| Fund Type \| RL \| CFS Score \| Weighted Alpha \| 3Y Return \| Key Strength |
+| Exposure pie charts | 2 portfolio-weighted charts (asset class + geo) | 2 per-fund charts inside each candidate card (asset class + geo for that fund's own holdings) — computed from that fund's raw column data, no allocation weighting needed |
+| Investment strategy | Full playbook | **Omit** — deferred to post-selection |
+
+**Per-fund pie charts (e-Series Shortlist Mode):** For each of the 3 candidate cards, append two CSS conic-gradient pie charts immediately after the CFS mini-bar section:
+- Chart A — **Asset class breakdown** for that fund (Dom. Equity %, For. Equity %, Fixed Income %, Money Market %, Others % — read directly from the fund's own columns)
+- Chart B — **Geographic breakdown** for that fund (Dom. Equity % as Malaysia; GEO BREAKDOWN cols 41–52 for all other countries; merge any country < 5% of the fund into "Other")
+Use the same color palette defined in Steps 7b–7c. Label each chart pair: "Fund Exposure — [Fund Abbr]". This gives the consultant a side-by-side feel when scrolling through the 3 candidates.
 
 **Consultant branding** (load from memory or ask user):
 - Name, phone, email, FIMM license number, representative status
@@ -1111,6 +1164,7 @@ Where they add clarity, use engineering analogies from the framework:
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
 | 1.13 | 2026-04-15 | Feature | Single-pool CFS ranking: removed hard qualification gate (Filter 1). All funds passing Filters 2–4 (Shariah, RL, look-through) now compete in one CFS pool regardless of Status. CFS inherently deprioritizes disqualified funds via Alpha_N penalties (halved for negative 3Y/5Y alpha) and Efficiency_N — no explicit alpha gate needed. Disqualified funds selected by CFS require an ALPHA WARNING block on their card (weighted alpha, selection reason, why alpha is negative, review trigger). Step 4d Alpha Outlier retains Weighted Alpha > 0% requirement. Also added Step 7c: country/geographic exposure pie chart in the proposal — weighted country breakdown from Dom. Equity % (Malaysia) + GEO BREAKDOWN cols 41–52, countries < 2% merged into Other, CSS conic-gradient alongside the existing asset class chart. |
+| 1.14 | 2026-04-16 | Feature | e-Series Shortlist Mode: new investors with upfront capital < RM 1,000 now get a 3-fund shortlist of Pe-prefix funds ranked by CFS instead of a standard Starter Portfolio. No allocation assigned — output is a consultant review document for use at the client meeting. Step 0 collects upfront capital; new Step 4e defines the Pe-only fund universe, CFS ranking, and Candidate 1/2/3 labelling. Step 7 adds conditional proposal structure: Candidate Comparison Table replaces Portfolio Summary Table, Investment Strategy omitted, and per-fund asset class + geographic pie charts embedded in each candidate card (no portfolio-weighted charts). |
 | 1.13.1 | 2026-04-15 | Config | PeCDF-A is now the de facto money market fund for ALL portfolios (starter and full) when Shariah is not required. PMMF-A retired as default. Shariah portfolios continue to use PIMMF-A. Updated Step 4b and Step 4c. |
 | 1.12 | 2026-04-15 | Config | PeCDF-A (Public e-Cash Deposit — Class A) is now the de facto money market fund for all new investor Starter Portfolios (4-fund builds), regardless of Shariah preference. Full portfolios (experienced investors) retain the existing PMMF-A / PIMMF-A selection logic. Updated both Step 4b and Step 4c fund selection rules. |
 | 1.11 | 2026-04-15 | Fix | ReturnFit switches from 5Y-primary to weighted-period blend (3Y×40%, 5Y×30%, 1Y×20%, YTD×10%) — mirrors the Alpha dimension's methodology. Fix eliminates systematic bias against funds whose returns are concentrated in the recent market regime: a fund with 3Y=22% but 5Y=8% (pre-AI era drag) was being judged by its worst period. With the weighted blend, PIATAF's Return Fit goes from raw 31 to 100 (wtd return 24.96% vs 14% target), correctly reflecting its demonstrated ability to exceed the investor's target. |
