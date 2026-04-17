@@ -70,7 +70,7 @@ def _skill_version():
 MFR_LABEL, MFR_FULL_LABEL = _mfr_labels()
 SKILL_VER    = _skill_version()
 GENERATED_LABEL = datetime.now().strftime("%B %Y")
-OUT_PATH  = os.path.join(WORK_DIR, f"PublicMutual_FundMaster_{MFR_LABEL}_v{SKILL_VER}.xlsx")
+OUT_PATH  = os.path.join(WORK_DIR, "output", "fundmasters", f"PublicMutual_FundMaster_{MFR_LABEL}_v{SKILL_VER}.xlsx")
 print(f"Output: {os.path.basename(OUT_PATH)}")
 
 # ── Palette ──────────────────────────────────────────────────────────────────

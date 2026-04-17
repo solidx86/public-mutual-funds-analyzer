@@ -1,5 +1,5 @@
 ---
-version: "1.14"
+version: "1.15"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -928,11 +928,7 @@ HTML proposal document using the **`frontend-design` skill** for elevated visual
 **Invoke the frontend-design skill** with a detailed prompt describing all sections, data, and
 design requirements below. The frontend-design skill will produce the final HTML file.
 
-**Output file:** `FundProposal_[Profile]_[MonYYYY].html` in the Funds project root.
-Example: `FundProposal_Moderate_Apr2026.html`
-
-**e-Series Shortlist Mode output file:** `FundShortlist_[Profile]_[ClientName]_[MonYYYY].html`
-Example: `FundShortlist_Moderate_AhmadRazif_Apr2026.html`
+**Output file:** See `fund-consultant-skill/references/proposal_template.md` for output file requirements (covers both standard Proposals and e-Series Shortlists).
 
 **Template reference:** See `fund-consultant-skill/references/proposal_template.md` for full structure,
 styling guidelines, and section requirements.
@@ -1163,6 +1159,7 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.15 | 2026-04-17 | Refactor | Organize output files into output/fund_proposals/ directory; consolidate output naming requirements (Proposals & Shortlists) into proposal_template.md to eliminate redundancy |
 | 1.13 | 2026-04-15 | Feature | Single-pool CFS ranking: removed hard qualification gate (Filter 1). All funds passing Filters 2–4 (Shariah, RL, look-through) now compete in one CFS pool regardless of Status. CFS inherently deprioritizes disqualified funds via Alpha_N penalties (halved for negative 3Y/5Y alpha) and Efficiency_N — no explicit alpha gate needed. Disqualified funds selected by CFS require an ALPHA WARNING block on their card (weighted alpha, selection reason, why alpha is negative, review trigger). Step 4d Alpha Outlier retains Weighted Alpha > 0% requirement. Also added Step 7c: country/geographic exposure pie chart in the proposal — weighted country breakdown from Dom. Equity % (Malaysia) + GEO BREAKDOWN cols 41–52, countries < 2% merged into Other, CSS conic-gradient alongside the existing asset class chart. |
 | 1.14 | 2026-04-16 | Feature | e-Series Shortlist Mode: new investors with upfront capital < RM 1,000 now get a 3-fund shortlist of Pe-prefix funds ranked by CFS instead of a standard Starter Portfolio. No allocation assigned — output is a consultant review document for use at the client meeting. Step 0 collects upfront capital; new Step 4e defines the Pe-only fund universe, CFS ranking, and Candidate 1/2/3 labelling. Step 7 adds conditional proposal structure: Candidate Comparison Table replaces Portfolio Summary Table, Investment Strategy omitted, and per-fund asset class + geographic pie charts embedded in each candidate card (no portfolio-weighted charts). |
 | 1.13.1 | 2026-04-15 | Config | PeCDF-A is now the de facto money market fund for ALL portfolios (starter and full) when Shariah is not required. PMMF-A retired as default. Shariah portfolios continue to use PIMMF-A. Updated Step 4b and Step 4c. |

@@ -3,11 +3,17 @@
 ## Output Format
 Generate an HTML file saved as:
 ```
-FundProposal_[Profile]_[MonYYYY].html
+output/fund_proposals/FundProposal_[Profile]_[MonYYYY].html
 ```
-Example: `FundProposal_Moderate_Apr2026.html`
+Example: `output/fund_proposals/FundProposal_Moderate_Apr2026.html`
 
-Save in the Funds project root folder.
+**e-Series Shortlist Mode:**
+```
+output/fund_proposals/FundShortlist_[Profile]_[ClientName]_[MonYYYY].html
+```
+Example: `output/fund_proposals/FundShortlist_Moderate_AhmadRazif_Apr2026.html`
+
+Save all output files in the `output/fund_proposals/` directory.
 
 ## HTML Structure
 
