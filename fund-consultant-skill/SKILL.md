@@ -1,5 +1,5 @@
 ---
-version: "1.17"
+version: "1.18"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -335,16 +335,17 @@ Using `0.0 or -50` would silently score an ATH fund as if it had a −50% drawdo
 
 | Dimension | Conservative | Moderate | Mod. Aggressive | Aggressive |
 |---|---|---|---|---|
-| Alpha `w_A` | 40% | 35% | 30% | 35% |
-| Return Fit `w_R` | 15% | 25% | 30% | 30% |
-| Efficiency `w_E` | 35% | 25% | 20% | 15% |
-| Momentum `w_M` | 10% | 15% | 20% | 20% |
+| Alpha `w_A` | 28% | 28% | 26% | 30% |
+| Return Fit `w_R` | 40% | 40% | 40% | 40% |
+| Efficiency `w_E` | 25% | 20% | 17% | 13% |
+| Momentum `w_M` | 7% | 12% | 17% | 17% |
 
 **Rationale:**
-- Conservative: skill and risk efficiency dominate — modest targets are achievable by many funds, so quality of outperformance matters most
-- Moderate: balanced across all four dimensions
-- Moderately Aggressive: return delivery and momentum rise — the investor needs higher absolute returns
-- Aggressive: Alpha weight rises back to 35% (matching Moderate) because at the aggressive end, the best differentiator is genuine manager skill — return delivery is table stakes and momentum is secondary to alpha quality. Momentum is reduced from 25% to 20% since aggressive investors hold through volatility by definition and should not be penalised for Momentum clustering in bull markets.
+- Return Fit is anchored at 40% across all profiles — a fund's ability to deliver the investor's target return is equally critical regardless of risk tolerance.
+- Conservative: Alpha and Efficiency remain elevated relative to Momentum — manager skill and risk-adjusted outperformance matter most when targets are modest; Momentum is minimal (7%) since conservative investors prize stability over trend-chasing.
+- Moderate: balanced spread across Alpha, Efficiency, and Momentum within the remaining 60%.
+- Moderately Aggressive: Momentum rises to match Alpha (both 17% after scaling) — the investor needs absolute return delivery and is willing to ride momentum; Efficiency drops as tolerance for volatility increases.
+- Aggressive: Alpha reclaims the highest share of the non-Return-Fit budget (30%) — at the aggressive end, genuine manager skill is the key differentiator; Efficiency is de-emphasised (13%) since aggressive investors accept higher volatility.
 
 ### Weight Modifier — Expected Return Stretch
 
@@ -360,7 +361,7 @@ return_stretch = (E_target − profile_midpoint) / profile_midpoint
   w_R to w_A
 
 **Example:** Moderate investor targeting 10% (midpoint 8%) → stretch = +25% → w_R shifts from
-25% to ~27.5%, w_A shifts from 35% to ~32.5%.
+40% to ~42.5%, w_A shifts from 28% to ~25.5%.
 
 Clamp all weights to [5%, 50%] after modifier. Normalise the four weights to sum to exactly 100%.
 
@@ -459,7 +460,6 @@ Malaysia-focused funds have the strongest alpha (83% qualification rate). Use as
 ### Diversification Rules
 
 Before finalizing, verify:
-- No single sector > 40% of total equity allocation
 - At least 3 different sectors represented across equity picks
 - At least 2 different fund types in the portfolio
 - Not all equity funds from the same geography
@@ -751,7 +751,6 @@ Label the three fund cards **Candidate 1, Candidate 2, Candidate 3** in CFS rank
 
 Use these findings to:
 - Justify sector tilts (e.g., rate cuts favor growth stocks, rate holds favor financials)
-- Explain geographic allocation (e.g., strong ringgit reduces foreign fund returns in RM terms)
 - Highlight tailwinds/headwinds for specific fund types
 - Reference megatrends (AI/tech, green energy, demographic shifts, supply chain reshoring)
 - Identify on-going global events that create risks or opportunities (trade wars, conflicts, oil shocks)
@@ -1165,6 +1164,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.18 | 2026-04-19 | Config | Unify Return Fit weight (w_R) at 40% across all risk profiles. Remaining 60% redistributed by proportionally scaling existing Alpha, Efficiency, and Momentum weights per profile: Conservative 28/40/25/7, Moderate 28/40/20/12, Mod. Aggressive 26/40/17/17, Aggressive 30/40/13/17. Updated rationale and E_target stretch modifier example. |
 | 1.16 | 2026-04-18 | Refactor | Remove sa_guide.md and allocation_models.md references — all content consolidated into SKILL.md. Absorbed target weighted VF and selection priority per profile into Step 4. Deduplicated proposal_template.md (removed repeated section lists, pie chart calc logic, color tables — now cross-references SKILL.md). Fixed duplicate Step 4c heading (Exposure Gap vs Money Market). Fixed Filter 2 "qualified" wording leftover from pre-v1.13 gate removal. |
 | 1.15 | 2026-04-17 | Refactor | Organize output files into output/fund_proposals/ directory; consolidate output naming requirements (Proposals & Shortlists) into proposal_template.md to eliminate redundancy |
 | 1.14 | 2026-04-16 | Feature | e-Series Shortlist Mode: new investors with upfront capital < RM 1,000 now get a 3-fund shortlist of Pe-prefix funds ranked by CFS instead of a standard Starter Portfolio. No allocation assigned — output is a consultant review document for use at the client meeting. Step 0 collects upfront capital; new Step 4e defines the Pe-only fund universe, CFS ranking, and Candidate 1/2/3 labelling. Step 7 adds conditional proposal structure: Candidate Comparison Table replaces Portfolio Summary Table, Investment Strategy omitted, and per-fund asset class + geographic pie charts embedded in each candidate card (no portfolio-weighted charts). |
