@@ -22,24 +22,12 @@ Use `@media print` CSS for clean PDF output when printing from browser.
 
 ### Required Sections (in order)
 
-1. **Cover Page** — title, client profile, date, consultant branding
-2. **New Investor Foundation** *(new investors only)* — education section; omit for experienced investors
-3. **Executive Summary** — 3-4 bullet points: profile, composition, weighted alpha, key thesis
-4. **Global & Local Macro Context** — on-going events table + medium-to-long horizon themes
-5. **Client Risk Profile** — profile description, constraints (max RL, max equity %, min bond %)
-6. **Fund Recommendations** — one card per fund with:
-   - Fund header (name, abbr, type, RL, VF, AUM, allocation %)
-   - Alpha performance table (period | Fund % | Bench % | Alpha %)
-   - CFS mini-bar (see below)
-   - Score breakdown narrative (alpha story, return delivery vs target, risk efficiency)
-   - Macro alignment (how this fund connects to macro themes for medium-long horizon)
-   - What to watch (flags/risks)
-   - Cost & alpha justification (fees vs alpha = net value-add)
-7. **Portfolio Summary** — table with all funds, allocation, CFS, alpha, RL, macro thesis
-8. **Portfolio Exposure Breakdown** — two CSS pie charts: (a) asset class breakdown, (b) country/geographic breakdown (see below)
-9. **Investment Strategy** — distribution policy, rebalancing triggers, tactical playbook
-10. **Fee Disclosure** — transparent breakdown of sales charges and annual fees per fund
-11. **Disclaimer & Disclosures** — regulatory disclaimer, FIMM compliance note
+See **SKILL.md Step 7** for the authoritative section list, ordering, and content requirements.
+The sections are: Cover Page → New Investor Foundation (if applicable) → Executive Summary →
+Macro Context → Risk Profile → Fund Recommendations → Portfolio Summary → Portfolio Exposure
+Breakdown → Investment Strategy → Fee Disclosure → Disclaimer.
+
+Below are the **HTML/CSS implementation details** for key sections.
 
 ### Consultant Branding
 
@@ -163,86 +151,14 @@ When a portfolio includes an Exposure Gap pick (Step 4b), style its fund card di
 
 ### Portfolio Exposure Breakdown (Two Charts)
 
-Place between Portfolio Summary and Investment Strategy sections as section **"Portfolio Exposure
-Breakdown"**. Contains two side-by-side CSS pie charts:
+See **SKILL.md Steps 7b–7c** for calculation logic, data sources, color maps, and grouping rules
+for both the Asset Class and Geographic pie charts.
 
-1. **Asset Class Breakdown** — what the portfolio holds by asset type
-2. **Geographic Breakdown** — where the portfolio's capital is deployed by country
-
-On wide screens: both charts displayed as a flex row (side by side). On print: stacked vertically.
-
----
-
-#### Chart 1: Asset Class Breakdown
-
-**Layout:** Flexbox row — pie chart (280×280px) left, legend right.
-
-**Pie chart:** CSS-only using `conic-gradient`. Compute cumulative percentages from the weighted
-asset exposure across all recommended funds (each fund's asset allocation × its portfolio weight).
-
-```html
-<div style="display:flex; align-items:center; gap:40px; margin:24px 0;">
-  <div style="width:280px; height:280px; border-radius:50%;
-    background:conic-gradient(
-      #2b6cb0 0% VAR_DOM_EQ%,
-      #2c7a7b VAR_DOM_EQ% VAR_CUM_FOR%,
-      #276749 VAR_CUM_FOR% VAR_CUM_FI%,
-      #718096 VAR_CUM_FI% VAR_CUM_MM%,
-      #b7791f VAR_CUM_MM% 100%
-    ); box-shadow:0 2px 8px rgba(0,0,0,0.10);">
-  </div>
-  <div>
-    <!-- Legend: colored square + label + percentage for each slice -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <span style="display:inline-block;width:16px;height:16px;background:#2b6cb0;border-radius:3px;"></span>
-      <span>Equity (Domestic) — XX.X%</span>
-    </div>
-    <!-- repeat for each asset class -->
-  </div>
-</div>
-```
-
-**Asset class colors:**
-| Slice | Color | Hex |
-|-------|-------|-----|
-| Equity (Domestic) | Blue | #2b6cb0 |
-| Equity (Foreign) | Teal | #2c7a7b |
-| Fixed Income / Sukuk | Green | #276749 |
-| Money Market & Deposits | Grey | #718096 |
-| Other | Amber | #b7791f |
-
----
-
-#### Chart 2: Geographic Breakdown
-
-**Data source:**
-- Malaysia = weighted sum of Dom. Equity % (col 35) across all funds
-- Foreign countries = weighted sum of GEO BREAKDOWN cols 41–52
-
-**Grouping:** Merge any country with portfolio exposure < 2% into "Other" (combined with Geo Other col 52).
-
-**Country colors:**
-| Slice | Hex | Slice | Hex |
-|-------|-----|-------|-----|
-| Malaysia | `#1a365d` | China | `#c05621` |
-| USA | `#c53030` | Singapore | `#b7791f` |
-| Taiwan | `#2c7a7b` | France | `#4a5568` |
-| Japan | `#b83280` | Germany | `#2d3748` |
-| Korea | `#6b46c1` | Netherlands | `#319795` |
-| Indonesia | `#744210` | Australia | `#276749` |
-| Other | `#a0aec0` | | |
-
-**Same CSS conic-gradient pattern as Chart 1.** Only include countries that exceed the 2% threshold
-in the legend (plus "Other").
-
----
-
-**Explanatory note** below both charts:
-> "These charts show the actual underlying exposure of your portfolio — looking through each fund
-> to what it actually holds. Asset class breakdown confirms your real-world risk level; geographic
-> breakdown shows where your capital is deployed globally."
-
-**Print CSS:** Ensure both charts render in print (`-webkit-print-color-adjust: exact; print-color-adjust: exact;`).
+**Implementation notes (HTML/CSS only):**
+- Layout: flexbox row (side by side on wide screens), stacked on print
+- Each chart: 280×280px, CSS `conic-gradient` — no JavaScript
+- Legend: colored square (16×16px, border-radius 3px) + label + percentage
+- Print CSS: `print-color-adjust: exact; -webkit-print-color-adjust: exact;`
 
 ### Sources Section
 Include all web search sources used for macro context as clickable links at the end of the document.

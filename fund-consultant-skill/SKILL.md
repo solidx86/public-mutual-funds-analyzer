@@ -1,5 +1,5 @@
 ---
-version: "1.15"
+version: "1.16"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -87,9 +87,6 @@ Do NOT proceed with fund recommendations until you have the risk profile.
 | New Investor | Apply to ALL jargon terms on first use in narrative prose | Full plain-language rewrite — lead every bullet with the implication ("so what"), jargon secondary |
 | Experienced Investor | Apply only to uncommon terms (e.g. Look-Through, Lipper Class, Alpha Efficiency) | Technical shorthand acceptable; no need to lead every bullet with the "so what" |
 
-For reference on how suitability assessments work and what determines each profile, see:
-`fund-consultant-skill/references/sa_guide.md`
-
 ---
 
 ## Step 1: Load the Latest Fund Master Data
@@ -141,7 +138,7 @@ include an ALPHA WARNING block (see Step 4). Qualified funds need no such block.
 
 ### Filter 2: Shariah Preference
 - If Shariah = Yes → only include funds where the **Shariah-compliant** column = Yes
-- If Shariah = No preference → include all qualified funds
+- If Shariah = No preference → include all funds
 - If Conventional only → exclude funds where Shariah-compliant = Yes
 
 ### Filter 3: Risk Level Ceiling
@@ -241,7 +238,7 @@ proportionally across available periods.
 **Penalties:**
 - If 3Y alpha is negative → halve the total alpha score
 - If 5Y alpha is negative → halve the total alpha score
-- If alpha < 1% across ALL available periods → flag as "benchmark-hugger" and deprioritize
+- If alpha < 1% across ALL available periods → flag as "benchmark-hugger"; note it in the fund card's WHAT TO WATCH section. Near-zero Alpha_N naturally ranks the fund low via CFS — no manual override needed.
 
 **Normalise** to percentile rank within derived class: the top fund in its class scores 100,
 the bottom scores 0.
@@ -416,6 +413,15 @@ Select the template matching the client's risk profile:
 
 Allocations are approximate ranges; the actual portfolio should sum to 100%.
 
+**Target Weighted Portfolio VF:**
+
+| Profile | Target VF Range | Selection Priority |
+|---------|----------------|-------------------|
+| Conservative | < 7.0 (Low) | Highest alpha + lowest VF; income-oriented equity only at RL 1–2 |
+| Moderate | 7.0–10.0 (Moderate) | Highest alpha, diversified sectors; RL ≤ 3 |
+| Moderately Aggressive | 9.0–12.0 (Moderate-High) | Top alpha + alpha efficiency; Asia/Global satellite for diversification |
+| Aggressive | 11.0+ (High acceptable) | Absolute top alpha generators; thematic/sector conviction plays |
+
 **Gold and Money Market are structural positions — always included regardless of profile or investor experience.** The gradient above reflects two competing forces:
 - Gold: Conservative already holds FI/Sukuk as their primary hedge, so gold is supplementary (5–8%). Aggressive has no FI at all — gold is their only non-equity hedge, so it scales up (8–12%).
 - MM: Higher allocation for conservative (capital stability first, dip capture second). Lower for aggressive (maximum equity deployment), but never below 8% — high-VF funds have deeper drawdowns which are also bigger buying opportunities, so the tactical value of dry powder doesn't disappear at aggressive.
@@ -580,7 +586,7 @@ with an amber background banner to visually distinguish them from qualified pick
 
 ---
 
-## Step 4c: Money Market as Tactical Dry Powder
+## Step 4c (cont.): Money Market as Tactical Dry Powder
 
 Always include a **qualified Money Market fund** across all risk profiles. This is not idle capital
 — it is a tactical weapon for systematic dip capture. Allocation scales inversely with risk profile:
@@ -698,7 +704,7 @@ dashed-amber Exposure Gap card.
 
 ## Step 4e: e-Series Shortlist Mode (New Investor, Upfront Capital < RM 1,000)
 
-When both conditions apply — **new investor** AND **upfront capital < RM 1,000** — skip Steps 4, 4a, 4b, 4c, and 4d entirely. Use this step instead.
+When both conditions apply — **new investor** AND **upfront capital < RM 1,000** — skip Steps 4, 4b, 4c, and 4d entirely. Use this step instead.
 
 ### Fund Universe
 
@@ -1135,21 +1141,12 @@ Always end the recommendation with:
 > Sheet (PHS) and Master Prospectus before making any investment decision. All investments carry
 > risk, including the possible loss of principal.
 
-### Engineering Analogies (Optional Flavor)
-Where they add clarity, use engineering analogies from the framework:
-- Benchmark = "reference branch" — what should this fund beat?
-- Alpha = "value-add in code review" — did the manager actually improve things?
-- Diversification = "microservices vs monolith" — single point of failure risk
-- Consistency = "sprint velocity" — one great sprint doesn't make a reliable team
-
 ---
 
 ## Reference Files
 
 | File | Purpose |
 |------|---------|
-| `fund-consultant-skill/references/sa_guide.md` | Suitability Assessment guide — how risk profiles are determined, FIMM requirements |
-| `fund-consultant-skill/references/allocation_models.md` | Detailed allocation templates, alpha scoring methodology, fee framework |
 | `fund-consultant-skill/references/proposal_template.md` | HTML proposal document structure, styling, and section requirements |
 | `fund-screener-skill/references/framework.md` | 8-checkpoint fund analysis framework with engineering analogies |
 
@@ -1159,23 +1156,15 @@ Where they add clarity, use engineering analogies from the framework:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.16 | 2026-04-18 | Refactor | Remove sa_guide.md and allocation_models.md references — all content consolidated into SKILL.md. Absorbed target weighted VF and selection priority per profile into Step 4. Deduplicated proposal_template.md (removed repeated section lists, pie chart calc logic, color tables — now cross-references SKILL.md). Fixed duplicate Step 4c heading (Exposure Gap vs Money Market). Fixed Filter 2 "qualified" wording leftover from pre-v1.13 gate removal. |
 | 1.15 | 2026-04-17 | Refactor | Organize output files into output/fund_proposals/ directory; consolidate output naming requirements (Proposals & Shortlists) into proposal_template.md to eliminate redundancy |
-| 1.13 | 2026-04-15 | Feature | Single-pool CFS ranking: removed hard qualification gate (Filter 1). All funds passing Filters 2–4 (Shariah, RL, look-through) now compete in one CFS pool regardless of Status. CFS inherently deprioritizes disqualified funds via Alpha_N penalties (halved for negative 3Y/5Y alpha) and Efficiency_N — no explicit alpha gate needed. Disqualified funds selected by CFS require an ALPHA WARNING block on their card (weighted alpha, selection reason, why alpha is negative, review trigger). Step 4d Alpha Outlier retains Weighted Alpha > 0% requirement. Also added Step 7c: country/geographic exposure pie chart in the proposal — weighted country breakdown from Dom. Equity % (Malaysia) + GEO BREAKDOWN cols 41–52, countries < 2% merged into Other, CSS conic-gradient alongside the existing asset class chart. |
 | 1.14 | 2026-04-16 | Feature | e-Series Shortlist Mode: new investors with upfront capital < RM 1,000 now get a 3-fund shortlist of Pe-prefix funds ranked by CFS instead of a standard Starter Portfolio. No allocation assigned — output is a consultant review document for use at the client meeting. Step 0 collects upfront capital; new Step 4e defines the Pe-only fund universe, CFS ranking, and Candidate 1/2/3 labelling. Step 7 adds conditional proposal structure: Candidate Comparison Table replaces Portfolio Summary Table, Investment Strategy omitted, and per-fund asset class + geographic pie charts embedded in each candidate card (no portfolio-weighted charts). |
 | 1.13.1 | 2026-04-15 | Config | PeCDF-A is now the de facto money market fund for ALL portfolios (starter and full) when Shariah is not required. PMMF-A retired as default. Shariah portfolios continue to use PIMMF-A. Updated Step 4b and Step 4c. |
+| 1.13 | 2026-04-15 | Feature | Single-pool CFS ranking: removed hard qualification gate (Filter 1). All funds passing Filters 2–4 (Shariah, RL, look-through) now compete in one CFS pool regardless of Status. CFS inherently deprioritizes disqualified funds via Alpha_N penalties (halved for negative 3Y/5Y alpha) and Efficiency_N — no explicit alpha gate needed. Disqualified funds selected by CFS require an ALPHA WARNING block on their card (weighted alpha, selection reason, why alpha is negative, review trigger). Step 4d Alpha Outlier retains Weighted Alpha > 0% requirement. Also added Step 7c: country/geographic exposure pie chart in the proposal — weighted country breakdown from Dom. Equity % (Malaysia) + GEO BREAKDOWN cols 41–52, countries < 2% merged into Other, CSS conic-gradient alongside the existing asset class chart. |
 | 1.12 | 2026-04-15 | Config | PeCDF-A (Public e-Cash Deposit — Class A) is now the de facto money market fund for all new investor Starter Portfolios (4-fund builds), regardless of Shariah preference. Full portfolios (experienced investors) retain the existing PMMF-A / PIMMF-A selection logic. Updated both Step 4b and Step 4c fund selection rules. |
 | 1.11 | 2026-04-15 | Fix | ReturnFit switches from 5Y-primary to weighted-period blend (3Y×40%, 5Y×30%, 1Y×20%, YTD×10%) — mirrors the Alpha dimension's methodology. Fix eliminates systematic bias against funds whose returns are concentrated in the recent market regime: a fund with 3Y=22% but 5Y=8% (pre-AI era drag) was being judged by its worst period. With the weighted blend, PIATAF's Return Fit goes from raw 31 to 100 (wtd return 24.96% vs 14% target), correctly reflecting its demonstrated ability to exceed the investor's target. |
 | 1.10 | 2026-04-15 | Fix | Two CFS scoring fixes: (1) Momentum uses absolute raw score (0–100) instead of percentile rank — percentile normalization caused clustering distortion in bull markets where many funds simultaneously sit at ATH, incorrectly burying high-momentum funds at low percentile ranks; (2) Aggressive base Momentum weight reduced from 25% to 20%, Alpha raised from 25% to 35% — aggressive investors hold through volatility by definition, so Momentum should not dominate over alpha quality at this profile. Also fixes Python falsy-zero bug: `0.0 drawdown or -50` must use explicit None check to preserve exact-ATH funds correctly. Net effect: funds at ATH with exceptional alpha (e.g. PIATAF) now correctly surface as top-ranked rather than being buried by Momentum clustering. |
 | 1.9 | 2026-04-15 | Feature | Composite Fund Score (CFS) replaces alpha-only Step 3 ranking. Four dimensions: Alpha (manager skill, existing formula), Return Fit (absolute return vs E_target, 5Y primary), Efficiency (3Y alpha / VF), Momentum (ATH drawdown + days). Profile-adaptive base weights with E_target stretch modifier. E_target collected in Step 0 with guide ranges per profile and mismatch guard. Step 4d outlier gains Alpha_N ≥ 80 gate. Fund card gains CFS section with per-dimension scores and weights. Portfolio summary table gains CFS column and weighted portfolio CFS footer. Two new jargon terms (CFS, Return Fit). Philosophy updated from alpha-only to alpha-anchored multi-factor. |
-| 1.8 | 2026-04-07 | Feature | Two-layer jargon approach for new investor proposals — Layer 1: inline plain-English parentheticals on first use of each technical term in narrative prose (13-term canonical reference table added to Step 6); Layer 2: informed-layman narrative register in alpha story bullets, exec summary, and risk descriptions, leading with "so what" implication before number/label; investor experience level (Step 0) now governs output style in addition to fund count; tables and grids remain technical and are explicitly exempt |
-| 1.7 | 2026-04-07 | Fix + Feature | Replace Fund Type label filter (Filter 4) with actual equity look-through using Dom.Equity% + For.Equity% — eliminates false exclusions from Lipper label mismatches; add Step 4d Alpha Outlier satellite mechanism — scans full qualified universe post-portfolio-build and surfaces top-alpha funds as satellite positions (5–15% cap, profile-calibrated, mandatory risk disclosure) so no star fund is invisible to any profile |
-| 1.6 | 2026-04-06 | Feature | Rename "Growth" → "Moderately Aggressive" to match Public Mutual official profile names; profile-specific Starter Portfolio compositions for all 4 profiles (incl. Aggressive/New); expand geographic allocation to 4 tiers (Malaysia \| Asia \| Global US/Europe \| Emerging ex-Asia); plain-language glossary in sa_guide; New Investor Foundation section in proposal template |
-| 1.5 | 2026-04-06 | Feature | Step 7 now delegates HTML generation to the `frontend-design` skill — passes full design brief (palette, card types, performance table, pie chart, print CSS) for elevated visual quality; replaced alpha bar visualisation with `Period \| Fund % \| Bench % \| Alpha %` table per fund card |
-| 1.4 | 2026-04-06 | Feature | Gold (PeEMAS) and Money Market promoted to Structural Allocations (Step 4b/4c) — always included across ALL profiles regardless of alpha qualification; profile-graduated allocations for both (gold 5–12%, MM 8–20% scaling inversely with risk); gold removed from Exposure Gap pathway; MM universalised from Moderately Aggressive/Aggressive-only |
-| 1.3 | 2026-04-06 | Feature | Starter portfolio mode (max 4 funds for new investors); Top Holdings Overlap Check in diversification rules; Step 4c — money market as tactical dry powder with dip capture triggers; commodity fund carve-out in Exposure Gap (gold allowed at slightly negative 3Y alpha); ask client experience level in Step 0 |
-| 1.2 | 2026-04-06 | Feature | Add Exposure Gap mechanism (Step 4b) — allows 1 disqualified fund per portfolio when macro demands an exposure no qualified fund covers; update column references for v8 screener (73 cols, Weighted Alpha col 14) |
-| 1.1 | 2026-04-06 | Feature | Add portfolio exposure pie chart (CSS conic-gradient) to proposal — shows actual underlying asset allocation across all recommended funds |
-| 1.0 | 2026-04-06 | — | Initial versioned release |
 
 ---
 
