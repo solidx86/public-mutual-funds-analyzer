@@ -1,5 +1,5 @@
 ---
-version: "1.18"
+version: "1.19"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -61,16 +61,16 @@ If the client defers or says they don't know, use the profile guide ranges below
 
 | Profile | Realistic Guide Range | Default (midpoint) |
 |---|---|---|
-| Conservative | 4–6% p.a. | 5% |
-| Moderate | 6–9% p.a. | 8% |
-| Moderately Aggressive | 9–13% p.a. | 11% |
-| Aggressive | 13–18% p.a. | 15% |
+| Conservative | 3-4% p.a. | 3.5% |
+| Moderate | 4-6% p.a. | 5% |
+| Moderately Aggressive | 6-8% p.a. | 7% |
+| Aggressive | 8-10% p.a. | 9% |
 
-**Mismatch guard:** If E_target exceeds the profile's realistic ceiling (Conservative: 7%, Moderate: 10%, Mod. Aggressive: 14%, Aggressive: 20%), flag it before proceeding:
+**Mismatch guard:** If E_target exceeds the profile's realistic ceiling, flag it before proceeding:
 
 > "The stated target of X% p.a. typically requires a [higher] risk profile. Would you like to adjust the profile, revise the target, or proceed with the understanding that this goal may be challenging within the current risk constraints?"
 
-Beyond 20% for any profile, flag as unrealistic for Public Mutual unit trust funds.
+Beyond 10% for any profile, flag as unrealistic for Public Mutual unit trust funds.
 
 Record E_target alongside risk profile, Shariah, and experience level — it is used in Step 3 scoring.
 
@@ -115,7 +115,7 @@ Do NOT proceed with fund recommendations until you have the risk profile.
 
 **Qualification status** (Weighted Alpha > 0%) is stored in the Status column ("Qualified" /
 "Disqualified") and is used for **disclosure only** — it does not filter the fund universe.
-All funds that pass Filters 2–4 (Shariah, Risk Level, Look-Through) are eligible for CFS
+All funds that pass Filters 2–3 (Shariah, Risk Level) are eligible for CFS
 ranking. CFS inherently deprioritizes disqualified funds through Alpha_N penalties (halved
 for negative 3Y/5Y alpha) and Efficiency_N — no explicit gate is needed. When a disqualified
 fund earns a recommendation slot, its card must carry an **ALPHA WARNING** block (see Step 4).
@@ -148,39 +148,6 @@ include an ALPHA WARNING block (see Step 4). Qualified funds need no such block.
 | Moderate | 3 |
 | Moderately Aggressive | 4 |
 | Aggressive | 5 (no ceiling) |
-
-### Filter 4: Actual Equity Look-Through Classification
-
-**Do not filter by the `Fund Type` label column.** The Lipper/regulatory label is a classification
-artefact that does not reliably reflect what a fund actually holds. A "Mixed Asset" fund may run
-97% equity in practice; a "Balanced" fund may hold 60% bonds. Use the actual asset allocation data.
-
-**Step 1 — Compute actual equity exposure for every fund:**
-```
-actual_equity_pct = (Dom. Equity % or 0) + (For. Equity % or 0)
-```
-Read both values from the Asset Allocation columns (cols 35–36). Treat missing/blank as 0.
-
-**Step 2 — Assign a derived class:**
-
-| Derived Class | actual_equity_pct | Behaves like |
-|---|---|---|
-| **Equity-equivalent** | ≥ 70% | Pure equity fund — fills equity slots, counts toward equity ceiling |
-| **Balanced** | 30–69% | True mixed asset — fills Mixed Asset slot |
-| **Defensive** | < 30% | Bond/FI/MM-equivalent — fills FI or MM slot |
-
-**Step 3 — Apply profile eligibility by derived class (not by label):**
-
-| Profile | Eligible derived classes |
-|---|---|
-| Conservative | Defensive only; Balanced only if actual_equity_pct ≤ 40% |
-| Moderate | All classes |
-| Moderately Aggressive | All classes |
-| Aggressive | All classes |
-
-This ensures that any fund — regardless of its Lipper label — is evaluated by what it actually
-holds today. The classification is recomputed fresh from each FundMaster workbook, so it remains
-accurate as fund compositions shift over time.
 
 ---
 
@@ -1150,6 +1117,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.19 | 2026-04-19 | Config | Lower E_target guide ranges to align with Public Mutual fund performance: Conservative 3–4%/3.5%, Moderate 4–6%/5%, Mod. Aggressive 6–8%/7%, Aggressive 8–10%/9%. Mismatch guard ceiling updated to 10% for all profiles. Remove Filter 4 (Equity Look-Through Classification) — fund universe now filtered by Filters 2–3 only (Shariah, Risk Level). Step 3 scope text updated accordingly. |
 | 1.18 | 2026-04-19 | Config | Unify Return Fit weight (w_R) at 40% across all risk profiles. Remaining 60% redistributed by proportionally scaling existing Alpha, Efficiency, and Momentum weights per profile: Conservative 28/40/25/7, Moderate 28/40/20/12, Mod. Aggressive 26/40/17/17, Aggressive 30/40/13/17. Updated rationale and E_target stretch modifier example. |
 | 1.16 | 2026-04-18 | Refactor | Remove sa_guide.md and allocation_models.md references — all content consolidated into SKILL.md. Absorbed target weighted VF and selection priority per profile into Step 4. Deduplicated proposal_template.md (removed repeated section lists, pie chart calc logic, color tables — now cross-references SKILL.md). Fixed duplicate Step 4c heading (Exposure Gap vs Money Market). Fixed Filter 2 "qualified" wording leftover from pre-v1.13 gate removal. |
 | 1.15 | 2026-04-17 | Refactor | Organize output files into output/fund_proposals/ directory; consolidate output naming requirements (Proposals & Shortlists) into proposal_template.md to eliminate redundancy |
