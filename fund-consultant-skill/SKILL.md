@@ -1,5 +1,5 @@
 ---
-version: "1.16"
+version: "1.17"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -976,14 +976,23 @@ Use the same color palette defined in Steps 7b–7c. Label each chart pair: "Fun
 - Display in cover page header and document footer
 
 **Design brief to pass to frontend-design skill:**
-- Brand palette: Navy `#1a365d` primary, `#2b6cb0` accent, white backgrounds
-- Fund card types: equity (blue left border), mixed asset (amber), FI/Sukuk (green), gold (warm gold border), money market (grey), exposure gap (dashed amber), alpha outlier satellite (solid deep teal `#2c7a7b`)
-- Alpha performance: use a `Period | Fund % | Bench % | Alpha %` table per fund card (not visual bars); alpha column green for positive, red for negative; show `—` for unavailable periods (fund too young)
-- Portfolio summary: zebra-striped table, weighted totals row highlighted
-- Pie chart: CSS conic-gradient only — no JS, no external libraries
-- Print-optimised: `@media print` with page breaks, colour-exact flags
+
+**CRITICAL: Use the EXACT CSS stylesheet defined in `fund-consultant-skill/references/proposal_template.md`
+"Design System — CSS Stylesheet" section. Copy the CSS verbatim into the `<style>` block. Do NOT
+create a custom design, substitute fonts, colors, or layout patterns. Both standard proposals and
+e-Series shortlists must use the identical stylesheet and cover page structure from the template.**
+
+- System fonts only — NO Google Fonts, NO serif fonts, NO `@import` or `<link>` to external font services
+- Cover: flat navy `#1a365d` background — NO gradients, NO diagonal stripes, NO decorative shapes
+- Brand hierarchy: "Solid" prominent at top-left of cover, "Public Mutual Berhad" secondary beneath
+- Modern Minimal aesthetic: flat design, generous whitespace, geometric accent bars only
+- Fund card header backgrounds: equity (`--equity`), mixed asset (`--mixed-asset`), FI/Sukuk (`--fixed-income`), gold (`--gold`), money market (`--money-market`), alpha outlier satellite (`--teal`), exposure gap (dashed amber border with `--mixed-asset` header)
+- Alpha performance: use a `Period | Fund % | Bench % | Alpha %` table per fund card; alpha column green (`.alpha-pos`) for positive, red (`.alpha-neg`) for negative; show `—` for unavailable periods
+- Portfolio summary: zebra-striped table, weighted totals row using `.highlight-row`
+- Pie chart: CSS `conic-gradient` only — no JS, no external libraries
+- Print-optimised: `@media print` block from the stylesheet handles page breaks and colour-exact flags
 - Self-contained: single HTML file, all CSS inline, no external dependencies
-- Tone: professional financial document, clean whitespace, readable at 14px body
+- Fixed 900px width — no responsive/mobile design needed; output is for desktop Chrome and Print-to-PDF
 - Jargon layer (new investor): apply the two-layer rule from Step 6 — inline definitions on first use in all narrative sections (exec summary, alpha story, risk descriptions, strategy); Layer 2 informed-layman register in all prose sections; tables and grids are exempt and remain technical
 
 ---
