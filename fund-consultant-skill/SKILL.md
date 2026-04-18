@@ -443,20 +443,6 @@ Notes:
 
 If the client is **not** a new investor, use the full target fund count with the same gold + MM structural positions.
 
-### Geographic Allocation
-
-Malaysia-focused funds have the strongest alpha (83% qualification rate). Use as portfolio core:
-
-| Profile | Malaysia Core | Asia/Greater China | Global (US/Europe) | Emerging (ex-Asia) |
-|---------|--------------|-------------------|-------------------|-------------------|
-| Conservative | 80%+ | 10–15% | 0–5% | 0% |
-| Moderate | 70% | 15–20% | 10% | 0–5% |
-| Moderately Aggressive | 55–60% | 20–25% | 15% | 5% |
-| Aggressive | 45–50% | 20–25% | 20–25% | 5–10% |
-
-> US/Europe exposure is typically accessed via Exposure Gap picks (Step 4c) unless a qualified
-> Public Mutual fund with meaningful US/Europe holdings exists in the screened universe.
-
 ### Diversification Rules
 
 Before finalizing, verify:
