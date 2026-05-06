@@ -13050,9 +13050,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 68.9,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 16.2,
-        "- Foreign Islamic money market instruments & others": 14.9
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 68.9,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 16.2,
+        "Islamic money market instruments & others": 14.9
       },
       "geo_breakdown": {
         "USA": 8.6,
@@ -13169,9 +13169,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 75.4,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 16.9,
-        "- Foreign Islamic money market instruments & others": 7.7
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 75.4,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 16.9,
+        "Islamic money market instruments & others": 7.7
       },
       "geo_breakdown": {
         "Taiwan": 5.7,
@@ -14667,9 +14667,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 4.6,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 81.2,
-        "- Foreign Islamic money market instruments & others": 14.2
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 4.6,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 81.2,
+        "Islamic money market instruments & others": 14.2
       },
       "geo_breakdown": {
         "Taiwan": 34.7,
@@ -14795,8 +14795,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 87.7,
-        "- Foreign Islamic money market instruments & others": 12.3
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 87.7,
+        "Islamic money market instruments & others": 12.3
       },
       "geo_breakdown": {
         "Taiwan": 43.5,
@@ -17185,8 +17185,8 @@
       "phs_fund_type": "Mixed Asset / Balanced",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 80.0,
-        "- Foreign Islamic money market instruments & others": 20.0
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 80.0,
+        "Islamic money market instruments & others": 20.0
       },
       "geo_breakdown": {
         "USA": 47.3,
@@ -19485,9 +19485,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 74.8,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 17.6,
-        "- Foreign Islamic money market instruments & others": 7.6
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 74.8,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 17.6,
+        "Islamic money market instruments & others": 7.6
       },
       "geo_breakdown": {
         "USA": 14.9,
@@ -19594,8 +19594,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 63.2,
-        "- Foreign Islamic money market instruments & others": 36.8
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 63.2,
+        "Islamic money market instruments & others": 36.8
       },
       "geo_breakdown": {
         "Taiwan": 30.7,
@@ -19686,8 +19686,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 85.5,
-        "- Foreign Islamic money market instruments & others": 14.5
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 85.5,
+        "Islamic money market instruments & others": 14.5
       },
       "geo_breakdown": {
         "USA": 33.6,
@@ -19795,8 +19795,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 90.8,
-        "- Foreign Islamic money market instruments & others": 9.2
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 90.8,
+        "Islamic money market instruments & others": 9.2
       },
       "geo_breakdown": {
         "USA": 54.4,
@@ -19898,8 +19898,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 83.8,
-        "- Foreign Islamic money market instruments & others": 16.2
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 83.8,
+        "Islamic money market instruments & others": 16.2
       },
       "geo_breakdown": {
         "USA": 59.4,
@@ -20015,8 +20015,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 90.2,
-        "- Foreign Islamic money market instruments & others": 9.8
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 90.2,
+        "Islamic money market instruments & others": 9.8
       },
       "geo_breakdown": {
         "USA": 59.7,
@@ -20126,9 +20126,9 @@
       "phs_fund_type": "Mixed Asset / Balanced",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 40.9,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 16.9,
-        "- Foreign Sukuk": 37.3,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 40.9,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 16.9,
+        "Sukuk": 37.3,
         "Islamic money market instruments & others": 4.9
       },
       "geo_breakdown": {
@@ -20247,9 +20247,9 @@
       "phs_fund_type": "Mixed Asset / Balanced",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 68.1,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 23.6,
-        "- Foreign Islamic money market instruments & others": 8.3
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 68.1,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 23.6,
+        "Islamic money market instruments & others": 8.3
       },
       "geo_breakdown": {
         "USA": 16.6,
@@ -28722,9 +28722,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 68.9,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 16.2,
-        "- Foreign Islamic money market instruments & others": 14.9
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 68.9,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 16.2,
+        "Islamic money market instruments & others": 14.9
       },
       "geo_breakdown": {
         "USA": 8.6,
@@ -28841,9 +28841,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 75.4,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 16.9,
-        "- Foreign Islamic money market instruments & others": 7.7
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 75.4,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 16.9,
+        "Islamic money market instruments & others": 7.7
       },
       "geo_breakdown": {
         "Taiwan": 5.7,
@@ -29232,9 +29232,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 4.6,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 81.2,
-        "- Foreign Islamic money market instruments & others": 14.2
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 4.6,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 81.2,
+        "Islamic money market instruments & others": 14.2
       },
       "geo_breakdown": {
         "Taiwan": 34.7,
@@ -29360,8 +29360,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 87.7,
-        "- Foreign Islamic money market instruments & others": 12.3
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 87.7,
+        "Islamic money market instruments & others": 12.3
       },
       "geo_breakdown": {
         "Taiwan": 43.5,
@@ -31382,9 +31382,9 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 74.8,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 17.6,
-        "- Foreign Islamic money market instruments & others": 7.6
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 74.8,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 17.6,
+        "Islamic money market instruments & others": 7.6
       },
       "geo_breakdown": {
         "USA": 14.9,
@@ -31491,8 +31491,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 63.2,
-        "- Foreign Islamic money market instruments & others": 36.8
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 63.2,
+        "Islamic money market instruments & others": 36.8
       },
       "geo_breakdown": {
         "Taiwan": 30.7,
@@ -31603,8 +31603,8 @@
       "phs_fund_type": "Equity",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 90.2,
-        "- Foreign Islamic money market instruments & others": 9.8
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 90.2,
+        "Islamic money market instruments & others": 9.8
       },
       "geo_breakdown": {
         "USA": 59.7,
@@ -31724,9 +31724,9 @@
       "phs_fund_type": "Mixed Asset / Balanced",
       "distribution_policy": "Incidental",
       "asset_allocation": {
-        "Shariah-compliant equity & Shariah-compliant equity-related securities": 68.1,
-        "- Domestic Shariah-compliant equity & Shariah-compliant equity-related securities": 23.6,
-        "- Foreign Islamic money market instruments & others": 8.3
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Domestic": 68.1,
+        "Shariah-compliant equity & Shariah-compliant equity-related securities - Foreign": 23.6,
+        "Islamic money market instruments & others": 8.3
       },
       "geo_breakdown": {
         "USA": 16.6,
@@ -32053,5 +32053,5 @@
       "weighted_alpha": 1.031
     }
   ],
-  "base_dir": "/Users/solid/Downloads/Funds/Unit Trust (UT)"
+  "base_dir": "/Users/shookyukwei/Code/public-mutual-funds-analyzer/Unit Trust (UT)"
 }

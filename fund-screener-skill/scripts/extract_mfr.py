@@ -414,14 +414,22 @@ def extract_allocation_from_page(page):
             if before_pct:
                 current_label_parts.append(before_pct)
 
-            # Check if next line(s) are continuations (start with "securities" etc.)
+            # Check if next line(s) are continuations of the just-completed entry.
+            # MFR Shariah layout puts the "- Domestic" / "- Foreign" sub-qualifier
+            # on a separate line BELOW the percentage row — it qualifies the % above,
+            # not the entry below.
             while i < len(lines):
                 next_line = lines[i].strip()
-                if next_line.startswith('securities') or next_line.startswith('Islamic'):
-                    if not re.search(r'\d+\.\d+%', next_line):
-                        current_label_parts.append(next_line)
-                        i += 1
-                        continue
+                is_continuation = (
+                    next_line.startswith('securities')
+                    or next_line.startswith('Islamic')
+                    or next_line.startswith('- Domestic')
+                    or next_line.startswith('- Foreign')
+                )
+                if is_continuation and not re.search(r'\d+\.\d+%', next_line):
+                    current_label_parts.append(next_line)
+                    i += 1
+                    continue
                 break
 
             if current_label_parts:
