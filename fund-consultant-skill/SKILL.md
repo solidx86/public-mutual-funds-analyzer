@@ -1,5 +1,5 @@
 ---
-version: "1.19"
+version: "1.20"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -779,6 +779,39 @@ Examples:
 **Layer 2 is NOT applied to:** Tables, performance grids, metadata, cost calculations, and the
 portfolio summary table. These are data references, not reading material.
 
+### Fund Fee Sourcing Rule — PHS Lookup (MANDATORY)
+
+**Fee data is NOT in the FundMaster Excel.** Sales charges, management fees, and trustee fees are
+fund-specific disclosures that live only in each fund's Product Highlight Sheet (PHS). They MUST
+be sourced from the PHS PDF every time — never copied from a prior proposal, never inferred from
+a similar-looking fund, never reused from memory.
+
+**Lookup procedure (run for every fund in the final portfolio, including replacements and satellites):**
+
+1. Construct the path: `Unit Trust (UT)/Product Highlight Sheet (PHS)/<Abbr>_PHS.pdf` where
+   `<Abbr>` is the fund's abbreviation from FundMaster col 2 (e.g., `PITSEQ_PHS.pdf`,
+   `PIATAF_PHS.pdf`, `PeEMAS_PHS.pdf`).
+2. Read the "FEES & CHARGES" section of the PHS. Extract verbatim:
+   - **Sales charge** (e.g., "Up to 5.0% of NAV per unit") — record the cap.
+   - **Management fee** (e.g., "1.50% per annum of the NAV") — record the exact rate.
+   - **Trustee fee** (e.g., "0.06% per annum of the NAV") — record the exact rate.
+3. Use these PHS values — and only these — to populate:
+   - The "Cost & Alpha Justification" block in the in-conversation fund card (Step 6).
+   - The "Fee Disclosure" table in the proposal HTML (Step 7, section 9).
+
+**Why this rule exists:** Fee values are static per-fund data with no live source in the FundMaster.
+In a prior re-recommendation (Ngui Sui Fen, May 2026), the PISTF→PITSEQ replacement card
+inherited PISTF's 6.5% sales charge and 0.08% trustee fee verbatim — both wrong for PITSEQ
+(actual: 5.0% / 0.06%). The 1.50% management fee matched by coincidence, masking the bug.
+Without an explicit PHS lookup step, fee values silently drift fund-to-fund whenever a card is
+templated from a prior proposal.
+
+**No PHS available?** If the fund's PHS PDF is missing from the directory (rare, but possible for
+newly launched funds), state this in the proposal under Cost & Alpha Justification:
+> "Fee data unavailable — PHS pending. Confirm sales charge, management fee, and trustee fee
+> directly with Public Mutual before client signs."
+Do not guess and do not carry over from another fund.
+
 ### For Each Recommended Fund
 
 ```
@@ -815,7 +848,9 @@ WHAT TO WATCH:
 - [Any flags: concentration risk, deep drawdown, single-sector bet, limited track record, etc.]
 
 COST & ALPHA JUSTIFICATION:
-- Sales charge: up to X% | Annual management fee: ~X%
+(All three fee values MUST be sourced from <Abbr>_PHS.pdf — see "Fund Fee Sourcing Rule" above.
+Annual cost in the net value-add calculation = Management fee + Trustee fee.)
+- Sales charge: up to X% | Management fee: X% p.a. | Trustee fee: X% p.a.
 - 3Y alpha of +X% vs annual cost of ~X% = net value-add of ~X% p.a.
 - "The fund manager is earning their fee and delivering [X%] above it"
 ```
@@ -900,7 +935,7 @@ styling guidelines, and section requirements.
 6. Portfolio summary — table with all funds, allocation, alpha, risk level, macro thesis
 7. Portfolio exposure — CSS pie charts: (a) asset class breakdown, (b) country/geographic breakdown (see Steps 7b–7c)
 8. Investment strategy — DCA/RSP, distribution, rebalancing triggers, tactical playbook
-9. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees
+9. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees. **Every fee value (sales charge cap, management fee, trustee fee) MUST come from `<Abbr>_PHS.pdf` per the "Fund Fee Sourcing Rule" in Step 6. Do not copy fee values from a prior proposal — re-read the PHS for each fund.**
 10. Disclaimer & disclosures — regulatory disclaimer, FIMM compliance
 11. Sources — all web search URLs used for macro context
 
@@ -1117,6 +1152,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.20 | 2026-05-07 | Fix | Add mandatory "Fund Fee Sourcing Rule (PHS Lookup)" in Step 6. Sales charge, management fee, and trustee fee MUST be read from `Unit Trust (UT)/Product Highlight Sheet (PHS)/<Abbr>_PHS.pdf` for every recommended fund — never copied from a prior proposal or inferred from a similar fund. Cost & Alpha block now shows all three fees explicitly (annual cost = mgmt + trustee). Step 7 section 9 cross-references this rule. Triggered by a real bug: the May 2026 PISTF→PITSEQ replacement card inherited PISTF's 6.5% sales charge and 0.08% trustee fee verbatim — both wrong for PITSEQ (actual 5.0% / 0.06%). The 1.50% management fee matched by coincidence, masking the bug. |
 | 1.19 | 2026-04-19 | Config | Lower E_target guide ranges to align with Public Mutual fund performance: Conservative 3–4%/3.5%, Moderate 4–6%/5%, Mod. Aggressive 6–8%/7%, Aggressive 8–10%/9%. Mismatch guard ceiling updated to 10% for all profiles. Remove Filter 4 (Equity Look-Through Classification) — fund universe now filtered by Filters 2–3 only (Shariah, Risk Level). Step 3 scope text updated accordingly. |
 | 1.18 | 2026-04-19 | Config | Unify Return Fit weight (w_R) at 40% across all risk profiles. Remaining 60% redistributed by proportionally scaling existing Alpha, Efficiency, and Momentum weights per profile: Conservative 28/40/25/7, Moderate 28/40/20/12, Mod. Aggressive 26/40/17/17, Aggressive 30/40/13/17. Updated rationale and E_target stretch modifier example. |
 | 1.16 | 2026-04-18 | Refactor | Remove sa_guide.md and allocation_models.md references — all content consolidated into SKILL.md. Absorbed target weighted VF and selection priority per profile into Step 4. Deduplicated proposal_template.md (removed repeated section lists, pie chart calc logic, color tables — now cross-references SKILL.md). Fixed duplicate Step 4c heading (Exposure Gap vs Money Market). Fixed Filter 2 "qualified" wording leftover from pre-v1.13 gate removal. |
