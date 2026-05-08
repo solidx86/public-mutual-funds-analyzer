@@ -1,5 +1,5 @@
 ---
-version: "1.20"
+version: "1.21"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -122,7 +122,38 @@ fund earns a recommendation slot, its card must carry an **ALPHA WARNING** block
 
 ---
 
+### Step 1b: Retail Eligibility Exclusion (apply at load time)
+
+After loading the Master sheet, drop any row matching any of the rules below **before** any
+downstream step runs. Excluded funds do not enter Step 2 filters, Step 3 CFS scoring, Step 4d
+Alpha Outlier scan, or Step 4e e-Series Shortlist. Do not mention excluded funds anywhere in
+the proposal — treat them as if they do not exist in the universe.
+
+| Rule | Match | Reason |
+|------|-------|--------|
+| "PB " series | **Fund Name** (col 1) starts with `PB ` — literal `P`, `B`, then a space (case-sensitive) | Not available for investment in Public Mutual's PMO Plus app |
+| Class B suffix | **Abbr** (col 2) ends with `-B` (case-sensitive) | Class B units are not offered to retail investors (e.g., PeCDF-B, PMMF-B, PBCMF-B, PeICDF-B, PIMMF-B, PBICMF-B) |
+| Wholesale fund | **Abbr** (col 2) is one of `PBCPF`, `PWSIF`, `PIWSIF`, `PeWS20F` | Wholesale / institutional minimums; not for everyday retail clients |
+
+**Implementation notes:**
+- The "PB " match is on **Fund Name**, not Abbr. Use `fund_name.startswith("PB ")` — the
+  trailing space is required so that hypothetical names like "PBB ..." or any unrelated fund
+  whose name happens to begin with the letters PB are not swept up. e-Series fund names start
+  with "Public e-..." and will not match.
+- The `-B` suffix check is on Abbr and case-sensitive — do not match `-b` or `_B`. Class A
+  variants (`-A` suffix, e.g., `PeCDF-A`, `PIMMF-A`) are retail-eligible and remain in the
+  universe.
+- The wholesale list is exact-match on Abbr.
+
+This step is silent — no diagnostic line, no client disclosure. The point is to keep the
+recommendation engine focused on the funds the consultant can actually transact for the client.
+
+---
+
 ## Step 2: Filter the Fund Universe
+
+Funds excluded under Step 1b ("PB "-named series, Class B suffix, wholesale list) are already
+removed; Step 2 operates on the eligible universe only.
 
 Apply these filters sequentially:
 
@@ -578,8 +609,8 @@ a parking space. Include the dip capture trigger rules explicitly in the fund ca
 ## Step 4d: Alpha Outlier — Star Fund Satellite Check
 
 After the main portfolio is assembled (Steps 2–4c), run one final scan of the **entire qualified
-universe** — no profile filters, no type filters, no RL ceiling — to check whether an exceptional
-alpha performer has been left out. If one qualifies under the rules below, include it as a small
+universe** (still subject to Step 1b retail eligibility exclusions) — no profile filters, no type
+filters, no RL ceiling — to check whether an exceptional alpha performer has been left out. If one qualifies under the rules below, include it as a small
 satellite position.
 
 **This step exists because outstanding manager skill is rare and transcends profile boundaries.**
@@ -662,6 +693,9 @@ When both conditions apply — **new investor** AND **upfront capital < RM 1,000
 ### Fund Universe
 
 Filter the FundMaster to e-series funds only: funds whose `Abbr` column value starts with `"Pe"`.
+
+Step 1b retail eligibility exclusions remain in force — `PeCDF-B`, `PeICDF-B`, `PeWS20F`, and
+any other Class B / wholesale Pe funds are already dropped before this filter runs.
 
 Apply the same pre-filters as Step 2:
 1. **Shariah filter** — if client has Shariah preference, retain only Shariah-compliant Pe funds
@@ -1152,6 +1186,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.21 | 2026-05-08 | Feature | Add Step 1b "Retail Eligibility Exclusion" — drop funds at workbook load that the consultant cannot actually transact for retail clients via PMO Plus: (1) any **Fund Name** (col 1) starting with `"PB "` — the PB series is not offered in the PMO Plus app; (2) any **Abbr** (col 2) ending with `-B` (Class B units are not for retail; e.g., PeCDF-B, PMMF-B, PBCMF-B, PeICDF-B, PIMMF-B, PBICMF-B); (3) hardcoded wholesale funds PBCPF, PWSIF, PIWSIF, PeWS20F. Excluded funds never enter Step 2 filters, Step 3 CFS scoring, Step 4d Alpha Outlier scan, or Step 4e e-Series Shortlist — saves token spend on unbuyable funds and prevents recommending one. Step 2, Step 4d, and Step 4e gain explicit cross-references. |
 | 1.20 | 2026-05-07 | Fix | Add mandatory "Fund Fee Sourcing Rule (PHS Lookup)" in Step 6. Sales charge, management fee, and trustee fee MUST be read from `Unit Trust (UT)/Product Highlight Sheet (PHS)/<Abbr>_PHS.pdf` for every recommended fund — never copied from a prior proposal or inferred from a similar fund. Cost & Alpha block now shows all three fees explicitly (annual cost = mgmt + trustee). Step 7 section 9 cross-references this rule. Triggered by a real bug: the May 2026 PISTF→PITSEQ replacement card inherited PISTF's 6.5% sales charge and 0.08% trustee fee verbatim — both wrong for PITSEQ (actual 5.0% / 0.06%). The 1.50% management fee matched by coincidence, masking the bug. |
 | 1.19 | 2026-04-19 | Config | Lower E_target guide ranges to align with Public Mutual fund performance: Conservative 3–4%/3.5%, Moderate 4–6%/5%, Mod. Aggressive 6–8%/7%, Aggressive 8–10%/9%. Mismatch guard ceiling updated to 10% for all profiles. Remove Filter 4 (Equity Look-Through Classification) — fund universe now filtered by Filters 2–3 only (Shariah, Risk Level). Step 3 scope text updated accordingly. |
 | 1.18 | 2026-04-19 | Config | Unify Return Fit weight (w_R) at 40% across all risk profiles. Remaining 60% redistributed by proportionally scaling existing Alpha, Efficiency, and Momentum weights per profile: Conservative 28/40/25/7, Moderate 28/40/20/12, Mod. Aggressive 26/40/17/17, Aggressive 30/40/13/17. Updated rationale and E_target stretch modifier example. |
