@@ -1,5 +1,5 @@
 ---
-version: "1.21"
+version: "1.22"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -1186,6 +1186,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.22 | 2026-05-08 | Fix | Print CSS now applies `print-color-adjust: exact` globally (`* { ... !important }`) inside `@media print`, replacing the per-selector allowlist that missed `.cover`. Symptom: saving any proposal to PDF via Chrome stripped the navy cover background, producing a near-white first page. The allowlist approach was inherently fragile — every new styled background needed manual addition. Fix lives in `references/proposal_template.md` so all future proposals inherit it. |
 | 1.21 | 2026-05-08 | Feature | Add Step 1b "Retail Eligibility Exclusion" — drop funds at workbook load that the consultant cannot actually transact for retail clients via PMO Plus: (1) any **Fund Name** (col 1) starting with `"PB "` — the PB series is not offered in the PMO Plus app; (2) any **Abbr** (col 2) ending with `-B` (Class B units are not for retail; e.g., PeCDF-B, PMMF-B, PBCMF-B, PeICDF-B, PIMMF-B, PBICMF-B); (3) hardcoded wholesale funds PBCPF, PWSIF, PIWSIF, PeWS20F. Excluded funds never enter Step 2 filters, Step 3 CFS scoring, Step 4d Alpha Outlier scan, or Step 4e e-Series Shortlist — saves token spend on unbuyable funds and prevents recommending one. Step 2, Step 4d, and Step 4e gain explicit cross-references. |
 | 1.20 | 2026-05-07 | Fix | Add mandatory "Fund Fee Sourcing Rule (PHS Lookup)" in Step 6. Sales charge, management fee, and trustee fee MUST be read from `Unit Trust (UT)/Product Highlight Sheet (PHS)/<Abbr>_PHS.pdf` for every recommended fund — never copied from a prior proposal or inferred from a similar fund. Cost & Alpha block now shows all three fees explicitly (annual cost = mgmt + trustee). Step 7 section 9 cross-references this rule. Triggered by a real bug: the May 2026 PISTF→PITSEQ replacement card inherited PISTF's 6.5% sales charge and 0.08% trustee fee verbatim — both wrong for PITSEQ (actual 5.0% / 0.06%). The 1.50% management fee matched by coincidence, masking the bug. |
 | 1.19 | 2026-04-19 | Config | Lower E_target guide ranges to align with Public Mutual fund performance: Conservative 3–4%/3.5%, Moderate 4–6%/5%, Mod. Aggressive 6–8%/7%, Aggressive 8–10%/9%. Mismatch guard ceiling updated to 10% for all profiles. Remove Filter 4 (Equity Look-Through Classification) — fund universe now filtered by Filters 2–3 only (Shariah, Risk Level). Step 3 scope text updated accordingly. |

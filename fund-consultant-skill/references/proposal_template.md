@@ -558,20 +558,13 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
 
 /* ── Print Styles ── */
 @media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { font-size: 12px; }
   .cover { min-height: auto; padding: 48px; page-break-after: always; }
   .page { padding: 20px; }
   .section { page-break-inside: avoid; }
   .fund-card { page-break-inside: avoid; }
   .section-title { page-break-after: avoid; }
-  .pie-chart, .legend-swatch {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  th, .fund-card-header, .section-num, .highlight-row, .highlight-row td {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
 }
 ```
 
