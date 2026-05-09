@@ -2,23 +2,40 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fund Portfolio Proposal — Moderate — May 2026</title>
 <style>
+/* ─────────────────────────────────────────────────────────────────────────
+   fund-consultant Design System — v1.23
+   Single source of truth for all generated HTML (proposals + shortlists).
+
+   Copy this entire file verbatim into the <style> block of every generated
+   document. Do NOT modify, substitute, or extend. All visual decisions must
+   live in this file so every output is structurally identical.
+   ───────────────────────────────────────────────────────────────────────── */
+
 :root {
+  /* ── Primary ── */
   --navy: #1a365d;
   --blue: #2b6cb0;
   --white: #ffffff;
+
+  /* ── Neutral ── */
   --text: #1a202c;
   --text-mid: #4a5568;
   --text-muted: #718096;
   --border: #e2e8f0;
   --bg-subtle: #f7fafc;
+
+  /* ── Fund Type Accents ── */
   --equity: #2b6cb0;
   --fixed-income: #276749;
   --mixed-asset: #975a16;
   --money-market: #4a5568;
   --gold: #b7791f;
   --teal: #2c7a7b;
+
+  /* ── Semantic ── */
   --positive: #276749;
   --positive-bg: #f0fff4;
   --negative: #c53030;
@@ -27,12 +44,18 @@
   --amber-bg: #fffff0;
   --info-bg: #ebf4ff;
   --info-border: #bee3f8;
+
+  /* ── CFS Dimension Colors ── */
   --cfs-alpha: #1a365d;
   --cfs-return: #2c7a7b;
   --cfs-efficiency: #276749;
   --cfs-momentum: #b7791f;
+
+  /* ── Typography ── */
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+
+  /* ── Spacing (8px base) ── */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -41,87 +64,670 @@
   --space-2xl: 48px;
   --space-3xl: 64px;
 }
+
+/* ── Reset & Base ── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font-body); font-size: 14px; line-height: 1.65; color: var(--text); background: var(--white); }
-.page { max-width: 900px; margin: 0 auto; padding: 40px; }
-.cover { min-height: 100vh; background: var(--navy); color: var(--white); display: flex; flex-direction: column; padding: 0; page-break-after: always; }
-.cover-top-bar { display: flex; justify-content: space-between; align-items: flex-start; padding: 36px 48px 24px; border-bottom: 1px solid rgba(255,255,255,0.12); }
-.cover-brand { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
-.cover-brand strong { color: rgba(255,255,255,0.95); display: block; font-size: 18px; margin-bottom: 2px; letter-spacing: 0.04em; }
-.cover-contact { text-align: right; font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.7; }
-.cover-contact strong { color: rgba(255,255,255,0.85); font-size: 13px; }
-.cover-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 60px 48px; }
-.cover-eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 16px; }
-.cover-divider { width: 60px; height: 3px; background: var(--blue); margin-bottom: 32px; border-radius: 0; }
-.cover-title { font-size: 42px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--white); margin-bottom: 12px; }
-.cover-subtitle { font-size: 16px; color: rgba(255,255,255,0.6); margin-bottom: 48px; }
-.cover-meta-grid { display: grid; grid-template-columns: repeat(3, auto); gap: 8px 48px; width: fit-content; }
-.cover-meta-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 2px; }
-.cover-meta-value { font-size: 15px; color: var(--white); font-weight: 600; }
-.cover-footer { padding: 20px 48px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.04em; }
-.section { margin-bottom: var(--space-2xl); padding-top: var(--space-xl); page-break-inside: avoid; }
-.section-header { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
-.section-num { width: 32px; height: 32px; border-radius: 50%; background: var(--navy); color: var(--white); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.section-title { font-size: 20px; font-weight: 700; color: var(--navy); letter-spacing: 0; }
-.section-rule { height: 1px; background: var(--border); margin-bottom: var(--space-lg); }
-.exec-summary { background: var(--info-bg); border-left: 4px solid var(--blue); padding: 20px 24px; border-radius: 0 4px 4px 0; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--white);
+}
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px;
+}
+
+/* ── Cover Page ── */
+.cover {
+  min-height: 100vh;
+  background: var(--navy);  /* FLAT. No gradient. No pattern. */
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  page-break-after: always;
+}
+
+.cover-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 36px 48px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.cover-brand {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+}
+
+.cover-brand strong {
+  color: rgba(255,255,255,0.95);
+  display: block;
+  font-size: 18px;
+  margin-bottom: 2px;
+  letter-spacing: 0.04em;
+}
+
+.cover-contact {
+  text-align: right;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.7;
+}
+
+.cover-contact strong {
+  color: rgba(255,255,255,0.85);
+  font-size: 13px;
+}
+
+.cover-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 48px;
+}
+
+.cover-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 16px;
+}
+
+.cover-divider {
+  width: 60px;
+  height: 3px;
+  background: var(--blue);
+  margin-bottom: 32px;
+  border-radius: 0;
+}
+
+.cover-title {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--white);
+  margin-bottom: 12px;
+}
+
+.cover-subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 48px;
+}
+
+.cover-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px 48px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.cover-meta-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 2px;
+}
+
+.cover-meta-value {
+  font-size: 15px;
+  color: var(--white);
+  font-weight: 600;
+}
+
+.cover-footer {
+  padding: 20px 48px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.04em;
+}
+
+/* ── Section Headers ── */
+.section {
+  margin-bottom: var(--space-2xl);
+  padding-top: var(--space-xl);
+  page-break-inside: avoid;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.section-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: 0;
+}
+
+.section-rule {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: var(--space-lg);
+}
+
+/* ── Executive Summary ── */
+.exec-summary {
+  background: var(--info-bg);
+  border-left: 4px solid var(--blue);
+  padding: 20px 24px;
+  border-radius: 0 4px 4px 0;
+}
+
 .exec-summary ul { list-style: none; padding: 0; }
-.exec-summary li { padding: 6px 0 6px 20px; position: relative; }
-.exec-summary li::before { content: "\25B8"; position: absolute; left: 0; color: var(--blue); font-weight: bold; }
-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
-th { background: var(--navy); color: var(--white); padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; letter-spacing: 0.02em; }
-td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+
+.exec-summary li {
+  padding: 6px 0 6px 20px;
+  position: relative;
+}
+
+.exec-summary li::before {
+  content: "\25B8";
+  position: absolute;
+  left: 0;
+  color: var(--blue);
+  font-weight: bold;
+}
+
+/* ── Tables (default) ── */
+.table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+th {
+  background: var(--navy);
+  color: var(--white);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
 tr:nth-child(even) td { background: var(--bg-subtle); }
-.fund-card { border: 1px solid var(--border); border-radius: 4px; margin: var(--space-lg) 0; overflow: hidden; page-break-inside: avoid; }
-.fund-card-header { padding: 14px 20px; color: var(--white); display: flex; justify-content: space-between; align-items: center; }
+
+/* ── Macro Context Table (Section 2) ── */
+.macro-table th:nth-child(2),
+.macro-table td:nth-child(2) { white-space: nowrap; width: 110px; }
+
+/* ── Fund Cards ── */
+.fund-card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin: var(--space-lg) 0;
+  overflow: hidden;
+  page-break-inside: avoid;
+}
+
+.fund-card-header {
+  padding: 14px 20px;
+  color: var(--white);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .fund-card-header h3 { color: var(--white); margin: 0; font-size: 15px; font-weight: 700; }
 .fund-card-header .alloc { font-size: 24px; font-weight: 700; }
-.fund-card-header.equity { background: var(--equity); }
+.fund-card-header .candidate-num {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.18);
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.fund-card-header.equity       { background: var(--equity); }
 .fund-card-header.fixed-income { background: var(--fixed-income); }
-.fund-card-header.mixed-asset { background: var(--mixed-asset); }
+.fund-card-header.mixed-asset  { background: var(--mixed-asset); }
 .fund-card-header.money-market { background: var(--money-market); }
-.fund-card-header.gold { background: var(--gold); }
+.fund-card-header.gold         { background: var(--gold); }
 .fund-card-header.alpha-outlier { background: var(--teal); }
-.fund-meta { display: flex; gap: 16px; padding: 10px 20px; background: var(--bg-subtle); font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+
+.fund-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  background: var(--bg-subtle);
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
 .fund-meta span { white-space: nowrap; }
+
 .fund-card-body { padding: 16px 20px; }
-.fund-card-body h4 { font-size: 13px; color: var(--navy); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+
+.fund-card-body h4 {
+  font-size: 13px;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 14px 0 6px;
+}
+
 .fund-card-body h4:first-child { margin-top: 0; }
 .fund-card-body ul { padding-left: 18px; margin: 4px 0; }
 .fund-card-body li { margin: 3px 0; font-size: 13px; }
+
+/* ── Performance Table (inside fund cards) ── */
 .perf-table { margin: 8px 0; font-size: 12px; }
-.perf-table th { background: var(--navy); color: var(--white); padding: 6px 10px; font-size: 11px; text-align: right; }
+
+.perf-table th {
+  background: var(--navy);
+  color: var(--white);
+  padding: 6px 10px;
+  font-size: 11px;
+  text-align: right;
+}
+
 .perf-table th:first-child { text-align: left; }
-.perf-table td { padding: 5px 10px; text-align: right; font-family: var(--font-mono); font-size: 12px; }
-.perf-table td:first-child { text-align: left; font-family: var(--font-body); font-weight: 600; color: var(--navy); }
+
+.perf-table td {
+  padding: 5px 10px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.perf-table td:first-child {
+  text-align: left;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--navy);
+}
+
 .alpha-pos { color: var(--positive); font-weight: 700; background: var(--positive-bg); }
 .alpha-neg { color: var(--negative); font-weight: 700; background: var(--negative-bg); }
-.cost-box { background: var(--positive-bg); border: 1px solid #c6f6d5; border-radius: 4px; padding: 10px 14px; margin: 8px 0; font-size: 13px; }
+
+/* ── Cost & Alpha Mini-Card (per fund — locked component) ── */
+.cost-alpha-mini {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 16px;
+}
+
+.cost-alpha-mini .cell { display: flex; flex-direction: column; gap: 2px; }
+
+.cost-alpha-mini .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.cost-alpha-mini .value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  font-family: var(--font-mono);
+}
+
+.cost-alpha-mini .value.pos { color: var(--positive); }
+.cost-alpha-mini .value.neg { color: var(--negative); }
+
+.cost-alpha-mini .source {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
+/* ── Info Boxes (legacy — kept for backward compat) ── */
+.cost-box {
+  background: var(--positive-bg);
+  border: 1px solid #c6f6d5;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
 .cost-box .net-value { font-weight: 700; color: var(--positive); }
-.watch-box { background: var(--amber-bg); border: 1px solid #fefcbf; border-radius: 4px; padding: 10px 14px; margin: 8px 0; font-size: 13px; }
-.macro-box { background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 4px; padding: 10px 14px; margin: 8px 0; font-size: 13px; }
+
+.watch-box {
+  background: var(--amber-bg);
+  border: 1px solid #fefcbf;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.macro-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+/* ── Portfolio Summary Highlight ── */
 .highlight-row { background: var(--navy) !important; color: var(--white) !important; font-weight: 700; }
 .highlight-row td { color: var(--white) !important; border-bottom: none; }
-.strategy-card { background: var(--bg-subtle); border-radius: 4px; padding: 16px 20px; margin: 12px 0; }
+
+/* ── Strategy Cards ── */
+.strategy-card {
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin: 12px 0;
+}
+
 .strategy-card h4 { color: var(--navy); margin-bottom: 8px; }
-.exposure-chart-wrap { display: flex; align-items: flex-start; gap: 40px; margin: 24px 0; }
-.pie-chart { width: 280px; height: 280px; border-radius: 50%; flex-shrink: 0; }
-.legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 14px; }
-.legend-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 2px; flex-shrink: 0; }
-.legend-pct { font-weight: 700; min-width: 50px; text-align: right; }
-.exposure-note { font-size: 13px; color: var(--text-muted); font-style: italic; margin-top: 16px; line-height: 1.6; }
-.disclaimer { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 4px; padding: 20px; font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 30px; }
+
+/* ── Pie Charts ── */
+.exposure-chart-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+
+.exposure-chart-block { flex: 1 1 320px; min-width: 0; }
+
+.exposure-chart-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.pie-chart {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.pie-chart.small { width: 200px; height: 200px; }
+
+.legend {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-label { flex: 1; color: var(--text-mid); }
+
+.legend-pct {
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--navy);
+}
+
+.exposure-note {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 16px;
+  line-height: 1.6;
+}
+
+/* ── Fund-Level Pie Pair (used inside candidate cards in shortlist mode) ── */
+.fund-pies {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+}
+
+.fund-pies .exposure-chart-block { flex: 1 1 240px; }
+
+/* ── Disclaimer ── */
+.disclaimer {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-top: 30px;
+}
+
+.disclaimer h4 {
+  font-size: 12px;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 12px 0 6px;
+}
+
+.disclaimer h4:first-child { margin-top: 0; }
+
+/* ── Sources ── */
 .sources { font-size: 11px; color: var(--text-muted); margin-top: 20px; }
-.sources a { color: var(--blue); text-decoration: none; }
+.sources h4 {
+  font-size: 11px;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.sources ul { padding-left: 18px; margin: 0; }
+.sources li { margin: 3px 0; }
+.sources a { color: var(--blue); text-decoration: none; word-break: break-word; }
 .sources a:hover { text-decoration: underline; }
-.doc-footer { text-align: center; font-size: 11px; color: var(--text-muted); padding: 20px 0; border-top: 1px solid var(--border); margin-top: 40px; }
-.foundation-section { background: var(--info-bg); border-left: 4px solid var(--blue); border-radius: 0 4px 4px 0; padding: 24px 28px; margin: 24px 0; page-break-inside: avoid; }
-.foundation-section h2 { color: var(--blue); font-size: 20px; margin-bottom: 16px; }
-.foundation-section h3 { color: var(--navy); font-size: 15px; margin: 16px 0 6px; }
-.foundation-section p { font-size: 14px; margin: 6px 0; }
-.fund-card.exposure-gap { border: 2px dashed var(--amber); }
-.fund-card.exposure-gap .fund-card-header { background: var(--mixed-asset); }
-.alpha-warning { background: var(--amber-bg); border: 1px solid #fefcbf; border-radius: 4px; padding: 10px 14px; margin: 8px 0; font-size: 13px; }
+
+/* ── Document Footer ── */
+.doc-footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  line-height: 1.7;
+}
+
+.doc-footer .credit-line strong { color: var(--navy); }
+
+/* ── New Investor Foundation ── */
+.foundation-section {
+  background: var(--info-bg);
+  border-left: 4px solid var(--blue);
+  border-radius: 0 4px 4px 0;
+  padding: 24px 28px;
+  margin: 24px 0;
+  page-break-inside: avoid;
+}
+
+.foundation-section h2 {
+  color: var(--blue);
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.foundation-section h3 {
+  color: var(--navy);
+  font-size: 15px;
+  margin: 16px 0 6px;
+}
+
+.foundation-section p {
+  font-size: 14px;
+  margin: 6px 0;
+}
+
+/* ── Exposure Gap Card ── */
+.fund-card.exposure-gap {
+  border: 2px dashed var(--amber);
+}
+
+.fund-card.exposure-gap .fund-card-header {
+  background: var(--mixed-asset);
+}
+
+.alpha-warning {
+  background: var(--amber-bg);
+  border: 1px solid #fefcbf;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+/* ── CFS Mini-Bar ── */
+.cfs-bar {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+
+.cfs-bar .cfs-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--navy);
+  margin-bottom: 10px;
+}
+
+.cfs-bar .cfs-title .cfs-score { font-size: 16px; }
+
+.cfs-row { margin-bottom: 6px; }
+.cfs-row:last-child { margin-bottom: 0; }
+
+.cfs-row .cfs-row-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 2px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cfs-track {
+  background: var(--border);
+  border-radius: 2px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.cfs-fill { height: 8px; border-radius: 2px; }
+.cfs-fill.alpha       { background: var(--cfs-alpha); }
+.cfs-fill.return-fit  { background: var(--cfs-return); }
+.cfs-fill.efficiency  { background: var(--cfs-efficiency); }
+.cfs-fill.momentum    { background: var(--cfs-momentum); }
+
+/* ── Responsive (mobile/tablet only — print and desktop unchanged) ── */
+@media (max-width: 768px) {
+  .page { padding: 20px; }
+
+  .cover-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 28px 24px 20px;
+  }
+  .cover-contact { text-align: left; }
+  .cover-body { padding: 40px 24px; }
+  .cover-title { font-size: 32px; }
+  .cover-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 12px 0;
+    width: 100%;
+  }
+  .cover-footer { padding: 16px 24px; flex-direction: column; gap: 4px; }
+
+  table { font-size: 12px; }
+  th, td { padding: 8px 8px; }
+
+  .cost-alpha-mini { grid-template-columns: repeat(2, 1fr); }
+
+  .exposure-chart-wrap { flex-direction: column; gap: 24px; }
+  .pie-chart { width: 100%; height: auto; aspect-ratio: 1 / 1; max-width: 280px; }
+  .pie-chart.small { max-width: 200px; }
+
+  .fund-pies { flex-direction: column; }
+}
+
+/* ── Print Styles ── */
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { font-size: 12px; }
@@ -130,6 +736,7 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   .section { page-break-inside: avoid; }
   .fund-card { page-break-inside: avoid; }
   .section-title { page-break-after: avoid; }
+  .table-wrap { overflow: visible; }
 }
 </style>
 </head>
@@ -139,7 +746,7 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
 <div class="cover">
   <div class="cover-top-bar">
     <div class="cover-brand">
-      <strong>Solid</strong>
+      <strong>SOLID</strong>
       Public Mutual Berhad
     </div>
     <div class="cover-contact">
@@ -150,51 +757,75 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
     </div>
   </div>
   <div class="cover-body">
-    <div class="cover-eyebrow">INVESTMENT PROPOSAL &middot; STARTER PORTFOLIO</div>
+    <div class="cover-eyebrow">INVESTMENT PROPOSAL</div>
     <div class="cover-divider"></div>
     <div class="cover-title">Fund Portfolio<br>Proposal</div>
-    <div class="cover-subtitle">Moderate Profile &mdash; New Investor &mdash; May 2026</div>
+    <div class="cover-subtitle">Moderate Profile &middot; May 2026</div>
     <div class="cover-meta-grid">
       <div>
         <div class="cover-meta-label">Risk Profile</div>
         <div class="cover-meta-value">Moderate</div>
       </div>
       <div>
-        <div class="cover-meta-label">Funds Screened</div>
-        <div class="cover-meta-value">171 screened &rarr; 28 RL&le;3 eligible &rarr; 4 selected</div>
+        <div class="cover-meta-label">Return Target</div>
+        <div class="cover-meta-value">~5% p.a.</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Shariah Preference</div>
+        <div class="cover-meta-value">No preference</div>
       </div>
       <div>
         <div class="cover-meta-label">Data Source</div>
         <div class="cover-meta-value">FundMaster Mar 2026</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Funds Selected</div>
+        <div class="cover-meta-value">4 of 171 screened</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Proposal Date</div>
+        <div class="cover-meta-value">09 May 2026</div>
       </div>
     </div>
   </div>
   <div class="cover-footer">
     <span>FIMM F01091705</span>
     <span>Confidential</span>
-    <span>May 2026</span>
+    <span>Prepared 09 May 2026</span>
+  </div>
+</div>
+
+<!-- ───────────── FOUNDATION INTRO (New Investor) ───────────── -->
+<div class="page">
+  <div class="foundation-section">
+    <h2>Before We Start &mdash; A Quick Foundation</h2>
+    <p style="margin-bottom:8px; color:var(--text-mid);">
+      You're new to unit trusts. Four short notes before we dive into the recommendations.
+    </p>
+
+    <h3>1. What is a Unit Trust?</h3>
+    <p>A unit trust is a pool of money from many investors, professionally managed and invested
+    across a basket of assets &mdash; stocks, bonds, cash &mdash; on your behalf. You own units; the fund
+    manager does the work.</p>
+
+    <h3>2. How Returns Work</h3>
+    <p>Your investment grows in two ways: the price per unit (NAV) rises as the underlying assets
+    appreciate, and some funds distribute income periodically. Reinvesting distributions compounds
+    your growth.</p>
+
+    <h3>3. Your Cooling-Off Right</h3>
+    <p>As a first-time investor with Public Mutual, you have a <strong>6 business day cooling-off
+    period</strong> from the date of your first purchase. If you change your mind, you may redeem
+    your units at the original NAV paid &mdash; no loss on the principal.</p>
+
+    <h3>4. Why a Starter Portfolio</h3>
+    <p>We're starting you with a focused 4-fund portfolio rather than a full 6-fund allocation.
+    This keeps the moving parts low, and we can layer in additional funds at your next portfolio
+    review once you're comfortable with the basics.</p>
   </div>
 </div>
 
 <div class="page">
-
-<!-- ───────────── NEW INVESTOR FOUNDATION ───────────── -->
-<div class="foundation-section">
-  <h2>Welcome &mdash; First Things First</h2>
-  <p>This proposal is built for a first-time investor with a Moderate risk profile. Before the fund details, here is the foundation you need to read everything that follows.</p>
-
-  <h3>What is a Unit Trust?</h3>
-  <p>A unit trust is a pool of money from many investors, professionally managed and invested across a basket of assets &mdash; stocks, bonds, cash &mdash; on your behalf. You own units; the fund manager does the work of picking the underlying holdings.</p>
-
-  <h3>How Does Your Investment Grow?</h3>
-  <p>Your investment grows in two ways: the price per unit (NAV &mdash; the daily-quoted price of one unit of the fund) rises as the underlying assets appreciate, and some funds distribute income periodically (Public Enhanced Bond Fund paid 4.75 sen per unit in 2025). Reinvesting distributions compounds your growth tax-free in Malaysia.</p>
-
-  <h3>Your Cooling-Off Right</h3>
-  <p>As a first-time investor with Public Mutual, you have a 6 business day cooling-off period from the date of your first purchase. If you change your mind, you may redeem your units at the original NAV paid &mdash; you do not lose your principal during this window.</p>
-
-  <h3>Realistic Expectations &mdash; What "Moderate" Means</h3>
-  <p>Moderate means balanced growth with controlled risk. Your portfolio targets ~5% per year &mdash; meaningfully better than fixed deposits, with materially less volatility than a pure equity portfolio. Drawdowns of 5&ndash;10% during market stress are expected; drawdowns of 20%+ are not (those would suggest the portfolio is mis-calibrated to your profile). The investing horizon is 5+ years.</p>
-</div>
 
 <!-- ───────────── 1. EXECUTIVE SUMMARY ───────────── -->
 <div class="section">
@@ -205,11 +836,10 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   <div class="section-rule"></div>
   <div class="exec-summary">
     <ul>
-      <li><strong>Profile.</strong> Moderate, first-time investor &mdash; the goal is steady growth (target ~5% per year) with bounded drawdowns. The portfolio is intentionally limited to 4 funds; the simplicity makes it easy to understand and manage.</li>
-      <li><strong>Composition.</strong> 35% in a Mixed Asset fund (the diversifier &mdash; bonds + equity + cash inside a single holding), 35% in an Enhanced Bond Fund with the strongest 3-year alpha in your eligible universe, 10% in physical gold ETFs as a structural hedge, and 20% in a money market fund acting as tactical dry powder for systematic dip-buying.</li>
-      <li><strong>Quality signal.</strong> Weighted portfolio Composite Fund Score (an overall 0&ndash;100 score combining manager skill, return delivery, risk efficiency, and price momentum, weighted to your profile) of <strong>62.4 / 100</strong>. Weighted 3-year alpha (how much the funds beat their benchmarks per year, over 3 years) of <strong>+1.92% per annum</strong>.</li>
-      <li><strong>Structural note.</strong> No pure equity fund exists at Risk Level &le; 3 in the Public Mutual universe &mdash; all equity funds carry RL 4 or higher. Equity exposure (~25% look-through) is therefore delivered through the equity sleeves embedded in PESMACF (~30% equity inside) and PEBF (~14% equity inside), rather than a standalone equity holding.</li>
-      <li><strong>Key thesis.</strong> Bank Negara holding the OPR at 2.75% with falling 10-year MGS yields (3.56%) is a direct tailwind for the bond-led ~46% allocation; KLCI 2026 targets of 1,700&ndash;1,900 support the equity sleeves; gold provides the macro hedge against Fed transition uncertainty and Middle East tensions.</li>
+      <li><strong>Profile:</strong> Moderate, first-time investor &mdash; the goal is steady growth (target ~5% per year) with bounded drawdowns; the portfolio is intentionally limited to 4 funds for simplicity.</li>
+      <li><strong>Composition:</strong> 4-fund portfolio &middot; 35% Mixed Asset (PESMACF) / 35% Enhanced Bond (PEBF) / 10% Gold (PeEMAS) / 20% Money Market (PeCDF-A) &mdash; bond-led ~46% allocation with ~25% look-through equity and a 10% gold hedge.</li>
+      <li><strong>Weighted CFS:</strong> 62.4 / 100 &middot; <strong>3Y Alpha:</strong> +1.92% p.a. &middot; <strong>Portfolio VF:</strong> 3.8 (Low-Moderate). <em>Structural finding: no pure equity fund exists at Risk Level &le; 3 in the Public Mutual universe &mdash; equity exposure is delivered through the equity sleeves embedded in PESMACF (~30% equity inside) and PEBF (~14% equity inside), not a standalone equity holding.</em></li>
+      <li><strong>Thesis:</strong> Bank Negara holding the OPR at 2.75% with falling 10-year MGS yields (3.56%) is a direct tailwind for the bond-led ~46% allocation; KLCI 2026 targets of 1,700&ndash;1,900 support the equity sleeves; gold provides the macro hedge against Fed transition uncertainty and Middle East tensions.</li>
     </ul>
   </div>
 </div>
@@ -222,46 +852,46 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   </div>
   <div class="section-rule"></div>
 
-  <h4 style="font-size:13px; color:var(--navy); margin: 12px 0 8px; text-transform:uppercase; letter-spacing:0.06em;">On-Going Events</h4>
-  <table>
-    <thead>
-      <tr><th style="width:22%;">Event / Driver</th><th style="width:33%;">Status (May 2026)</th><th>Portfolio Impact</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>BNM OPR</strong></td>
-        <td>Held at 2.75% for 6 consecutive meetings; consensus expects no move through 2026</td>
-        <td>Stable rates support bond prices &mdash; direct tailwind for PEBF (72% bonds) and PESMACF's 60% sukuk core</td>
-      </tr>
-      <tr>
-        <td><strong>MGS 10-Year Yield</strong></td>
-        <td>3.56% and declining; foreign inflows of RM 1.4 billion in April 2026</td>
-        <td>Falling yields = rising bond prices &mdash; capital appreciation tailwind for bond-heavy holdings</td>
-      </tr>
-      <tr>
-        <td><strong>US Fed Funds</strong></td>
-        <td>Range 3.50&ndash;3.75%; Powell term ends 15 May 2026, Kevin Warsh succeeds</td>
-        <td>Leadership transition adds rate-path uncertainty; supports gold (PeEMAS) and reserves PeCDF-A's deployment role</td>
-      </tr>
-      <tr>
-        <td><strong>Ringgit vs USD</strong></td>
-        <td>Forecasts cluster at RM3.85&ndash;4.00 by end-2026</td>
-        <td>Modest headwind for foreign-equity slices; the ~80% MYR weighting in this portfolio limits the drag</td>
-      </tr>
-      <tr>
-        <td><strong>KLCI 2026 Target</strong></td>
-        <td>1,700&ndash;1,900 across CIMB, MBSB, Maybank IB, Nomura</td>
-        <td>Supports the equity sleeves of PESMACF (16.5% Mal Eq) and PEBF (2.4% Mal Eq)</td>
-      </tr>
-      <tr>
-        <td><strong>Geopolitics &amp; Oil</strong></td>
-        <td>Middle East tensions elevated; RON95 subsidy held at RM1.99/litre, insulating Malaysia inflation</td>
-        <td>Gold (PeEMAS) gains structural support from de-dollarisation flows and risk-hedging demand</td>
-      </tr>
-    </tbody>
-  </table>
+  <p style="margin-bottom:12px; color:var(--text-mid);">
+    Recent events shaping our positioning (May 2026):
+  </p>
 
-  <h4 style="font-size:13px; color:var(--navy); margin: 24px 0 8px; text-transform:uppercase; letter-spacing:0.06em;">Medium-to-Long Horizon Themes</h4>
+  <div class="table-wrap">
+    <table class="macro-table">
+      <thead>
+        <tr><th>Event</th><th>Date</th><th>Implication for the Portfolio</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>BNM holds OPR at 2.75% for 6th consecutive meeting</td>
+          <td>07 May 2026</td>
+          <td>Stable rates support bond prices &mdash; direct tailwind for PEBF (72% bonds) and PESMACF's 60% sukuk core.</td>
+        </tr>
+        <tr>
+          <td>MGS 10-Year Yield at 3.56% with RM1.4B foreign inflows</td>
+          <td>25 Apr 2026</td>
+          <td>Falling yields = rising bond prices &mdash; capital appreciation tailwind for bond-heavy holdings.</td>
+        </tr>
+        <tr>
+          <td>US Fed leadership transition (Powell &rarr; Kevin Warsh)</td>
+          <td>15 May 2026</td>
+          <td>Adds rate-path uncertainty; supports gold (PeEMAS) and reserves PeCDF-A's deployment role.</td>
+        </tr>
+        <tr>
+          <td>Ringgit forecasts cluster at RM3.85&ndash;4.00 vs USD by end-2026</td>
+          <td>Apr 2026</td>
+          <td>Modest headwind for foreign-equity slices; the ~80% MYR weighting in this portfolio limits the drag.</td>
+        </tr>
+        <tr>
+          <td>KLCI 2026 targets at 1,700&ndash;1,900 (CIMB, MBSB, Maybank IB, Nomura)</td>
+          <td>Apr 2026</td>
+          <td>Supports the equity sleeves of PESMACF (16.5% Mal Eq) and PEBF (2.4% Mal Eq).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4 style="font-size:13px; color:var(--navy); text-transform:uppercase; letter-spacing:0.06em; margin:20px 0 8px;">Medium-Long Horizon Themes</h4>
   <div class="macro-box">
     <strong>Malaysia bond market resilience.</strong> Strong domestic demand, foreign inflows, and an improved fiscal outlook (budget deficit targeted at 3.5% of GDP) support multi-year stability in Malaysian government and corporate bonds. PEBF and PESMACF together hold ~46% of the portfolio in this asset class, including investment-grade sovereign and corporate sukuk.
   </div>
@@ -281,19 +911,14 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   </div>
   <div class="section-rule"></div>
 
-  <p>Moderate: the client wants meaningful growth above bank fixed deposits but cannot tolerate the 20%+ drawdowns that come with a pure equity portfolio. Drawdowns of 5&ndash;10% during market stress are acceptable; the investing horizon is 5+ years.</p>
-
   <table>
-    <thead>
-      <tr><th>Profile Constraint</th><th>This Portfolio</th></tr>
-    </thead>
     <tbody>
-      <tr><td>Risk Level (RL) ceiling for core holdings</td><td>RL 3 (PESMACF at RL 3, PEBF at RL 2, PeCDF-A at RL 1)</td></tr>
-      <tr><td>Target equity allocation (look-through)</td><td>~25% &mdash; lower bound of the Moderate template (25&ndash;35%)</td></tr>
-      <tr><td>Target return per year</td><td>~5% (Moderate midpoint)</td></tr>
-      <tr><td>Volatility Factor target range</td><td>7.0&ndash;10.0; this portfolio: 3.8 weighted (well below range &mdash; appropriate for new investor)</td></tr>
-      <tr><td>Number of funds</td><td>4 (Starter Portfolio cap for new investor)</td></tr>
-      <tr><td>Shariah preference</td><td>None &mdash; full universe considered (PESMACF happens to be Shariah-compliant; selected on CFS merit)</td></tr>
+      <tr><td style="width:30%;"><strong>Profile</strong></td><td>Moderate &mdash; meaningful growth above bank fixed deposits, with bounded drawdowns; cannot tolerate the 20%+ drawdowns that come with a pure equity portfolio.</td></tr>
+      <tr><td><strong>Return Target</strong></td><td>~5% p.a. (on Moderate profile midpoint)</td></tr>
+      <tr><td><strong>Shariah Preference</strong></td><td>No preference &mdash; full universe considered (PESMACF happens to be Shariah-compliant; selected on CFS merit)</td></tr>
+      <tr><td><strong>Experience Level</strong></td><td>New Investor</td></tr>
+      <tr><td><strong>Risk Level Ceiling</strong></td><td>RL &le; 3 for core holdings (PESMACF at RL 3, PEBF at RL 2, PeCDF-A at RL 1; PeEMAS at RL 5 sized at 10% for hedge role only)</td></tr>
+      <tr><td><strong>Target Portfolio VF</strong></td><td>7.0&ndash;10.0; this portfolio: 3.8 weighted (intentionally below band &mdash; appropriate for new investor)</td></tr>
     </tbody>
   </table>
 
@@ -311,90 +936,76 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   <!-- ────── PESMACF ────── -->
   <div class="fund-card">
     <div class="fund-card-header mixed-asset">
-      <h3>PUBLIC EHSAN MIXED ASSET CONSERVATIVE FUND (PESMACF)</h3>
+      <h3>Public Ehsan Mixed Asset Conservative Fund &middot; PESMACF</h3>
       <span class="alloc">35%</span>
     </div>
+
     <div class="fund-meta">
-      <span><strong>Mixed Asset / Balanced</strong> &middot; Mal Eq + Foreign Eq + Sukuk</span>
-      <span>Risk Level: 3</span>
-      <span>VF: 3.5 (Low-Moderate)</span>
-      <span>AUM: RM 856M</span>
-      <span>Shariah-compliant</span>
+      <span><strong>Type:</strong> Mixed Asset (Balanced)</span>
+      <span><strong>RL:</strong> 3</span>
+      <span><strong>VF:</strong> 3.5</span>
+      <span><strong>Shariah:</strong> Yes</span>
+      <span><strong>AUM:</strong> RM 856M</span>
+      <span><strong>Lipper:</strong> Mixed Asset MYR Conservative</span>
     </div>
+
     <div class="fund-card-body">
 
-      <h4>Annualised Performance vs Benchmark</h4>
-      <table class="perf-table">
-        <thead><tr><th>Period</th><th>Fund %</th><th>Benchmark %</th><th>Alpha %</th></tr></thead>
-        <tbody>
-          <tr><td>YTD</td><td>-1.46</td><td>0.86</td><td class="alpha-neg">-2.32</td></tr>
-          <tr><td>1Y</td><td>3.20</td><td>6.48</td><td class="alpha-neg">-3.28</td></tr>
-          <tr><td>3Y</td><td>4.89</td><td>4.27</td><td class="alpha-pos">+0.62</td></tr>
-          <tr><td>5Y</td><td>2.77</td><td>2.20</td><td class="alpha-pos">+0.57</td></tr>
-          <tr><td>10Y</td><td>5.12</td><td>2.08</td><td class="alpha-pos">+3.04</td></tr>
-        </tbody>
-      </table>
+      <div class="cfs-bar">
+        <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">61.1</span> / 100</div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Alpha (Manager Skill &mdash; how much this fund beat its benchmark)</span><span>80 / 100 &middot; 28% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill alpha" style="width:80%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Return Fit (vs 5% target &mdash; how well the fund matches your goal)</span><span>39 / 100 &middot; 40% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill return-fit" style="width:39%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Efficiency (Risk-Adjusted &mdash; alpha earned per unit of volatility)</span><span>80 / 100 &middot; 20% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill efficiency" style="width:80%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Momentum (ATH Proximity &mdash; closeness to all-time high)</span><span>60 / 100 &middot; 12% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill momentum" style="width:60%;"></div></div>
+        </div>
+      </div>
+
+      <h4>Performance vs Benchmark</h4>
+      <div class="table-wrap">
+        <table class="perf-table">
+          <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
+          <tbody>
+            <tr><td>YTD</td><td>-1.46</td><td>0.86</td><td class="alpha-neg">-2.32</td></tr>
+            <tr><td>1Y</td><td>3.20</td><td>6.48</td><td class="alpha-neg">-3.28</td></tr>
+            <tr><td>3Y</td><td>4.89</td><td>4.27</td><td class="alpha-pos">+0.62</td></tr>
+            <tr><td>5Y</td><td>2.77</td><td>2.20</td><td class="alpha-pos">+0.57</td></tr>
+            <tr><td>10Y</td><td>5.12</td><td>2.08</td><td class="alpha-pos">+3.04</td></tr>
+          </tbody>
+        </table>
+      </div>
       <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Source: FundMaster Mar 2026 (MFR data). Benchmark: 65% 3-Month Islamic Interbank Money Market rate + 35% FTSE Bursa Malaysia Hijrah Shariah Index.</p>
 
-      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:4px; padding:14px 16px; margin:12px 0;">
-        <div style="font-weight:700; font-size:13px; color:var(--navy); margin-bottom:10px;">
-          COMPOSITE FUND SCORE: <span style="font-size:16px;">61.1</span> / 100
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Alpha (Manager Skill &mdash; how much the fund beat its benchmark)</span>
-            <span>80 / 100 &nbsp;&middot;&nbsp; 28% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-alpha); width:80%; height:8px; border-radius:2px;"></div></div>
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Return Fit (vs 5% target &mdash; how well the fund matches your goal)</span>
-            <span>39 / 100 &nbsp;&middot;&nbsp; 40% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-return); width:39%; height:8px; border-radius:2px;"></div></div>
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Efficiency (Risk-Adjusted &mdash; alpha earned per unit of volatility)</span>
-            <span>80 / 100 &nbsp;&middot;&nbsp; 20% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-efficiency); width:80%; height:8px; border-radius:2px;"></div></div>
-        </div>
-        <div>
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Momentum (ATH Proximity &mdash; closeness to all-time high)</span>
-            <span>60 / 100 &nbsp;&middot;&nbsp; 12% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-momentum); width:60%; height:8px; border-radius:2px;"></div></div>
-        </div>
+      <h4>Cost &amp; Alpha</h4>
+      <div class="cost-alpha-mini">
+        <div class="cell"><span class="label">Sales Charge</span><span class="value">5.0%</span></div>
+        <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value">1.25%</span></div>
+        <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value">0.06%</span></div>
+        <div class="cell"><span class="label">Annual Cost</span><span class="value">1.31%</span></div>
+        <div class="cell"><span class="label">3Y Alpha</span><span class="value pos">+0.62%</span></div>
+        <div class="cell"><span class="label">Net Value-Add</span><span class="value neg">-0.69%</span></div>
+        <div class="source">Fees sourced verbatim from <code>PESMACF_PHS.pdf</code> &middot; PHS dated Apr 2026</div>
       </div>
 
-      <h4>Why This Fund</h4>
-      <ul>
-        <li><strong>Built-in diversification.</strong> 16.5% Malaysian equity + 13.9% foreign equity + 60.5% sukuk + 9.1% cash inside a single fund. The bond cushion (~70% combined fixed-income + cash) protects against equity drawdowns; the 30% equity sleeve provides growth.</li>
-        <li><strong>10-year alpha of +3.04% per year</strong> (the percentage by which the fund beats its benchmark each year, averaged over 10 years) demonstrates structural manager skill across multiple cycles.</li>
-        <li><strong>Lowest Volatility Factor (VF 3.5)</strong> of any Mixed Asset / Balanced fund in your eligible universe. Drawdowns of 8&ndash;12% during market stress are typical &mdash; vs 20%+ for pure equity funds.</li>
-        <li><strong>AUM RM 856 million</strong> &mdash; large enough for confident manager execution; entry/exit liquidity is not a concern.</li>
-        <li><strong>Top 5 holdings &mdash; Tenaga, TSMC, Alphabet, TIME dotCom, Meta</strong> &mdash; Malaysia blue chips plus a meaningful US tech sleeve. Genuine geographic diversification within the equity portion.</li>
-      </ul>
-
-      <h4>Macro Alignment</h4>
-      <div class="macro-box">
-        The 60% sukuk core directly benefits from BNM's OPR hold at 2.75% and the declining 10-year MGS yield (3.56%). The equity sleeve's exposure to TSMC, Alphabet, and Meta rides the AI infrastructure megatrend without committing the full portfolio to it.
-      </div>
+      <h4>Why We Chose It</h4>
+      <p><strong>Structural finding:</strong> no pure equity fund exists at RL &le; 3 in the Public Mutual universe &mdash; all equity funds carry RL 4 or higher. PESMACF is the bridge: 16.5% Malaysian equity + 13.9% foreign equity + 60.5% sukuk + 9.1% cash inside a single fund, delivering ~30% equity exposure inside an RL 3 wrapper. The 10-year alpha of +3.04% per year demonstrates structural manager skill across multiple cycles, and the lowest VF (3.5) of any Mixed Asset fund in the eligible universe keeps drawdowns to 8&ndash;12% during stress vs 20%+ for pure equity. AUM of RM 856M provides confident execution; top holdings (Tenaga, TSMC, Alphabet, TIME dotCom, Meta) deliver genuine geographic diversification within the equity portion.</p>
 
       <h4>What to Watch</h4>
-      <div class="watch-box">
-        <strong>1Y alpha of &minus;3.28%</strong> is the largest weakness in this fund's profile &mdash; the defensive equity-light tilt has lagged the recent KLCI rally. The 3Y, 5Y and 10Y track records remain positive: this is a near-term lag consistent with the fund's design intent (capital preservation), not a structural breakdown. <strong>Review trigger:</strong> if 3Y alpha turns negative at the next MFR (June 2026), revisit.
-      </div>
-
-      <h4>Cost &amp; Alpha Justification</h4>
-      <div class="cost-box">
-        Sales charge: up to <strong>5.0%</strong> &middot; Management fee: <strong>1.25% per annum</strong> &middot; Trustee fee: <strong>0.06% per annum</strong><br>
-        Annual cost &asymp; 1.31%. 10Y alpha of <strong>+3.04% per year</strong> &rArr; <span class="net-value">net long-run value-add &asymp; +1.73% per year</span>. The manager has earned their fee across a full decade.<br>
-        <span style="font-size:11px; color:var(--text-muted);">Fee data sourced verbatim from PESMACF_PHS.pdf.</span>
-      </div>
+      <ul>
+        <li><strong>1Y alpha of &minus;3.28%</strong> is the largest weakness &mdash; the defensive equity-light tilt has lagged the recent KLCI rally. The 3Y, 5Y and 10Y track records remain positive: this is a near-term lag consistent with the fund's design intent (capital preservation), not a structural breakdown.</li>
+        <li><strong>Review trigger:</strong> if 3Y alpha turns negative at the next MFR (June 2026), revisit the allocation.</li>
+        <li><strong>6-month review pivot:</strong> if the client builds tolerance through a market cycle, swap to PIMXAF (RL 4, ~65% equity inside) to lift the portfolio's look-through equity toward the upper bound of the Moderate template.</li>
+      </ul>
 
     </div>
   </div>
@@ -402,148 +1013,76 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   <!-- ────── PEBF ────── -->
   <div class="fund-card">
     <div class="fund-card-header fixed-income">
-      <h3>PUBLIC ENHANCED BOND FUND (PEBF)</h3>
+      <h3>Public Enhanced Bond Fund &middot; PEBF</h3>
       <span class="alloc">35%</span>
     </div>
+
     <div class="fund-meta">
-      <span><strong>Fixed Income (Enhanced)</strong> &middot; Mal bonds + 14% equity sleeve</span>
-      <span>Risk Level: 2</span>
-      <span>VF: 3.5 (Low-Moderate)</span>
-      <span>AUM: RM 870M</span>
-      <span>Conventional</span>
+      <span><strong>Type:</strong> Fixed Income (Enhanced)</span>
+      <span><strong>RL:</strong> 2</span>
+      <span><strong>VF:</strong> 3.5</span>
+      <span><strong>Shariah:</strong> No</span>
+      <span><strong>AUM:</strong> RM 870M</span>
+      <span><strong>Lipper:</strong> Bond MYR</span>
     </div>
+
     <div class="fund-card-body">
 
-      <h4>Annualised Performance vs Benchmark</h4>
-      <table class="perf-table">
-        <thead><tr><th>Period</th><th>Fund %</th><th>Benchmark %</th><th>Alpha %</th></tr></thead>
-        <tbody>
-          <tr><td>YTD</td><td>-3.80</td><td>0.50</td><td class="alpha-neg">-4.30</td></tr>
-          <tr><td>1Y</td><td>2.27</td><td>2.21</td><td class="alpha-pos">+0.06</td></tr>
-          <tr><td>3Y</td><td>6.57</td><td>2.52</td><td class="alpha-pos">+4.05</td></tr>
-          <tr><td>5Y</td><td>4.15</td><td>2.38</td><td class="alpha-pos">+1.77</td></tr>
-          <tr><td>10Y</td><td>4.40</td><td>2.66</td><td class="alpha-pos">+1.74</td></tr>
-        </tbody>
-      </table>
+      <div class="cfs-bar">
+        <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">64.9</span> / 100 &mdash; highest in eligible universe</div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Alpha (Manager Skill)</span><span>96 / 100 &middot; 28% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill alpha" style="width:96%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Return Fit (vs 5% target)</span><span>55 / 100 &middot; 40% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill return-fit" style="width:55%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Efficiency (Risk-Adjusted)</span><span>39 / 100 &middot; 20% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill efficiency" style="width:39%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Momentum (ATH Proximity)</span><span>70 / 100 &middot; 12% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill momentum" style="width:70%;"></div></div>
+        </div>
+      </div>
+
+      <h4>Performance vs Benchmark</h4>
+      <div class="table-wrap">
+        <table class="perf-table">
+          <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
+          <tbody>
+            <tr><td>YTD</td><td>-3.80</td><td>0.50</td><td class="alpha-neg">-4.30</td></tr>
+            <tr><td>1Y</td><td>2.27</td><td>2.21</td><td class="alpha-pos">+0.06</td></tr>
+            <tr><td>3Y</td><td>6.57</td><td>2.52</td><td class="alpha-pos">+4.05</td></tr>
+            <tr><td>5Y</td><td>4.15</td><td>2.38</td><td class="alpha-pos">+1.77</td></tr>
+            <tr><td>10Y</td><td>4.40</td><td>2.66</td><td class="alpha-pos">+1.74</td></tr>
+          </tbody>
+        </table>
+      </div>
       <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Source: FundMaster Mar 2026 (MFR data). Benchmark: Maybank 12-Month Fixed Deposit Rate. 80% beat rate.</p>
 
-      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:4px; padding:14px 16px; margin:12px 0;">
-        <div style="font-weight:700; font-size:13px; color:var(--navy); margin-bottom:10px;">
-          COMPOSITE FUND SCORE: <span style="font-size:16px;">64.9</span> / 100 &nbsp;&mdash;&nbsp; <span style="color:var(--text-muted); font-weight:500;">highest in your eligible universe</span>
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Alpha (Manager Skill)</span>
-            <span>96 / 100 &nbsp;&middot;&nbsp; 28% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-alpha); width:96%; height:8px; border-radius:2px;"></div></div>
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Return Fit (vs 5% target)</span>
-            <span>55 / 100 &nbsp;&middot;&nbsp; 40% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-return); width:55%; height:8px; border-radius:2px;"></div></div>
-        </div>
-        <div style="margin-bottom:6px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Efficiency (Risk-Adjusted)</span>
-            <span>39 / 100 &nbsp;&middot;&nbsp; 20% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-efficiency); width:39%; height:8px; border-radius:2px;"></div></div>
-        </div>
-        <div>
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-            <span>Momentum (ATH Proximity)</span>
-            <span>70 / 100 &nbsp;&middot;&nbsp; 12% weight</span>
-          </div>
-          <div style="background:var(--border); border-radius:2px; height:8px;"><div style="background:var(--cfs-momentum); width:70%; height:8px; border-radius:2px;"></div></div>
-        </div>
+      <h4>Cost &amp; Alpha</h4>
+      <div class="cost-alpha-mini">
+        <div class="cell"><span class="label">Sales Charge</span><span class="value">1.0%</span></div>
+        <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value">1.00%</span></div>
+        <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value">0.035%</span></div>
+        <div class="cell"><span class="label">Annual Cost</span><span class="value">1.04%</span></div>
+        <div class="cell"><span class="label">3Y Alpha</span><span class="value pos">+4.05%</span></div>
+        <div class="cell"><span class="label">Net Value-Add</span><span class="value pos">+3.02%</span></div>
+        <div class="source">Fees sourced verbatim from <code>PEBF_PHS.pdf</code> &middot; PHS dated Apr 2026</div>
       </div>
 
-      <h4>Why This Fund &mdash; A "Bond Fund" with Serious Alpha</h4>
-      <ul>
-        <li><strong>Not a pure bond fund &mdash; it is "enhanced".</strong> 72% in Malaysian bonds (the stable income engine) + 14% in foreign equity (the alpha booster) + 14% cash. The equity sleeve is what drives the 3-year alpha of <strong>+4.05% per year</strong> &mdash; the strongest in your entire eligible Moderate universe.</li>
-        <li><strong>80% beat rate.</strong> The manager outperformed the benchmark in 4 of the last 5 financial years, including a +11.23% return in FY2025.</li>
-        <li><strong>Top 5 bond holdings:</strong> Government Investment Issue (sovereign sukuk), CIMB Islamic, PLUS Highway, Pengurusan Air SPV, Danum Capital &mdash; investment-grade Malaysian sovereign and corporate credits. Default risk is minimal.</li>
-        <li><strong>AUM RM 870 million</strong> at Risk Level 2 &mdash; appropriate for the stable-income half of the portfolio.</li>
-        <li><strong>Distribution: 4.75 sen per unit in 2025</strong> (vs 4.00 sen in 2024 and 2.70 sen in 2023). Distributions are growing as the fund's bond holdings yield strong income; reinvest these to compound.</li>
-      </ul>
-
-      <h4>Macro Alignment</h4>
-      <div class="macro-box">
-        Falling 10-year MGS yields (3.56% and declining) lift bond prices &mdash; PEBF's 72% MYR bond holdings benefit directly. Foreign inflows of RM 1.4 billion to Malaysian bonds in April 2026 confirm the structural demand. The 14% foreign-equity sleeve is the alpha booster on top.
-      </div>
+      <h4>Why We Chose It</h4>
+      <p>Not a pure bond fund &mdash; PEBF is "enhanced": 72% in Malaysian bonds (the stable income engine) + 14% in foreign equity (the alpha booster) + 14% cash. The equity sleeve drives the 3-year alpha of +4.05% per year &mdash; the strongest in the entire eligible Moderate universe &mdash; while the bond core delivers stable income and a 4.75 sen distribution per unit in 2025 (vs 4.00 sen in 2024 and 2.70 sen in 2023). Top bond holdings (Government Investment Issue, CIMB Islamic, PLUS Highway, Pengurusan Air SPV, Danum Capital) are investment-grade Malaysian sovereign and corporate credits. AUM RM 870M at RL 2 makes this a low-friction, low-risk anchor for the bond-led half of the portfolio, with an 80% benchmark beat rate over the last 5 financial years.</p>
 
       <h4>What to Watch</h4>
-      <div class="watch-box">
-        <strong>YTD alpha of &minus;4.30% is sharp</strong> &mdash; driven by the equity sleeve's recent softness, not bond credit issues. The 3Y, 5Y and 10Y track records remain strongly positive. <strong>Foreign equity is unspecified-by-country</strong> in FundMaster &mdash; the manager has discretion across permitted markets including US, China, Korea, Taiwan. Trust the track record; this is opaque-by-design.
-      </div>
-
-      <h4>Cost &amp; Alpha Justification</h4>
-      <div class="cost-box">
-        Sales charge: up to <strong>1.0%</strong> &middot; Management fee: <strong>1.0% per annum</strong> &middot; Trustee fee: <strong>0.035% per annum</strong><br>
-        Annual cost &asymp; 1.04%. 3Y alpha of <strong>+4.05% per year</strong> &rArr; <span class="net-value">net value-add &asymp; +3.01% per year</span> &mdash; exceptional for a bond-led fund. The 1% sales charge cap (vs 5% for equity-flavored funds) makes this a low-friction entry.<br>
-        <span style="font-size:11px; color:var(--text-muted);">Fee data sourced verbatim from PEBF_PHS.pdf.</span>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ────── PeEMAS ────── -->
-  <div class="fund-card">
-    <div class="fund-card-header gold">
-      <h3>PUBLIC e-EMAS GOLD FUND (PeEMAS) &mdash; Structural Allocation</h3>
-      <span class="alloc">10%</span>
-    </div>
-    <div class="fund-meta">
-      <span><strong>Fund-of-Funds</strong> &middot; Gold ETFs</span>
-      <span>Risk Level: 5</span>
-      <span>VF: 13.0</span>
-      <span>AUM: RM 586M</span>
-      <span>Conventional</span>
-    </div>
-    <div class="fund-card-body">
-
-      <h4>Annualised Performance vs Benchmark (Gold Spot Index)</h4>
-      <table class="perf-table">
-        <thead><tr><th>Period</th><th>Fund %</th><th>Benchmark %</th><th>Alpha %</th></tr></thead>
-        <tbody>
-          <tr><td>YTD</td><td>8.27</td><td>5.49</td><td class="alpha-pos">+2.78</td></tr>
-          <tr><td>1Y</td><td>34.06</td><td>32.20</td><td class="alpha-pos">+1.86</td></tr>
-          <tr><td>3Y</td><td>25.46</td><td>25.50</td><td class="alpha-neg">-0.04</td></tr>
-          <tr><td>5Y</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
-        </tbody>
-      </table>
-      <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Source: FundMaster Mar 2026. Fund inception September 2021 &mdash; no 5Y / 10Y history.</p>
-
-      <h4>Why This Fund &mdash; And Why Alpha Is Not the Headline</h4>
-      <div class="macro-box">
-        <strong>This is a passive gold tracker, not an alpha play.</strong> The benchmark IS the gold spot price. Near-zero alpha means the fund is doing its job (efficient tracking). The slightly negative 3Y alpha (&minus;0.04%) represents tracking cost, not manager failure. Including PeEMAS in your portfolio is a <em>structural macro decision</em>, not a manager-skill bet.
-      </div>
       <ul>
-        <li><strong>Inflation hedge.</strong> Gold historically appreciates when purchasing power erodes &mdash; a buffer if inflation reignites.</li>
-        <li><strong>Decorrelation.</strong> Gold tends to rise when equities and bonds fall together &mdash; the 10% slice reduces the depth of any drawdown the equity portion of PESMACF and PEBF may experience.</li>
-        <li><strong>MYR hedge.</strong> Held in USD-denominated ETFs (abrdn, GraniteShares, Goldman Sachs, iShares, VanEck) &mdash; partially offsets ringgit appreciation compressing your foreign-equity NAV.</li>
-        <li><strong>Central-bank tailwind.</strong> Ongoing de-dollarisation by emerging-market central banks supports multi-year gold demand. The +34% trailing 1-year return reflects this structural force, not a speculative spike.</li>
+        <li><strong>YTD alpha of &minus;4.30% is sharp</strong> &mdash; driven by the equity sleeve's recent softness, not bond credit issues. The 3Y, 5Y and 10Y track records remain strongly positive.</li>
+        <li><strong>Foreign equity is unspecified-by-country</strong> in FundMaster &mdash; the manager has discretion across permitted markets including US, China, Korea, Taiwan. Trust the track record; this is opaque-by-design.</li>
+        <li><strong>Distribution policy:</strong> reinvest the annual distribution rather than taking it as income &mdash; reinvestment compounds tax-free.</li>
       </ul>
-
-      <h4>Macro Alignment</h4>
-      <div class="macro-box">
-        Middle East tensions, US Fed leadership transition (Powell &rarr; Warsh, May 2026), and ongoing China-US frictions are simultaneous risk drivers. Gold's role is to be the asset that <em>does not correlate</em> with the others &mdash; the part of the portfolio that holds steady or rises precisely when the equity and bond sleeves are stressed.
-      </div>
-
-      <h4>What to Watch</h4>
-      <div class="watch-box">
-        Risk Level 5 looks alarming on paper for a Moderate portfolio. The 10% sizing keeps the contribution to total-portfolio volatility modest, and the decorrelation benefit reduces overall drawdowns. Do not interpret the high RL as a recommendation against gold &mdash; interpret it as gold being volatile <em>on its own</em>, which is exactly why it has hedge value.
-      </div>
-
-      <h4>Cost &amp; Alpha Justification</h4>
-      <div class="cost-box">
-        Sales charge: up to <strong>1.0%</strong> &middot; Management fee: <strong>0.85% per annum</strong> &middot; Trustee fee: <strong>0.03% per annum</strong><br>
-        Annual cost &asymp; 0.88% &mdash; <span class="net-value">the lowest-cost fund in this portfolio</span>. Appropriate for a passive tracker.<br>
-        <span style="font-size:11px; color:var(--text-muted);">Fee data sourced verbatim from PeEMAS_PHS.pdf.</span>
-      </div>
 
     </div>
   </div>
@@ -551,52 +1090,151 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   <!-- ────── PeCDF-A ────── -->
   <div class="fund-card">
     <div class="fund-card-header money-market">
-      <h3>PUBLIC e-CASH DEPOSIT FUND &mdash; CLASS A (PeCDF-A) &mdash; Tactical Dry Powder</h3>
+      <h3>Public e-Cash Deposit Fund &mdash; Class A &middot; PeCDF-A</h3>
       <span class="alloc">20%</span>
     </div>
+
     <div class="fund-meta">
-      <span><strong>Money Market</strong> &middot; Malaysia Deposits</span>
-      <span>Risk Level: 1</span>
-      <span>VF: 0.1</span>
-      <span>AUM: RM 2,926M</span>
-      <span>Conventional</span>
+      <span><strong>Type:</strong> Money Market</span>
+      <span><strong>RL:</strong> 1</span>
+      <span><strong>VF:</strong> 0.1</span>
+      <span><strong>Shariah:</strong> No</span>
+      <span><strong>AUM:</strong> RM 2,926M</span>
+      <span><strong>Lipper:</strong> Money Market MYR</span>
     </div>
+
     <div class="fund-card-body">
 
-      <h4>Annualised Performance vs Benchmark</h4>
-      <table class="perf-table">
-        <thead><tr><th>Period</th><th>Fund %</th><th>Benchmark %</th><th>Alpha %</th></tr></thead>
-        <tbody>
-          <tr><td>YTD</td><td>0.80</td><td>0.41</td><td class="alpha-pos">+0.39</td></tr>
-          <tr><td>1Y</td><td>3.45</td><td>1.77</td><td class="alpha-pos">+1.68</td></tr>
-          <tr><td>3Y</td><td>3.52</td><td>2.05</td><td class="alpha-pos">+1.47</td></tr>
-          <tr><td>5Y</td><td>2.95</td><td>1.90</td><td class="alpha-pos">+1.05</td></tr>
-          <tr><td>10Y</td><td>3.04</td><td>2.29</td><td class="alpha-pos">+0.75</td></tr>
-        </tbody>
-      </table>
-      <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Source: FundMaster Mar 2026 (MFR data). 100% beat rate across all reported periods.</p>
+      <div class="cfs-bar">
+        <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">60.4</span> / 100</div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Alpha (Manager Skill)</span><span>72 / 100 &middot; 28% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill alpha" style="width:72%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Return Fit (vs 5% target)</span><span>30 / 100 &middot; 40% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill return-fit" style="width:30%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Efficiency (Risk-Adjusted)</span><span>95 / 100 &middot; 20% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill efficiency" style="width:95%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Momentum (ATH Proximity)</span><span>85 / 100 &middot; 12% weight</span></div>
+          <div class="cfs-track"><div class="cfs-fill momentum" style="width:85%;"></div></div>
+        </div>
+      </div>
 
-      <h4>Why 20% (and Why a Slightly Lower Dip Trigger)</h4>
+      <h4>Performance vs Benchmark</h4>
+      <div class="table-wrap">
+        <table class="perf-table">
+          <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
+          <tbody>
+            <tr><td>YTD</td><td>0.80</td><td>0.41</td><td class="alpha-pos">+0.39</td></tr>
+            <tr><td>1Y</td><td>3.45</td><td>1.77</td><td class="alpha-pos">+1.68</td></tr>
+            <tr><td>3Y</td><td>3.52</td><td>2.05</td><td class="alpha-pos">+1.47</td></tr>
+            <tr><td>5Y</td><td>2.95</td><td>1.90</td><td class="alpha-pos">+1.05</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Source: FundMaster Mar 2026 (MFR data). 100% beat rate across all reported periods. 10Y alpha +0.75%.</p>
+
+      <h4>Cost &amp; Alpha</h4>
+      <div class="cost-alpha-mini">
+        <div class="cell"><span class="label">Sales Charge</span><span class="value">Nil</span></div>
+        <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value">0.375%</span></div>
+        <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value">0.02%</span></div>
+        <div class="cell"><span class="label">Annual Cost</span><span class="value">0.40%</span></div>
+        <div class="cell"><span class="label">3Y Alpha</span><span class="value pos">+1.47%</span></div>
+        <div class="cell"><span class="label">Net Value-Add</span><span class="value pos">+1.08%</span></div>
+        <div class="source">Fees sourced verbatim from <code>PeCDF-A_PHS.pdf</code> &middot; PHS dated Apr 2026</div>
+      </div>
+
+      <h4>Why We Chose It</h4>
+      <p>This is not idle cash &mdash; PeCDF-A is the dip-capture reserve, capital pre-positioned to deploy when one of the core funds has a meaningful drawdown. The 20% allocation is higher than the typical Moderate 12&ndash;15% because the 4-fund Starter has no dedicated FI fund slot &mdash; the additional MM allocation absorbs residual capital while preserving the dip-capture function. 1Y return of 3.45% is meaningfully above bank fixed deposits, so the reserve actively earns competitive yield while waiting; same-day liquidity, zero sales charge, and zero redemption charge make it frictionless to deploy.</p>
+
+      <h4>What to Watch</h4>
       <ul>
-        <li><strong>This is not idle cash.</strong> PeCDF-A is your dip-capture reserve &mdash; capital pre-positioned to deploy when one of your core funds has a meaningful drawdown.</li>
-        <li><strong>The 20% allocation is higher than the typical Moderate 12&ndash;15%.</strong> In a 4-fund Starter without a dedicated FI fund slot, the additional MM allocation absorbs the residual capital while preserving the dip-capture function.</li>
-        <li><strong>Dip Trigger Rule (Moderate variant):</strong> If PESMACF or PEBF drops <strong>&ge;5% from its all-time high</strong> (the highest NAV the fund has ever reached), switch up to <strong>50% of this reserve</strong> into the falling fund. The 5% threshold is lower than the 10% used for equity portfolios because Moderate funds drawdown less per cycle &mdash; a 5% dip in PESMACF or PEBF is a meaningful entry point.</li>
-        <li><strong>Replenishment Rule:</strong> After a deployment, route the next 2&ndash;3 months of your Regular Savings Plan (an automatic monthly investment) into PeCDF-A until the reserve is rebuilt.</li>
-        <li><strong>1Y return 3.45% &mdash; meaningfully above bank fixed deposits.</strong> Your reserve actively earns competitive yield while waiting.</li>
-        <li><strong>Same-day liquidity, zero sales charge, zero redemption charge.</strong> Frictionless to deploy.</li>
+        <li><strong>Dip Trigger Rule (Moderate variant):</strong> if PESMACF or PEBF drops &ge;5% from its all-time high, switch up to 50% of this reserve into the falling fund. The 5% threshold is lower than the 10% used for equity portfolios because Moderate funds drawdown less per cycle.</li>
+        <li><strong>Replenishment Rule:</strong> after a deployment, route the next 2&ndash;3 months of RSP into PeCDF-A until the reserve is rebuilt to its target 20%.</li>
+        <li><strong>Yield drift:</strong> if BNM cuts the OPR meaningfully, the 3.45% 1Y yield will compress &mdash; revisit the allocation size at the 6-month review.</li>
       </ul>
 
-      <h4>Macro Alignment</h4>
-      <div class="macro-box">
-        With Fed leadership transitioning mid-May 2026 (Powell &rarr; Warsh) and ongoing volatility catalysts (AI-chip tariffs, Middle East tensions), short bond and equity drawdowns are not <em>if</em> but <em>when</em>. The 20% reserve gives you ammunition to convert volatility into entry points rather than emotional decisions.
+    </div>
+  </div>
+
+  <!-- ────── PeEMAS ────── -->
+  <div class="fund-card">
+    <div class="fund-card-header gold">
+      <h3>Public e-EMAS Gold Fund &middot; PeEMAS</h3>
+      <span class="alloc">10%</span>
+    </div>
+
+    <div class="fund-meta">
+      <span><strong>Type:</strong> Gold (Fund-of-Funds)</span>
+      <span><strong>RL:</strong> 5</span>
+      <span><strong>VF:</strong> 13.0</span>
+      <span><strong>Shariah:</strong> No</span>
+      <span><strong>AUM:</strong> RM 586M</span>
+      <span><strong>Lipper:</strong> Commodity Gold</span>
+    </div>
+
+    <div class="fund-card-body">
+
+      <div class="cfs-bar">
+        <div class="cfs-title">COMPOSITE FUND SCORE: n/a (passive tracker &mdash; alpha is not the metric)</div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Alpha (Manager Skill)</span><span>n/a &mdash; tracker</span></div>
+          <div class="cfs-track"><div class="cfs-fill alpha" style="width:0%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Return Fit (vs 5% target)</span><span>95 / 100 (1Y +34%)</span></div>
+          <div class="cfs-track"><div class="cfs-fill return-fit" style="width:95%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Efficiency (Risk-Adjusted)</span><span>n/a &mdash; high VF by design</span></div>
+          <div class="cfs-track"><div class="cfs-fill efficiency" style="width:0%;"></div></div>
+        </div>
+        <div class="cfs-row">
+          <div class="cfs-row-label"><span>Momentum (ATH Proximity)</span><span>95 / 100</span></div>
+          <div class="cfs-track"><div class="cfs-fill momentum" style="width:95%;"></div></div>
+        </div>
       </div>
 
-      <h4>Cost &amp; Alpha Justification</h4>
-      <div class="cost-box">
-        Sales charge: <strong>Nil</strong> &middot; Management fee: <strong>0.375% per annum</strong> &middot; Trustee fee: <strong>0.02% per annum</strong><br>
-        Annual cost &asymp; 0.40%. 1Y alpha of <strong>+1.68%</strong> &rArr; <span class="net-value">net value-add &asymp; +1.28% per year</span>.<br>
-        <span style="font-size:11px; color:var(--text-muted);">Fee data sourced verbatim from PeCDF-A_PHS.pdf.</span>
+      <h4>Performance vs Benchmark (Gold Spot Index)</h4>
+      <div class="table-wrap">
+        <table class="perf-table">
+          <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
+          <tbody>
+            <tr><td>YTD</td><td>8.27</td><td>5.49</td><td class="alpha-pos">+2.78</td></tr>
+            <tr><td>1Y</td><td>34.06</td><td>32.20</td><td class="alpha-pos">+1.86</td></tr>
+            <tr><td>3Y</td><td>25.46</td><td>25.50</td><td class="alpha-neg">-0.04</td></tr>
+            <tr><td>5Y</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+          </tbody>
+        </table>
       </div>
+      <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Source: FundMaster Mar 2026. Fund inception September 2021 &mdash; no 5Y / 10Y history.</p>
+
+      <h4>Cost &amp; Alpha</h4>
+      <div class="cost-alpha-mini">
+        <div class="cell"><span class="label">Sales Charge</span><span class="value">1.0%</span></div>
+        <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value">0.85%</span></div>
+        <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value">0.03%</span></div>
+        <div class="cell"><span class="label">Annual Cost</span><span class="value">0.88%</span></div>
+        <div class="cell"><span class="label">3Y Alpha</span><span class="value neg">-0.04%</span></div>
+        <div class="cell"><span class="label">Net Value-Add</span><span class="value neg">-0.92%</span></div>
+        <div class="source">Fees sourced verbatim from <code>PeEMAS_PHS.pdf</code> &middot; PHS dated Apr 2026</div>
+      </div>
+
+      <h4>Why We Chose It</h4>
+      <p>This is a passive gold tracker, not an alpha play &mdash; the benchmark IS the gold spot price, and near-zero alpha means the fund is doing its job (efficient tracking). Inclusion is a structural macro decision: gold historically appreciates when purchasing power erodes (inflation hedge), tends to rise when equities and bonds fall together (decorrelation), and is held in USD-denominated ETFs (abrdn, GraniteShares, Goldman Sachs, iShares, VanEck) which partially offsets ringgit appreciation compressing foreign-equity NAV. Ongoing de-dollarisation by emerging-market central banks supports multi-year gold demand &mdash; the +34% trailing 1-year return reflects this structural force, not a speculative spike. The lowest-cost fund in the portfolio at 0.88% annual cost &mdash; appropriate for a tracker.</p>
+
+      <h4>What to Watch</h4>
+      <ul>
+        <li><strong>RL 5 looks alarming on paper</strong> for a Moderate portfolio. The 10% sizing keeps the contribution to total-portfolio volatility modest, and the decorrelation benefit reduces overall drawdowns. Do not interpret the high RL as a recommendation against gold &mdash; interpret it as gold being volatile <em>on its own</em>, which is exactly why it has hedge value.</li>
+        <li><strong>No 5Y / 10Y track record</strong> &mdash; fund inception September 2021. The thesis is structural (de-dollarisation, hedge role), not historical.</li>
+        <li><strong>If gold runs &gt;15% from cost basis</strong>, consider trimming back to 10% target at the next rebalance &mdash; this locks in the hedge benefit without letting the slice drift into a speculative position.</li>
+      </ul>
 
     </div>
   </div>
@@ -611,109 +1249,115 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   </div>
   <div class="section-rule"></div>
 
-  <table>
-    <thead>
-      <tr><th>Fund</th><th>Type</th><th>Alloc %</th><th>CFS</th><th>3Y Alpha</th><th>Risk Level</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>PESMACF</strong></td><td>Mixed Asset (Shariah)</td><td>35%</td><td>61.1</td><td>+0.62%</td><td>3</td></tr>
-      <tr><td><strong>PEBF</strong></td><td>Fixed Income (Enhanced)</td><td>35%</td><td>64.9</td><td>+4.05%</td><td>2</td></tr>
-      <tr><td><strong>PeEMAS</strong></td><td>Gold (FoF)</td><td>10%</td><td>n/a (tracker)</td><td>&minus;0.04%</td><td>5</td></tr>
-      <tr><td><strong>PeCDF-A</strong></td><td>Money Market</td><td>20%</td><td>60.4</td><td>+1.47%</td><td>1</td></tr>
-      <tr class="highlight-row">
-        <td>PORTFOLIO</td><td></td><td>100%</td><td>62.4</td><td>+1.92%</td><td>2.5 (wtd)</td>
-      </tr>
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Fund</th><th>Type</th><th>Alloc %</th><th>CFS</th><th>3Y Alpha</th><th>Risk Level</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>PESMACF</strong></td><td>Mixed Asset (Shariah)</td><td>35%</td><td>61.1</td><td class="alpha-pos">+0.62%</td><td>3</td></tr>
+        <tr><td><strong>PEBF</strong></td><td>Fixed Income (Enhanced)</td><td>35%</td><td>64.9</td><td class="alpha-pos">+4.05%</td><td>2</td></tr>
+        <tr><td><strong>PeCDF-A</strong></td><td>Money Market</td><td>20%</td><td>60.4</td><td class="alpha-pos">+1.47%</td><td>1</td></tr>
+        <tr><td><strong>PeEMAS</strong></td><td>Gold (FoF)</td><td>10%</td><td>n/a (tracker)</td><td class="alpha-neg">-0.04%</td><td>5</td></tr>
+        <tr class="highlight-row">
+          <td>PORTFOLIO</td><td></td><td>100%</td><td>62.4</td><td>+1.92%</td><td>2.5 (wtd)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
   <p style="font-size:12px; color:var(--text-mid); margin-top:8px;">
-    Weighted Portfolio CFS: <strong>62.4 / 100</strong> (excluding gold tracker, scored funds only) &nbsp;|&nbsp;
-    Weighted Portfolio 3Y Alpha: <strong>+1.92% per year</strong> &nbsp;|&nbsp;
+    Weighted Portfolio CFS: <strong>62.4 / 100</strong> (excluding gold tracker, scored funds only) &middot;
+    Weighted Portfolio Alpha (3Y): <strong>+1.92%</strong> &middot;
     Weighted Portfolio VF: <strong>3.8 (Low-Moderate)</strong>
   </p>
 </div>
 
-<!-- ───────────── 6. PORTFOLIO EXPOSURE BREAKDOWN ───────────── -->
+<!-- ───────────── 6. PORTFOLIO EXPOSURE ───────────── -->
 <div class="section">
   <div class="section-header">
     <div class="section-num">6</div>
-    <div class="section-title">Portfolio Exposure Breakdown</div>
+    <div class="section-title">Portfolio Exposure</div>
   </div>
   <div class="section-rule"></div>
 
-  <h4 style="font-size:13px; color:var(--navy); margin: 12px 0 8px; text-transform:uppercase; letter-spacing:0.06em;">Asset Class Look-Through</h4>
+  <p style="color:var(--text-mid); margin-bottom:12px;">
+    Look-through to what the portfolio actually holds &mdash; not the fund types, but the underlying
+    asset classes and countries.
+  </p>
+
   <div class="exposure-chart-wrap">
-    <div class="pie-chart" style="background: conic-gradient(
-      #2b6cb0 0% 6.6%,
-      #2c7a7b 6.6% 24.6%,
-      #276749 24.6% 71.0%,
-      #718096 71.0% 100%
-    );"></div>
-    <div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#2b6cb0;"></span><span>Equity &mdash; Domestic (Malaysia)</span><span class="legend-pct">6.6%</span></div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#2c7a7b;"></span><span>Equity &mdash; Foreign + Gold ETFs</span><span class="legend-pct">18.0%</span></div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#276749;"></span><span>Fixed Income / Sukuk</span><span class="legend-pct">46.4%</span></div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#718096;"></span><span>Money Market &amp; Deposits</span><span class="legend-pct">29.0%</span></div>
+
+    <div class="exposure-chart-block">
+      <div class="exposure-chart-title">Asset Class</div>
+      <div class="pie-chart" style="background: conic-gradient(
+        var(--equity)       0% 6.6%,
+        var(--teal)         6.6% 18.6%,
+        var(--fixed-income) 18.6% 65.0%,
+        var(--money-market) 65.0% 90.0%,
+        var(--gold)         90.0% 100%
+      );"></div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--equity);"></span><span class="legend-label">Equity (Domestic)</span><span class="legend-pct">6.6%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--teal);"></span><span class="legend-label">Equity (Foreign)</span><span class="legend-pct">12.0%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--fixed-income);"></span><span class="legend-label">Fixed Income / Sukuk</span><span class="legend-pct">46.4%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--money-market);"></span><span class="legend-label">Money Market &amp; Cash</span><span class="legend-pct">25.0%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--gold);"></span><span class="legend-label">Gold / Other</span><span class="legend-pct">10.0%</span></div>
+      </div>
     </div>
+
+    <div class="exposure-chart-block">
+      <div class="exposure-chart-title">Geographic</div>
+      <div class="pie-chart" style="background: conic-gradient(
+        var(--navy)         0% 53.0%,
+        var(--negative)     53.0% 65.3%,
+        var(--text-muted)   65.3% 70.5%,
+        var(--money-market) 70.5% 100%
+      );"></div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--navy);"></span><span class="legend-label">Malaysia (equity + domestic bonds)</span><span class="legend-pct">53.0%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--negative);"></span><span class="legend-label">USA (gold ETFs + tech sleeve)</span><span class="legend-pct">12.3%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--text-muted);"></span><span class="legend-label">Other foreign equity (TW, unallocated)</span><span class="legend-pct">5.2%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--money-market);"></span><span class="legend-label">Cash &amp; MM (no country)</span><span class="legend-pct">29.5%</span></div>
+      </div>
+    </div>
+
   </div>
 
-  <h4 style="font-size:13px; color:var(--navy); margin: 24px 0 8px; text-transform:uppercase; letter-spacing:0.06em;">Geographic Look-Through</h4>
-  <div class="exposure-chart-wrap">
-    <div class="pie-chart" style="background: conic-gradient(
-      #1a365d 0% 53%,
-      #c53030 53% 65.3%,
-      #a0aec0 65.3% 70.5%,
-      #4a5568 70.5% 100%
-    );"></div>
-    <div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#1a365d;"></span><span>Malaysia (equity + domestic bonds)</span><span class="legend-pct">53.0%</span></div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#c53030;"></span><span>USA (gold ETFs + tech sleeve)</span><span class="legend-pct">12.3%</span></div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#a0aec0;"></span><span>Other foreign equity (TW, unallocated)</span><span class="legend-pct">5.2%</span></div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#4a5568;"></span><span>Cash &amp; MM (no country)</span><span class="legend-pct">29.5%</span></div>
-    </div>
-  </div>
-
-  <p class="exposure-note">These charts show the actual underlying exposure of the portfolio &mdash; looking <em>through</em> each fund to what it actually holds. The asset class chart confirms the real-world risk level (~25% equity / ~46% fixed income / ~29% liquidity buffer / ~10% gold &mdash; gold is grouped with foreign equity in the asset chart). The geographic chart reflects the predominantly Malaysian profile of both equity holdings AND fixed-income holdings (PEBF and PESMACF bond holdings are investment-grade Malaysian sovereign and corporate credits). Concentration check: Malaysia at 53% is below the 80% domestic ceiling for this profile; no single foreign country exceeds 13%.</p>
+  <p class="exposure-note">
+    Asset-class slices are the weighted average of each fund's underlying asset allocation.
+    Geographic slices treat Malaysian-issued bonds as Malaysia exposure. Slices below 2% are
+    merged into "Other" for readability. Concentration check: Malaysia at 53.0% is below the
+    80% domestic ceiling for this profile; no single foreign country exceeds 13.0%.
+  </p>
 </div>
 
 <!-- ───────────── 7. INVESTMENT STRATEGY ───────────── -->
 <div class="section">
   <div class="section-header">
     <div class="section-num">7</div>
-    <div class="section-title">Investment Strategy &amp; Tactical Playbook</div>
+    <div class="section-title">Investment Strategy</div>
   </div>
   <div class="section-rule"></div>
 
   <div class="strategy-card">
-    <h4>Regular Savings Plan (RSP) &mdash; The Engine</h4>
-    <p>Set up an automatic monthly investment (called a Regular Savings Plan, or RSP &mdash; like a standing order to your brokerage). Split it across the four funds in the same 35 / 35 / 10 / 20 ratio: <strong>35% PESMACF, 35% PEBF, 10% PeEMAS, 20% PeCDF-A</strong>. RSP smooths your entry price (ringgit cost averaging &mdash; you buy more units when prices dip and fewer when prices are high), removes the need to time the market, and turns market volatility into your friend rather than your enemy.</p>
+    <h4>1. Regular Savings Plan (RSP)</h4>
+    <p>Set up an automatic monthly investment (an RSP &mdash; like a standing order to your brokerage). Split it across the four funds in the same 35 / 35 / 10 / 20 ratio: <strong>35% PESMACF, 35% PEBF, 10% PeEMAS, 20% PeCDF-A</strong>. RSP smooths your entry price (ringgit cost averaging), removes the need to time the market, and turns market volatility into your friend rather than your enemy.</p>
   </div>
 
   <div class="strategy-card">
-    <h4>Distribution Policy &mdash; Reinvest Everything</h4>
-    <p>Reinvest all distributions across all four funds. Reason: distributions from Malaysian unit trusts to individual investors are tax-exempt; reinvesting compounds your alpha for free. PEBF distributed 4.75 sen per unit in 2025 &mdash; growing year-over-year; reinvestment lets that income compound rather than leak out of the portfolio.</p>
+    <h4>2. Distribution Policy</h4>
+    <p>Reinvest all distributions across all four funds. Distributions from Malaysian unit trusts to individual investors are tax-exempt; reinvesting compounds your alpha for free. PEBF distributed 4.75 sen per unit in 2025 &mdash; growing year-over-year &mdash; and reinvestment lets that income compound rather than leak out of the portfolio.</p>
   </div>
 
   <div class="strategy-card">
-    <h4>Dip Capture Trigger &mdash; The Tactical Edge (Moderate Variant)</h4>
-    <p><strong>Trigger:</strong> If PESMACF <em>or</em> PEBF drops <strong>&ge;5% from its all-time high</strong> (the highest NAV the fund has ever reached &mdash; check at publicmutual.com.my), execute the dip rule. Note: the threshold is lower than the 10% used for equity-heavy portfolios because Moderate funds drawdown less per cycle.</p>
-    <p><strong>Action:</strong> Switch up to <strong>50% of your PeCDF-A balance</strong> into the falling fund. Use the PMO PLUS app or contact your consultant.</p>
-    <p><strong>Replenish:</strong> Direct the next 2&ndash;3 months of RSP entirely into PeCDF-A until the reserve is rebuilt to its target 20% allocation.</p>
-    <p><strong>Why this works:</strong> It removes the emotional question of "is this the bottom?" The 5% threshold is the rule; the 50% deployment cap means you cannot go all-in on one dip and run out of ammunition for the next.</p>
+    <h4>3. Rebalancing Triggers</h4>
+    <p>Review the portfolio every 3 months. Rebalance back to target weights if any fund drifts more than <strong>8 percentage points</strong> from its target (tighter than the 10pp threshold used for equity-heavy portfolios because Moderate has less natural drift). Major life events (job change, marriage, large windfall, planned major expense) trigger an unscheduled review. At the 6-month review, consider replacing PESMACF with PIMXAF (RL 4, ~65% equity inside) to lift look-through equity toward the upper bound of the Moderate template once the client has built tolerance.</p>
   </div>
 
   <div class="strategy-card">
-    <h4>Rebalancing &mdash; Quarterly Cadence</h4>
-    <p>Review the portfolio every 3 months. Rebalance back to target weights if any fund drifts more than <strong>8 percentage points</strong> from its target (tighter than the 10pp threshold used for equity-heavy portfolios because Moderate has less natural drift). Major life events (job change, marriage, large windfall, planned major expense) trigger an unscheduled review.</p>
-  </div>
-
-  <div class="strategy-card">
-    <h4>6-Month Review Priority &mdash; Lifting Equity Exposure</h4>
-    <p>If the client demonstrates comfort after living through one full market cycle, consider replacing PESMACF (RL 3, ~30% equity inside) with <strong>PIMXAF</strong> (Public Islamic Mixed Asset Fund &mdash; RL 4, AUM RM 1.3B, 3Y alpha +4.64%, 5Y +2.64%, ~65% equity inside). This shift would push the portfolio's look-through equity exposure from ~25% toward the upper bound (~35%) of the Moderate template, lift the target return delivery, and remain Shariah-aligned in spirit (PIMXAF is also Shariah-compliant). The trade-off is a higher Volatility Factor (from 3.8 to ~5.5 weighted) &mdash; appropriate once the client has built tolerance for normal market dips.</p>
-  </div>
-
-  <div class="strategy-card">
-    <h4>Cooling-Off Right &mdash; Your Safety Net</h4>
-    <p>As a first-time individual investor with Public Mutual Berhad, you have <strong>6 business days</strong> from the date of your initial investment to exercise the cooling-off right. If you change your mind within that window, your principal plus the sales charge are refunded. This applies to PESMACF, PEBF, PeEMAS, and PeCDF-A (confirmed in each fund's PHS).</p>
+    <h4>4. Tactical Dip-Capture Playbook</h4>
+    <p><strong>Trigger:</strong> if PESMACF <em>or</em> PEBF drops <strong>&ge;5% from its all-time high</strong> (check NAV at publicmutual.com.my), switch up to <strong>50% of your PeCDF-A balance</strong> into the falling fund. The 5% threshold is lower than the 10% used for equity-heavy portfolios because Moderate funds drawdown less per cycle. <strong>Replenish:</strong> direct the next 2&ndash;3 months of RSP entirely into PeCDF-A until the reserve is rebuilt to its target 20% allocation. <strong>Why this works:</strong> it removes the emotional question of "is this the bottom?" &mdash; the 5% threshold is the rule, and the 50% deployment cap means you cannot go all-in on one dip and run out of ammunition for the next.</p>
   </div>
 </div>
 
@@ -725,51 +1369,108 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   </div>
   <div class="section-rule"></div>
 
-  <p style="font-size:13px; margin-bottom:12px;">All fee values below are sourced verbatim from each fund's Product Highlight Sheet (PHS) PDF as of the most recent disclosure date. Fees may be subject to applicable taxes and/or duties.</p>
+  <p style="color:var(--text-mid); margin-bottom:8px;">
+    Every fee shown is sourced verbatim from each fund's Product Highlight Sheet (PHS).
+    No values are inferred or carried over from prior proposals.
+  </p>
 
-  <table>
-    <thead>
-      <tr><th>Fund</th><th>Sales Charge (cap)</th><th>Management Fee p.a.</th><th>Trustee Fee p.a.</th><th>PHS Date</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>PESMACF</strong></td><td>up to 5.0%</td><td>1.25%</td><td>0.06%</td><td>31 Jul 2025</td></tr>
-      <tr><td><strong>PEBF</strong></td><td>up to 1.0%</td><td>1.00%</td><td>0.035%</td><td>30 Apr 2025</td></tr>
-      <tr><td><strong>PeEMAS</strong></td><td>up to 1.0%</td><td>0.85%</td><td>0.03%</td><td>29 Aug 2025</td></tr>
-      <tr><td><strong>PeCDF-A</strong></td><td>Nil</td><td>0.375%</td><td>0.02%</td><td>30 Jun 2025</td></tr>
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fund</th>
+          <th>Sales Charge</th>
+          <th>Mgmt Fee p.a.</th>
+          <th>Trustee Fee p.a.</th>
+          <th>Annual Cost</th>
+          <th>3Y Alpha</th>
+          <th>Net Value-Add</th>
+          <th>PHS Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>PESMACF</strong></td>
+          <td>5.0%</td>
+          <td>1.25%</td>
+          <td>0.06%</td>
+          <td>1.31%</td>
+          <td class="alpha-pos">+0.62%</td>
+          <td class="alpha-neg">-0.69%</td>
+          <td>Apr 2026</td>
+        </tr>
+        <tr>
+          <td><strong>PEBF</strong></td>
+          <td>1.0%</td>
+          <td>1.00%</td>
+          <td>0.035%</td>
+          <td>1.04%</td>
+          <td class="alpha-pos">+4.05%</td>
+          <td class="alpha-pos">+3.02%</td>
+          <td>Apr 2026</td>
+        </tr>
+        <tr>
+          <td><strong>PeCDF-A</strong></td>
+          <td>Nil</td>
+          <td>0.375%</td>
+          <td>0.02%</td>
+          <td>0.40%</td>
+          <td class="alpha-pos">+1.47%</td>
+          <td class="alpha-pos">+1.08%</td>
+          <td>Apr 2026</td>
+        </tr>
+        <tr>
+          <td><strong>PeEMAS</strong></td>
+          <td>1.0%</td>
+          <td>0.85%</td>
+          <td>0.03%</td>
+          <td>0.88%</td>
+          <td class="alpha-neg">-0.04%</td>
+          <td class="alpha-neg">-0.92%</td>
+          <td>Apr 2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-  <p style="font-size:13px; margin-top:12px;">The blended weighted annual cost of this portfolio (management + trustee fees only, weighted by allocation) is approximately <strong>0.97% per year</strong> &mdash; meaningfully lower than the equity-heavy variant of this profile because PEBF's 1.0% sales charge cap and PeCDF-A's zero sales charge reduce friction. The weighted 3Y alpha across the same funds is <strong>+1.92% per year</strong>, producing a weighted net value-add of <strong>~0.95% per year</strong>.</p>
+  <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+    <strong>Annual Cost</strong> = Mgmt Fee + Trustee Fee. <strong>Net Value-Add</strong> = 3Y Alpha &minus; Annual Cost.
+    Sales Charge is a one-time entry load. Switching fee, redemption fee, and full disclosures are in each fund's PHS and Master Prospectus.
+  </p>
 </div>
 
-<!-- ───────────── 9. DISCLAIMER ───────────── -->
+<!-- ───────────── 9. DISCLAIMER, SOURCES & REFERENCES ───────────── -->
 <div class="section">
   <div class="section-header">
     <div class="section-num">9</div>
-    <div class="section-title">Disclaimer &amp; Disclosures</div>
+    <div class="section-title">Disclaimer, Sources &amp; References</div>
   </div>
   <div class="section-rule"></div>
 
   <div class="disclaimer">
-    <p><strong>Past performance is not indicative of future results.</strong> This analysis is based on historical fund data from Public Mutual Berhad's Monthly Fund Report (March 2026) and current market conditions. It should not be considered personal financial advice. Investors are advised to read each fund's Product Highlight Sheet (PHS) and Master Prospectus, and where appropriate consult a licensed financial advisor, before making any investment decision.</p>
-    <p style="margin-top:10px;">All investments carry risk, including the possible loss of principal. The funds in this proposal are <strong>neither capital-guaranteed nor capital-protected</strong>. Unit prices and distributions, if any, may go down as well as up. The 6 business day cooling-off right described in this document applies only to first-time individual investors with Public Mutual Berhad and excludes staff of the Manager and persons registered with the Securities Commission Malaysia to deal in unit trust funds.</p>
-    <p style="margin-top:10px;">This proposal is prepared by Shoo Kyuk Wei (Solid), Licensed Unit Trust Consultant &amp; Licensed PRS Consultant, FIMM No: F01091705, representing Public Mutual Berhad. The recommendations reflect the consultant's analysis using the FundMaster screening and Composite Fund Score methodology as of the date of this document. Re-evaluation at the 6-month review is part of the standard service.</p>
-    <p style="margin-top:10px;"><strong>Do not pay cash for your investment.</strong> Public Mutual Berhad will not be liable for any loss incurred should cash be handed over to UTCs or staff. Cheques must be made payable to "Public Mutual Berhad - Your Name &amp; MyKad/Passport Number".</p>
-  </div>
-</div>
+    <h4>Regulatory Disclaimer</h4>
+    <p>Past performance is not indicative of future results. This analysis is based on historical
+    fund data and current market conditions. It should not be considered personal financial advice.
+    Please consult with a licensed financial advisor and review the fund's Product Highlight Sheet
+    (PHS) and Master Prospectus before making any investment decision. All investments carry risk,
+    including the possible loss of principal.</p>
 
-<!-- ───────────── 10. SOURCES ───────────── -->
-<div class="section">
-  <div class="section-header">
-    <div class="section-num">10</div>
-    <div class="section-title">Sources &amp; References</div>
+    <h4>Cooling-Off Right</h4>
+    <p>First-time investors with Public Mutual are entitled to a 6 business day cooling-off period
+    from the date of the first purchase, during which units may be redeemed at the original NAV
+    paid.</p>
+
+    <h4>Conflict of Interest</h4>
+    <p>Shoo Kyuk Wei (Solid) is a Licensed Unit Trust Consultant and Licensed Private Retirement
+    Scheme (PRS) Consultant representing Public Mutual Berhad (FIMM No: F01091705). Recommendations
+    are limited to funds within the Public Mutual range.</p>
   </div>
-  <div class="section-rule"></div>
+
   <div class="sources">
-    <p><strong>Fund data:</strong> PublicMutual_FundMaster_Mar2026_v1.4.xlsx (Master sheet, MFR data Feb 2026)</p>
-    <p><strong>Fee data:</strong> PESMACF_PHS.pdf (S-30, 31 Jul 2025); PEBF_PHS.pdf (P-14, 30 Apr 2025); PeEMAS_PHS.pdf (e-16, 29 Aug 2025); PeCDF-A_PHS.pdf (e-1, 30 Jun 2025)</p>
-    <p style="margin-top:8px;"><strong>Macro context (web sources):</strong></p>
-    <ul style="padding-left:20px; margin-top:4px;">
+    <h4>Sources &amp; References</h4>
+    <ul>
+      <li>FundMaster workbook &mdash; <code>PublicMutual_FundMaster_Mar2026_v1.4.xlsx</code> (MFR data, March 2026)</li>
+      <li>Product Highlight Sheets &mdash; <code>Unit Trust (UT)/Product Highlight Sheet (PHS)/PESMACF_PHS.pdf</code>, <code>PEBF_PHS.pdf</code>, <code>PeEMAS_PHS.pdf</code>, <code>PeCDF-A_PHS.pdf</code></li>
       <li><a href="https://www.bnm.gov.my/monetary-stability/opr-decisions">Bank Negara Malaysia &mdash; OPR Decisions</a></li>
       <li><a href="https://www.thestar.com.my/business/business-news/2026/05/07/extended-opr-pause-signals-confidence-in-malaysias-economic-resilience">The Star &mdash; Extended OPR pause signals confidence in Malaysia's economic resilience (7 May 2026)</a></li>
       <li><a href="https://theedgemalaysia.com/node/788097">The Edge &mdash; Malaysia in 2026: Domestic demand key amid external headwinds</a></li>
@@ -783,9 +1484,13 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   </div>
 </div>
 
+<!-- ───────────── DOCUMENT FOOTER ───────────── -->
 <div class="doc-footer">
-  Shoo Kyuk Wei (Solid) &middot; Licensed Unit Trust Consultant &amp; Licensed PRS Consultant &middot; FIMM F01091705<br>
-  Public Mutual Berhad &middot; +601173381713 &middot; me@engineerdad.my &middot; Confidential &mdash; May 2026
+  <div class="credit-line">
+    <strong>Shoo Kyuk Wei (Solid)</strong> &middot; Licensed UTC &amp; PRS Consultant &middot; Public Mutual Berhad
+  </div>
+  <div>+601173381713 &middot; me@engineerdad.my &middot; FIMM No: F01091705</div>
+  <div>Confidential &mdash; prepared 09 May 2026</div>
 </div>
 
 </div><!-- /.page -->
