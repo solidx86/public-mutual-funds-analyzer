@@ -114,14 +114,11 @@ must be exactly **9**. The cover, foundation, and document footer are not `.sect
         <div class="cover-meta-label">Proposal Date</div>
         <div class="cover-meta-value">[DD Mon YYYY]</div>
       </div>
-      <div class="cover-meta-stamp">
-        <span class="cover-meta-label">Generator</span>
-        <span class="cover-meta-value">fund-consultant v[SKILL_VERSION]</span>
-      </div>
     </div>
   </div>
   <div class="cover-footer">
     <span>FIMM F01091705</span>
+    <span>fund-consultant v[SKILL_VERSION]</span>
     <span>Confidential</span>
     <span>Prepared [DD Mon YYYY]</span>
   </div>
@@ -133,10 +130,12 @@ must be exactly **9**. The cover, foundation, and document footer are not `.sect
 - `cover-title` = literal string `Fund Portfolio<br>Proposal`
 - `cover-subtitle` = `For [Client Name] &middot; [Profile] Profile` — if no client name yet,
   use `[Profile] Profile &middot; [Month Year]`
-- `cover-meta-grid` = exactly **7 cells**: cells 1–6 are stacked label/value pairs in a 3×2
-  layout; cell 7 is the full-width Generator stamp (`.cover-meta-stamp`). Order is fixed —
-  do not omit or reorder. The Generator cell uses inline `<span>` for label/value (not
-  stacked `<div>`) because the CSS renders it as a single-line centered banner.
+- `cover-meta-grid` = exactly **6 cells** in a 3×2 layout. Order is fixed — do not omit or
+  reorder.
+- `cover-footer` = exactly **4 spans** in this order: `FIMM F01091705` / `fund-consultant
+  v[SKILL_VERSION]` / `Confidential` / `Prepared [DD Mon YYYY]`. The version span sits in
+  slot 2 between FIMM and Confidential, in the same low-key metadata typography as the
+  other three. This is the visible version stamp.
 - Consultant credentials block in `cover-contact` is **invariant** — sourced from memory.
 
 ---

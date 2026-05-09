@@ -119,14 +119,11 @@ and the post-selection committed proposal.
         <div class="cover-meta-label">Proposal Date</div>
         <div class="cover-meta-value">[DD Mon YYYY]</div>
       </div>
-      <div class="cover-meta-stamp">
-        <span class="cover-meta-label">Generator</span>
-        <span class="cover-meta-value">fund-consultant v[SKILL_VERSION]</span>
-      </div>
     </div>
   </div>
   <div class="cover-footer">
     <span>FIMM F01091705</span>
+    <span>fund-consultant v[SKILL_VERSION]</span>
     <span>Confidential — Consultant Review</span>
     <span>Prepared [DD Mon YYYY]</span>
   </div>
@@ -137,12 +134,11 @@ and the post-selection committed proposal.
 - `cover-eyebrow` = literal string `E-SERIES FUND SHORTLIST`
 - `cover-title` = literal string `Fund<br>Shortlist`
 - `cover-subtitle` = literal `For [Client Name] &mdash; Allocation Not Finalised`
-- `cover-meta-grid` cells differ at positions 4 (`Upfront Capital`) and 5 (`Candidates`); the
-  7th `.cover-meta-stamp` Generator cell is identical to standard Proposal.
-- `cover-footer` middle slot reads `Confidential — Consultant Review`.
+- `cover-meta-grid` cells differ at positions 4 (`Upfront Capital`) and 5 (`Candidates`).
+  Total = 6 cells, identical 3×2 layout to standard Proposal.
+- `cover-footer` slot 3 reads `Confidential — Consultant Review`. Slots 1, 2, 4 are
+  identical to standard Proposal (FIMM / version stamp / Prepared date).
 - Consultant `cover-contact` block is **invariant** — identical to standard Proposal.
-- Total cover-meta cells = **7** (cells 1–6 stacked label/value, cell 7 the full-width
-  Generator stamp). Order is fixed.
 
 ---
 
