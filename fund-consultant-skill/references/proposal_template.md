@@ -13,11 +13,16 @@
 ## Output File
 
 ```
-output/fund_proposals/FundProposal_[Profile]_[MonYYYY].html
+output/fund_proposals/FundProposal_[Profile]_[MonYYYY]_v[SKILL_VERSION].html
 ```
 
-Optional client suffix: `FundProposal_[Profile]_[MonYYYY]_[ClientLastName].html`.
-Example: `FundProposal_Moderate_May2026_Tan.html`.
+Optional client suffix: `FundProposal_[Profile]_[MonYYYY]_[ClientLastName]_v[SKILL_VERSION].html`.
+Example: `FundProposal_Moderate_May2026_Tan_v1.25.html`.
+
+The skill-version suffix (`_v[SKILL_VERSION]`) is mandatory — it lets us identify which
+generation pass produced any file in `output/fund_proposals/` at a glance, and pairs with
+the visible Generator stamp on the cover. Substitute the value from the SKILL.md frontmatter
+`version` field (no `v` prefix in the token — the template provides it).
 
 The HTML must be **a single self-contained file** — all CSS inline, no external dependencies,
 no Google Fonts, no `<link>` to external stylesheets, no JavaScript.
@@ -109,6 +114,10 @@ must be exactly **9**. The cover, foundation, and document footer are not `.sect
         <div class="cover-meta-label">Proposal Date</div>
         <div class="cover-meta-value">[DD Mon YYYY]</div>
       </div>
+      <div class="cover-meta-stamp">
+        <span class="cover-meta-label">Generator</span>
+        <span class="cover-meta-value">fund-consultant v[SKILL_VERSION]</span>
+      </div>
     </div>
   </div>
   <div class="cover-footer">
@@ -124,7 +133,10 @@ must be exactly **9**. The cover, foundation, and document footer are not `.sect
 - `cover-title` = literal string `Fund Portfolio<br>Proposal`
 - `cover-subtitle` = `For [Client Name] &middot; [Profile] Profile` — if no client name yet,
   use `[Profile] Profile &middot; [Month Year]`
-- `cover-meta-grid` = exactly 6 cells, in this order. Do not omit or reorder.
+- `cover-meta-grid` = exactly **7 cells**: cells 1–6 are stacked label/value pairs in a 3×2
+  layout; cell 7 is the full-width Generator stamp (`.cover-meta-stamp`). Order is fixed —
+  do not omit or reorder. The Generator cell uses inline `<span>` for label/value (not
+  stacked `<div>`) because the CSS renders it as a single-line centered banner.
 - Consultant credentials block in `cover-contact` is **invariant** — sourced from memory.
 
 ---
@@ -574,6 +586,17 @@ client-side from the PHS values — do not invent.
   <div class="section-rule"></div>
 
   <div class="disclaimer">
+    <h4>AI-Generated Document</h4>
+    <p>This document was generated with the assistance of an AI-driven analysis and drafting
+    tool (fund-consultant skill, version [SKILL_VERSION]) developed by the consultant. All
+    fund data is sourced from Public Mutual's official Monthly Fund Review (MFR) and Product
+    Highlight Sheet (PHS) publications. The Composite Fund Score and fund recommendations
+    reflect a combination of quantitative scoring and the consultant's professional judgment;
+    the licensed consultant has reviewed and approved all recommendations before delivery.
+    Clients should treat this document as a starting point for discussion — please consult
+    the licensed UTC for any clarifications or to adjust the recommendations to your specific
+    circumstances.</p>
+
     <h4>Regulatory Disclaimer</h4>
     <p>Past performance is not indicative of future results. This analysis is based on historical
     fund data and current market conditions. It should not be considered personal financial advice.
@@ -604,8 +627,10 @@ client-side from the PHS values — do not invent.
 </div>
 ```
 
-The three disclaimer sub-headings (Regulatory Disclaimer / Cooling-Off Right / Conflict of
-Interest) are mandatory. Sources sub-headings are optional grouping; one `<li>` per URL.
+The four disclaimer sub-headings (AI-Generated Document / Regulatory Disclaimer / Cooling-Off
+Right / Conflict of Interest) are mandatory and rendered in this exact order — the AI-Generated
+Document block is always first so the reader sees the attribution before the rest of the
+regulatory text. Sources sub-headings are optional grouping; one `<li>` per URL.
 
 ---
 

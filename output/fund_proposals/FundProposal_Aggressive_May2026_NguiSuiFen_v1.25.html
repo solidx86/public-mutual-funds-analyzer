@@ -6,7 +6,7 @@
 <title>Fund Portfolio Proposal — Aggressive — May 2026</title>
 <style>
 /* ─────────────────────────────────────────────────────────────────────────
-   fund-consultant Design System — v1.23
+   fund-consultant Design System — v1.25
    Single source of truth for all generated HTML (proposals + shortlists).
 
    Copy this entire file verbatim into the <style> block of every generated
@@ -188,6 +188,30 @@ body {
   font-size: 15px;
   color: var(--white);
   font-weight: 600;
+}
+
+/* ── Cover Meta Stamp (7th cell — full-width generator/version banner) ──
+   Spans all 3 grid columns with a thin top-border separator so it reads
+   as a footer-style stamp distinct from the 6 stacked label/value cells. */
+.cover-meta-stamp {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+}
+
+.cover-meta-stamp .cover-meta-label {
+  display: inline;
+  margin: 0 6px 0 0;
+}
+
+.cover-meta-stamp .cover-meta-value {
+  display: inline;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.75);
 }
 
 .cover-footer {
@@ -785,6 +809,10 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
       <div>
         <div class="cover-meta-label">Proposal Date</div>
         <div class="cover-meta-value">09 May 2026</div>
+      </div>
+      <div class="cover-meta-stamp">
+        <span class="cover-meta-label">Generator</span>
+        <span class="cover-meta-value">fund-consultant v1.25</span>
       </div>
     </div>
   </div>
@@ -1493,6 +1521,16 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
     <div class="section-rule"></div>
 
     <div class="disclaimer">
+      <h4>AI-Generated Document</h4>
+      <p>This document was generated with the assistance of an AI-driven analysis and drafting
+      tool (fund-consultant skill, version 1.25) developed by the consultant. All fund data is
+      sourced from Public Mutual's official Monthly Fund Review (MFR) and Product Highlight Sheet
+      (PHS) publications. The Composite Fund Score and fund recommendations reflect a combination
+      of quantitative scoring and the consultant's professional judgment; the licensed consultant
+      has reviewed and approved all recommendations before delivery. Clients should treat this
+      document as a starting point for discussion — please consult the licensed UTC for any
+      clarifications or to adjust the recommendations to your specific circumstances.</p>
+
       <h4>Regulatory Disclaimer</h4>
       <p>Past performance is not indicative of future results. This analysis is based on historical
       fund data and current market conditions. It should not be considered personal financial advice.

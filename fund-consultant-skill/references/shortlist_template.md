@@ -17,10 +17,14 @@
 ## Output File
 
 ```
-output/fund_proposals/FundShortlist_[Profile]_[ClientLastName]_[MonYYYY].html
+output/fund_proposals/FundShortlist_[Profile]_[ClientLastName]_[MonYYYY]_v[SKILL_VERSION].html
 ```
 
-Example: `FundShortlist_Moderate_AhmadRazif_May2026.html`.
+Example: `FundShortlist_Moderate_AhmadRazif_May2026_v1.25.html`.
+
+The skill-version suffix (`_v[SKILL_VERSION]`) is mandatory — same convention as proposal mode.
+Substitute the value from the SKILL.md frontmatter `version` field (no `v` prefix in the token —
+the template provides it).
 
 The HTML must be **a single self-contained file** — all CSS inline, no external dependencies,
 no Google Fonts, no `<link>` to external stylesheets, no JavaScript.
@@ -115,6 +119,10 @@ and the post-selection committed proposal.
         <div class="cover-meta-label">Proposal Date</div>
         <div class="cover-meta-value">[DD Mon YYYY]</div>
       </div>
+      <div class="cover-meta-stamp">
+        <span class="cover-meta-label">Generator</span>
+        <span class="cover-meta-value">fund-consultant v[SKILL_VERSION]</span>
+      </div>
     </div>
   </div>
   <div class="cover-footer">
@@ -129,9 +137,12 @@ and the post-selection committed proposal.
 - `cover-eyebrow` = literal string `E-SERIES FUND SHORTLIST`
 - `cover-title` = literal string `Fund<br>Shortlist`
 - `cover-subtitle` = literal `For [Client Name] &mdash; Allocation Not Finalised`
-- `cover-meta-grid` cells differ at positions 4 (`Upfront Capital`) and 5 (`Candidates`).
+- `cover-meta-grid` cells differ at positions 4 (`Upfront Capital`) and 5 (`Candidates`); the
+  7th `.cover-meta-stamp` Generator cell is identical to standard Proposal.
 - `cover-footer` middle slot reads `Confidential — Consultant Review`.
 - Consultant `cover-contact` block is **invariant** — identical to standard Proposal.
+- Total cover-meta cells = **7** (cells 1–6 stacked label/value, cell 7 the full-width
+  Generator stamp). Order is fixed.
 
 ---
 
@@ -425,7 +436,16 @@ note. Section number is **6** in shortlist's 1–7 sequence. Three rows total (o
 
 ## 9. Section 7 — Disclaimer, Sources & References
 
-Same locked structure as `proposal_template.md` Section 11. Section number is **7**.
+Same locked structure as `proposal_template.md` Section 11. Section number is **7**. The
+disclaimer block contains **four** mandatory `<h4>` sub-headings in this exact order:
+
+1. **AI-Generated Document** (first — names the tool, embeds version, frames consultant review)
+2. Regulatory Disclaimer
+3. Cooling-Off Right
+4. Conflict of Interest
+
+The AI-Generated Document paragraph in shortlist mode is identical to proposal mode (it
+references `fund-consultant skill, version [SKILL_VERSION]` regardless of output mode).
 
 ```html
 <div class="section">
@@ -434,7 +454,7 @@ Same locked structure as `proposal_template.md` Section 11. Section number is **
     <div class="section-title">Disclaimer, Sources &amp; References</div>
   </div>
   <div class="section-rule"></div>
-  <!-- identical disclaimer + sources block from proposal_template.md -->
+  <!-- identical disclaimer + sources block from proposal_template.md (all 4 sub-headings) -->
 </div>
 ```
 

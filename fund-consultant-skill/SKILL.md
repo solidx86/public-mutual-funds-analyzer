@@ -1,5 +1,5 @@
 ---
-version: "1.24"
+version: "1.25"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -959,8 +959,13 @@ Branch on whether Step 4e was triggered:
 
 | Output mode | When | Template to load | File-naming |
 |---|---|---|---|
-| **Standard Fund Proposal** | New investor with capital ≥ RM 1,000, OR experienced investor (any capital) | `references/proposal_template.md` | `output/fund_proposals/FundProposal_[Profile]_[MonYYYY]_[ClientLastName?].html` |
-| **e-Series Fund Shortlist** | New investor AND upfront capital < RM 1,000 (Step 4e was used) | `references/shortlist_template.md` | `output/fund_proposals/FundShortlist_[Profile]_[ClientLastName]_[MonYYYY].html` |
+| **Standard Fund Proposal** | New investor with capital ≥ RM 1,000, OR experienced investor (any capital) | `references/proposal_template.md` | `output/fund_proposals/FundProposal_[Profile]_[MonYYYY]_[ClientLastName?]_v[SKILL_VERSION].html` |
+| **e-Series Fund Shortlist** | New investor AND upfront capital < RM 1,000 (Step 4e was used) | `references/shortlist_template.md` | `output/fund_proposals/FundShortlist_[Profile]_[ClientLastName]_[MonYYYY]_v[SKILL_VERSION].html` |
+
+The `_v[SKILL_VERSION]` suffix is mandatory for both modes — it lets us identify which generation
+pass produced any file in `output/fund_proposals/` at a glance, and pairs with the visible
+Generator stamp on the cover. Substitute the value from this SKILL.md's frontmatter `version`
+field (no `v` prefix in the substituted value — the filename and template provide the `v` literal).
 
 Read the chosen template file in full before generating. Both templates define the exact HTML
 skeleton — Cover → Foundation (conditional) → numbered sections → Footer.
@@ -1004,6 +1009,13 @@ The template's `[BRACKETED]` tokens are the only places where content varies bet
   in the Sources sub-section of the final disclaimer block.
 - **Pie-chart slice values** — computed per Steps 7b/7c and rounded to **1 decimal place** for
   the legend.
+- **`[SKILL_VERSION]` token** — read this SKILL.md's frontmatter `version` field (e.g., `"1.25"`)
+  and substitute the bare number, no quotes and no `v` prefix. The token appears in:
+  (1) the filename suffix (`_v[SKILL_VERSION].html`), (2) the cover-meta-grid Generator stamp
+  ("fund-consultant v[SKILL_VERSION]"), (3) the AI-Generated Document disclaimer block in
+  Section 9, and (4) the CSS comment header at the top of the embedded `design_system.css`.
+  Substitution applies to the **full HTML document** including the embedded `<style>` block —
+  no literal `[SKILL_VERSION]` strings should remain anywhere in the output.
 
 ### Step 7.4: Cross-Reference With Other Steps
 
@@ -1028,17 +1040,28 @@ These rules from elsewhere in the skill must hold in the rendered HTML:
 
 Before writing the file, scan the generated DOM and confirm every item:
 
-1. The `<style>` block matches `design_system.css` byte-for-byte (no missing rules, no added rules).
+1. The `<style>` block matches `design_system.css` byte-for-byte (no missing rules, no added rules)
+   except that the `[SKILL_VERSION]` token in the comment header has been substituted with the
+   actual version number.
 2. The number of `<div class="section">` elements equals the template's prescribed count
    (9 for proposal, 7 for shortlist).
 3. Section titles, in order, match the template's section list 1-to-1.
 4. The cover top-bar has both `cover-brand` (Solid + Public Mutual) and `cover-contact`
    (full consultant credentials) blocks.
-5. Each fund card includes — in this order — header, fund-meta, optional alpha-warning, CFS bar,
+5. The cover-meta-grid contains exactly **7 cells**: 6 stacked label/value pairs + 1
+   `.cover-meta-stamp` Generator banner reading `fund-consultant v[X.YY]` (with the actual
+   version number, not the literal token).
+6. Each fund card includes — in this order — header, fund-meta, optional alpha-warning, CFS bar,
    performance table, Cost & Alpha mini-card, "Why" paragraph, "Watch" list. Shortlist
    candidate cards additionally have the per-fund pie-pair after the CFS bar.
-6. The Section-8 (proposal) / Section-6 (shortlist) Fee Disclosure table has exactly 8 columns.
-7. The document footer is present, with consultant credentials.
+7. The Section-8 (proposal) / Section-6 (shortlist) Fee Disclosure table has exactly 8 columns.
+8. Section 9 (proposal) / Section 7 (shortlist) — the `<div class="disclaimer">` block contains
+   **four** `<h4>` sub-headings in this order: AI-Generated Document, Regulatory Disclaimer,
+   Cooling-Off Right, Conflict of Interest.
+9. The document footer is present, with consultant credentials.
+10. **Version stamping integrity:** no literal `[SKILL_VERSION]` strings remain anywhere in
+    the output (run a final substring search across the whole document including the
+    embedded CSS). The output filename ends in `_v[X.YY].html` matching the same number.
 
 If any check fails, the gap is in the template — patch the template, do not patch the rendered
 output. The template is the single source of truth.
@@ -1215,6 +1238,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.25 | 2026-05-09 | Standardization | Stamp every generated proposal and shortlist with the skill version that produced it, and add an AI-generation disclosure to the Section 9 disclaimer block. Visible version stamp lives in a new 7th `.cover-meta-stamp` cell that spans all three columns of the cover-meta grid (full-width banner row with thin top-border separator, single-line centered text "Generator · fund-consultant v[X.YY]") — does not disturb the existing 6-cell label/value layout. Filenames now end in `_v[X.YY].html` for both modes, so any file in `output/fund_proposals/` is identifiable by the version that generated it. New "AI-Generated Document" `<h4>` block is rendered as the **first** of four sub-headings in the disclaimer (before Regulatory Disclaimer / Cooling-Off / Conflict of Interest) — names the tool, embeds the version, and frames the consultant's review and approval before the regulatory boilerplate. New `[SKILL_VERSION]` token introduced in Step 7.3, substituted from this SKILL.md's frontmatter `version` field; substitution applies to the full HTML document including the embedded CSS comment header (resolves the prior v1.23/v1.24 mismatch in existing files). Step 7.5 self-check extended from 7 to 10 items: validates 7-cell cover-meta, 4-heading disclaimer, no unresolved `[SKILL_VERSION]` literals anywhere in the output, and `_v[X.YY]` filename suffix. The four pre-v1.25 proposals in `output/fund_proposals/` are backported in this same release — surgical edits add the 7th cell and the AI-Generated Document block, bump the CSS comment header, and rename each file with the `_v1.25` suffix. |
 | 1.24 | 2026-05-09 | Fix | Harden `.macro-table` middle-column rule in `design_system.css`. The previous `width: 110px; white-space: nowrap;` was designed for short dates ("07 May 2026") but broke catastrophically when the middle column contained longer prose (e.g., a "Status" sentence): nowrap forced the longest line onto one row, expanding column 2 to fit and crushing column 3 to a sliver. Replaced with `min-width: 100px;` — short dates still display naturally on one line, longer content wraps gracefully. Triggered by the Mod Aggressive backport where the user-modified macro table used `Event/Driver \| Status (May 2026) \| Portfolio Impact` instead of the canonical `Event \| Date \| Implication`. Also surgically fixed the affected proposal in `output/fund_proposals/FundProposal_ModeratelyAggressive_May2026.html` by removing `class="macro-table"` from that specific table. |
 | 1.23 | 2026-05-09 | Standardization | Lock down complete HTML skeleton (not just CSS) for both output modes so every generated proposal is structurally identical — only content tokens vary. Extract the shared stylesheet into `references/design_system.css` (single source of truth, includes new `@media (max-width: 768px)` responsive block and the v1.22 print fix). Rewrite `references/proposal_template.md` to prescribe verbatim HTML for cover, conditional Foundation intro, 9 numbered sections, fund-card block-order (header → meta → alpha-warning → CFS bar → perf table → Cost & Alpha mini-card → Why → Watch), 6-col Portfolio Summary, two-pie Exposure layout (1-decimal legend, <2% merged), 4-card Investment Strategy, and 8-col Fee Disclosure. Add new `references/shortlist_template.md` for Step 4e e-Series output — previously had no template, structural rules lived as prose in Step 7. Shortlist locks 7 numbered sections, 3 candidate cards (no allocation, `.candidate-num` ribbon, per-fund 200×200 pie pair after CFS bar), 8-col Candidate Comparison table, identical Fee Disclosure and Disclaimer blocks. New `cost-alpha-mini` component (2×3 grid: Sales / Mgmt / Trustee / Annual Cost / 3Y Alpha / Net Value-Add, PHS-sourced). Step 7 rewritten to route by output mode, mandate verbatim HTML+CSS copy, and run a 7-point self-check before saving. Backporting the four pre-v1.23 proposals in `output/fund_proposals/` is a follow-up. |
 | 1.22 | 2026-05-08 | Fix | Print CSS now applies `print-color-adjust: exact` globally (`* { ... !important }`) inside `@media print`, replacing the per-selector allowlist that missed `.cover`. Symptom: saving any proposal to PDF via Chrome stripped the navy cover background, producing a near-white first page. The allowlist approach was inherently fragile — every new styled background needed manual addition. Fix lives in `references/proposal_template.md` so all future proposals inherit it. |
