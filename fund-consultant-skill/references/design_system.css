@@ -286,9 +286,15 @@ td {
 
 tr:nth-child(even) td { background: var(--bg-subtle); }
 
-/* ── Macro Context Table (Section 2) ── */
+/* ── Macro Context Table (Section 2) ──
+   Middle column hint is `min-width` only, NOT a fixed width with `nowrap`.
+   The fixed-width + nowrap combo was brittle: any middle column whose content
+   was longer than ~100px (e.g., a "Status" sentence in place of a short date)
+   would expand the column to fit the longest line, squeezing the third column
+   to a tiny strip. min-width keeps short dates on one line via natural sizing
+   while still letting longer content wrap. */
 .macro-table th:nth-child(2),
-.macro-table td:nth-child(2) { white-space: nowrap; width: 110px; }
+.macro-table td:nth-child(2) { min-width: 100px; }
 
 /* ── Fund Cards ── */
 .fund-card {
