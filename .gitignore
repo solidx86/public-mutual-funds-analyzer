@@ -12,3 +12,7 @@ master_funds.csv
 
 # Legacy scripts at root level (superseded by fund-screener-skill/scripts/)
 fetch_ath.py
+
+# Playwright cache & local verification screenshots (skill-creator workflow artifacts)
+.playwright-mcp/
+.standardization-screenshots/

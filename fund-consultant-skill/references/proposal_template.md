@@ -1,586 +1,75 @@
-# Proposal Document Template
+# Proposal Template (Mode A — Standard Fund Proposal)
 
-## Output Format
+> **This template defines the complete HTML skeleton for the standard Fund Proposal output.**
+> Every generated proposal must use this skeleton **verbatim** — substitute only the content
+> tokens marked `[BRACKETED]`. Do not add, remove, rename, or reorder sections. Do not modify
+> CSS classes, colors, or layout primitives. The single source of truth for styling is
+> `references/design_system.css` — embed it byte-for-byte in the `<style>` block.
+>
+> For e-Series Shortlist mode, see `references/shortlist_template.md` (different skeleton).
 
-Generate an HTML file saved as:
+---
+
+## Output File
+
 ```
 output/fund_proposals/FundProposal_[Profile]_[MonYYYY].html
 ```
-Example: `output/fund_proposals/FundProposal_Moderate_Apr2026.html`
 
-**e-Series Shortlist Mode:**
-```
-output/fund_proposals/FundShortlist_[Profile]_[ClientName]_[MonYYYY].html
-```
-Example: `output/fund_proposals/FundShortlist_Moderate_AhmadRazif_Apr2026.html`
+Optional client suffix: `FundProposal_[Profile]_[MonYYYY]_[ClientLastName].html`.
+Example: `FundProposal_Moderate_May2026_Tan.html`.
 
-Save all output files in the `output/fund_proposals/` directory.
-
-## HTML Structure
-
-The HTML document must be a single self-contained file (all CSS inline, no external dependencies).
-Fixed 900px width — no responsive/mobile design needed. Output is viewed in desktop Chrome and
-printed to PDF via Chrome Print.
-
-### Required Sections (in order)
-
-See **SKILL.md Step 7** for the authoritative section list, ordering, and content requirements.
-The sections are: Cover Page → New Investor Foundation (if applicable) → Executive Summary →
-Macro Context → Risk Profile → Fund Recommendations → Portfolio Summary → Portfolio Exposure
-Breakdown → Investment Strategy → Fee Disclosure → Disclaimer.
+The HTML must be **a single self-contained file** — all CSS inline, no external dependencies,
+no Google Fonts, no `<link>` to external stylesheets, no JavaScript.
 
 ---
 
-## Design System — CSS Stylesheet
+## Document Skeleton (mandatory order)
 
-> **CRITICAL:** The following CSS **must be included VERBATIM** in every generated proposal HTML
-> file. Do NOT modify colors, fonts, sizes, or spacing. Do NOT add Google Fonts imports, gradient
-> backgrounds, decorative pseudo-elements, serif fonts, or diagonal stripe patterns. The design
-> is intentionally minimal and flat. Copy this stylesheet exactly.
-
-```css
-:root {
-  /* ── Primary ── */
-  --navy: #1a365d;
-  --blue: #2b6cb0;
-  --white: #ffffff;
-
-  /* ── Neutral ── */
-  --text: #1a202c;
-  --text-mid: #4a5568;
-  --text-muted: #718096;
-  --border: #e2e8f0;
-  --bg-subtle: #f7fafc;
-
-  /* ── Fund Type Accents ── */
-  --equity: #2b6cb0;
-  --fixed-income: #276749;
-  --mixed-asset: #975a16;
-  --money-market: #4a5568;
-  --gold: #b7791f;
-  --teal: #2c7a7b;
-
-  /* ── Semantic ── */
-  --positive: #276749;
-  --positive-bg: #f0fff4;
-  --negative: #c53030;
-  --negative-bg: #fff5f5;
-  --amber: #b7791f;
-  --amber-bg: #fffff0;
-  --info-bg: #ebf4ff;
-  --info-border: #bee3f8;
-
-  /* ── CFS Dimension Colors ── */
-  --cfs-alpha: #1a365d;
-  --cfs-return: #2c7a7b;
-  --cfs-efficiency: #276749;
-  --cfs-momentum: #b7791f;
-
-  /* ── Typography ── */
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
-
-  /* ── Spacing (8px base) ── */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-}
-
-/* ── Reset & Base ── */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--text);
-  background: var(--white);
-}
-
-.page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 40px;
-}
-
-/* ── Cover Page ── */
-.cover {
-  min-height: 100vh;
-  background: var(--navy);  /* FLAT. No gradient. No pattern. */
-  color: var(--white);
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  page-break-after: always;
-}
-
-.cover-top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 36px 48px 24px;
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-}
-
-.cover-brand {
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.6);
-}
-
-.cover-brand strong {
-  color: rgba(255,255,255,0.95);
-  display: block;
-  font-size: 18px;
-  margin-bottom: 2px;
-  letter-spacing: 0.04em;
-}
-
-.cover-contact {
-  text-align: right;
-  font-size: 12px;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.7;
-}
-
-.cover-contact strong {
-  color: rgba(255,255,255,0.85);
-  font-size: 13px;
-}
-
-.cover-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 60px 48px;
-}
-
-.cover-eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
-  margin-bottom: 16px;
-}
-
-.cover-divider {
-  width: 60px;
-  height: 3px;
-  background: var(--blue);
-  margin-bottom: 32px;
-  border-radius: 0;
-}
-
-.cover-title {
-  font-size: 42px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  color: var(--white);
-  margin-bottom: 12px;
-}
-
-.cover-subtitle {
-  font-size: 16px;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 48px;
-}
-
-.cover-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  gap: 8px 48px;
-  width: fit-content;
-}
-
-.cover-meta-label {
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.35);
-  margin-bottom: 2px;
-}
-
-.cover-meta-value {
-  font-size: 15px;
-  color: var(--white);
-  font-weight: 600;
-}
-
-.cover-footer {
-  padding: 20px 48px;
-  border-top: 1px solid rgba(255,255,255,0.1);
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 0.04em;
-}
-
-/* ── Section Headers ── */
-.section {
-  margin-bottom: var(--space-2xl);
-  padding-top: var(--space-xl);
-  page-break-inside: avoid;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-sm);
-}
-
-.section-num {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--navy);
-  color: var(--white);
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--navy);
-  letter-spacing: 0;
-}
-
-.section-rule {
-  height: 1px;
-  background: var(--border);
-  margin-bottom: var(--space-lg);
-}
-
-/* ── Executive Summary ── */
-.exec-summary {
-  background: var(--info-bg);
-  border-left: 4px solid var(--blue);
-  padding: 20px 24px;
-  border-radius: 0 4px 4px 0;
-}
-
-.exec-summary ul { list-style: none; padding: 0; }
-
-.exec-summary li {
-  padding: 6px 0 6px 20px;
-  position: relative;
-}
-
-.exec-summary li::before {
-  content: "\25B8";
-  position: absolute;
-  left: 0;
-  color: var(--blue);
-  font-weight: bold;
-}
-
-/* ── Tables ── */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 12px 0;
-  font-size: 13px;
-}
-
-th {
-  background: var(--navy);
-  color: var(--white);
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.02em;
-}
-
-td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-tr:nth-child(even) td { background: var(--bg-subtle); }
-
-/* ── Fund Cards ── */
-.fund-card {
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  margin: var(--space-lg) 0;
-  overflow: hidden;
-  page-break-inside: avoid;
-}
-
-.fund-card-header {
-  padding: 14px 20px;
-  color: var(--white);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.fund-card-header h3 { color: var(--white); margin: 0; font-size: 15px; font-weight: 700; }
-.fund-card-header .alloc { font-size: 24px; font-weight: 700; }
-
-.fund-card-header.equity       { background: var(--equity); }
-.fund-card-header.fixed-income { background: var(--fixed-income); }
-.fund-card-header.mixed-asset  { background: var(--mixed-asset); }
-.fund-card-header.money-market { background: var(--money-market); }
-.fund-card-header.gold         { background: var(--gold); }
-.fund-card-header.alpha-outlier { background: var(--teal); }
-
-.fund-meta {
-  display: flex;
-  gap: 16px;
-  padding: 10px 20px;
-  background: var(--bg-subtle);
-  font-size: 12px;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-}
-
-.fund-meta span { white-space: nowrap; }
-
-.fund-card-body { padding: 16px 20px; }
-
-.fund-card-body h4 {
-  font-size: 13px;
-  color: var(--navy);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 14px 0 6px;
-}
-
-.fund-card-body h4:first-child { margin-top: 0; }
-.fund-card-body ul { padding-left: 18px; margin: 4px 0; }
-.fund-card-body li { margin: 3px 0; font-size: 13px; }
-
-/* ── Performance Table (inside fund cards) ── */
-.perf-table { margin: 8px 0; font-size: 12px; }
-
-.perf-table th {
-  background: var(--navy);
-  color: var(--white);
-  padding: 6px 10px;
-  font-size: 11px;
-  text-align: right;
-}
-
-.perf-table th:first-child { text-align: left; }
-
-.perf-table td {
-  padding: 5px 10px;
-  text-align: right;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-
-.perf-table td:first-child {
-  text-align: left;
-  font-family: var(--font-body);
-  font-weight: 600;
-  color: var(--navy);
-}
-
-.alpha-pos { color: var(--positive); font-weight: 700; background: var(--positive-bg); }
-.alpha-neg { color: var(--negative); font-weight: 700; background: var(--negative-bg); }
-
-/* ── Info Boxes ── */
-.cost-box {
-  background: var(--positive-bg);
-  border: 1px solid #c6f6d5;
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin: 8px 0;
-  font-size: 13px;
-}
-
-.cost-box .net-value { font-weight: 700; color: var(--positive); }
-
-.watch-box {
-  background: var(--amber-bg);
-  border: 1px solid #fefcbf;
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin: 8px 0;
-  font-size: 13px;
-}
-
-.macro-box {
-  background: var(--info-bg);
-  border: 1px solid var(--info-border);
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin: 8px 0;
-  font-size: 13px;
-}
-
-/* ── Portfolio Summary Highlight ── */
-.highlight-row { background: var(--navy) !important; color: var(--white) !important; font-weight: 700; }
-.highlight-row td { color: var(--white) !important; border-bottom: none; }
-
-/* ── Strategy Cards ── */
-.strategy-card {
-  background: var(--bg-subtle);
-  border-radius: 4px;
-  padding: 16px 20px;
-  margin: 12px 0;
-}
-
-.strategy-card h4 { color: var(--navy); margin-bottom: 8px; }
-
-/* ── Pie Charts ── */
-.exposure-chart-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 40px;
-  margin: 24px 0;
-}
-
-.pie-chart {
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-.legend-swatch {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.legend-pct {
-  font-weight: 700;
-  min-width: 50px;
-  text-align: right;
-}
-
-.exposure-note {
-  font-size: 13px;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-top: 16px;
-  line-height: 1.6;
-}
-
-/* ── Disclaimer ── */
-.disclaimer {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 20px;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.7;
-  margin-top: 30px;
-}
-
-/* ── Sources ── */
-.sources { font-size: 11px; color: var(--text-muted); margin-top: 20px; }
-.sources a { color: var(--blue); text-decoration: none; }
-.sources a:hover { text-decoration: underline; }
-
-/* ── Document Footer ── */
-.doc-footer {
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-muted);
-  padding: 20px 0;
-  border-top: 1px solid var(--border);
-  margin-top: 40px;
-}
-
-/* ── New Investor Foundation ── */
-.foundation-section {
-  background: var(--info-bg);
-  border-left: 4px solid var(--blue);
-  border-radius: 0 4px 4px 0;
-  padding: 24px 28px;
-  margin: 24px 0;
-  page-break-inside: avoid;
-}
-
-.foundation-section h2 {
-  color: var(--blue);
-  font-size: 20px;
-  margin-bottom: 16px;
-}
-
-.foundation-section h3 {
-  color: var(--navy);
-  font-size: 15px;
-  margin: 16px 0 6px;
-}
-
-.foundation-section p {
-  font-size: 14px;
-  margin: 6px 0;
-}
-
-/* ── Exposure Gap Card ── */
-.fund-card.exposure-gap {
-  border: 2px dashed var(--amber);
-}
-
-.fund-card.exposure-gap .fund-card-header {
-  background: var(--mixed-asset);
-}
-
-.alpha-warning {
-  background: var(--amber-bg);
-  border: 1px solid #fefcbf;
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin: 8px 0;
-  font-size: 13px;
-}
-
-/* ── Print Styles ── */
-@media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { font-size: 12px; }
-  .cover { min-height: auto; padding: 48px; page-break-after: always; }
-  .page { padding: 20px; }
-  .section { page-break-inside: avoid; }
-  .fund-card { page-break-inside: avoid; }
-  .section-title { page-break-after: avoid; }
-}
 ```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fund Portfolio Proposal — [Profile] — [Month Year]</title>
+  <style>
+    /* ↓↓↓ Embed the entire contents of references/design_system.css HERE, verbatim ↓↓↓ */
+  </style>
+</head>
+<body>
+
+  <!-- 1. COVER PAGE -->                       (always)
+  <!-- 2. FOUNDATION INTRO -->                 (only if experience_level == "New Investor")
+  <div class="page">
+    <!-- 3. SECTION 1 — Executive Summary -->
+    <!-- 4. SECTION 2 — Global & Local Macro Context -->
+    <!-- 5. SECTION 3 — Client Risk Profile -->
+    <!-- 6. SECTION 4 — Fund Recommendations -->
+    <!-- 7. SECTION 5 — Portfolio Summary -->
+    <!-- 8. SECTION 6 — Portfolio Exposure -->
+    <!-- 9. SECTION 7 — Investment Strategy -->
+    <!-- 10. SECTION 8 — Fee Disclosure -->
+    <!-- 11. SECTION 9 — Disclaimer, Sources & References -->
+    <!-- 12. DOCUMENT FOOTER -->
+  </div>
+
+</body>
+</html>
+```
+
+**Self-check before finalizing:** count the rendered `<div class="section">` elements — there
+must be exactly **9**. The cover, foundation, and document footer are not `.section` blocks.
 
 ---
 
-## Cover Page — HTML Structure
-
-Both proposal types use the **same cover layout**. Only the text content differs.
-
-### Standard Proposal Cover
+## 1. Cover Page
 
 ```html
 <div class="cover">
   <div class="cover-top-bar">
     <div class="cover-brand">
-      <strong>Solid</strong>
+      <strong>SOLID</strong>
       Public Mutual Berhad
     </div>
     <div class="cover-contact">
@@ -594,210 +83,555 @@ Both proposal types use the **same cover layout**. Only the text content differs
     <div class="cover-eyebrow">INVESTMENT PROPOSAL</div>
     <div class="cover-divider"></div>
     <div class="cover-title">Fund Portfolio<br>Proposal</div>
-    <div class="cover-subtitle">[Profile] Profile &mdash; [Month Year]</div>
+    <div class="cover-subtitle">For [Client Name] &middot; [Profile] Profile</div>
     <div class="cover-meta-grid">
       <div>
         <div class="cover-meta-label">Risk Profile</div>
         <div class="cover-meta-value">[Profile]</div>
       </div>
       <div>
-        <div class="cover-meta-label">Funds Screened</div>
-        <div class="cover-meta-value">[N] screened &rarr; [N] qualified &rarr; [N] selected</div>
+        <div class="cover-meta-label">Return Target</div>
+        <div class="cover-meta-value">[E_target]% p.a.</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Shariah Preference</div>
+        <div class="cover-meta-value">[Yes / No / No preference]</div>
       </div>
       <div>
         <div class="cover-meta-label">Data Source</div>
         <div class="cover-meta-value">FundMaster [Mon YYYY]</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Funds Selected</div>
+        <div class="cover-meta-value">[N] of [M] screened</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Proposal Date</div>
+        <div class="cover-meta-value">[DD Mon YYYY]</div>
       </div>
     </div>
   </div>
   <div class="cover-footer">
     <span>FIMM F01091705</span>
     <span>Confidential</span>
-    <span>[Month Year]</span>
+    <span>Prepared [DD Mon YYYY]</span>
   </div>
 </div>
 ```
 
-### e-Series Shortlist Cover
-
-Same structure — only these text values change:
-
-- `cover-eyebrow`: `E-SERIES FUND SHORTLIST`
-- `cover-title`: `Fund Shortlist`
-- `cover-subtitle`: `For [Client Name] &mdash; Allocation Not Finalised`
-- `cover-meta-grid`: Replace "Funds Screened" with `Candidates: 3`
-
----
-
-## Consultant Branding
-
-- Name: Shoo Kyuk Wei (Solid)
-- Phone: +601173381713
-- Email: me@engineerdad.my
-- FIMM No: F01091705
-- Title: Licensed Unit Trust Consultant & Licensed PRS Consultant
-- Representative from: Public Mutual Berhad
-
-Display in cover page top bar and document footer.
+**Cover content rules:**
+- `cover-eyebrow` = literal string `INVESTMENT PROPOSAL` (uppercase)
+- `cover-title` = literal string `Fund Portfolio<br>Proposal`
+- `cover-subtitle` = `For [Client Name] &middot; [Profile] Profile` — if no client name yet,
+  use `[Profile] Profile &middot; [Month Year]`
+- `cover-meta-grid` = exactly 6 cells, in this order. Do not omit or reorder.
+- Consultant credentials block in `cover-contact` is **invariant** — sourced from memory.
 
 ---
 
-## Component Specifications
+## 2. Foundation Intro (conditional)
 
-### CFS Mini-Bar (Fund Card Component)
-
-After the performance table, include a CFS mini-bar for each fund card.
-Use the CSS classes from the stylesheet above — all styling is handled by the design system.
-The mini-bar uses inline styles for the dynamic progress bar widths only:
+Render this block **only** when `experience_level == "New Investor"`. Place it directly after the
+cover, **before** the `<div class="page">` opening for sections.
 
 ```html
-<div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:4px; padding:14px 16px; margin:12px 0;">
-  <div style="font-weight:700; font-size:13px; color:var(--navy); margin-bottom:10px;">
-    COMPOSITE FUND SCORE: <span style="font-size:16px;">[XX.X]</span> / 100
-  </div>
-  <!-- Repeat for each dimension -->
-  <div style="margin-bottom:6px;">
-    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-      <span>Alpha (Manager Skill)</span>
-      <span>[XX] / 100 &nbsp;&middot;&nbsp; [X%] weight</span>
-    </div>
-    <div style="background:var(--border); border-radius:2px; height:8px;">
-      <div style="background:var(--cfs-alpha); width:[XX]%; height:8px; border-radius:2px;"></div>
-    </div>
-  </div>
-  <div style="margin-bottom:6px;">
-    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-      <span>Return Fit (vs [X%] target)</span>
-      <span>[XX] / 100 &nbsp;&middot;&nbsp; [X%] weight</span>
-    </div>
-    <div style="background:var(--border); border-radius:2px; height:8px;">
-      <div style="background:var(--cfs-return); width:[XX]%; height:8px; border-radius:2px;"></div>
-    </div>
-  </div>
-  <div style="margin-bottom:6px;">
-    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-      <span>Efficiency (Risk-Adjusted)</span>
-      <span>[XX] / 100 &nbsp;&middot;&nbsp; [X%] weight</span>
-    </div>
-    <div style="background:var(--border); border-radius:2px; height:8px;">
-      <div style="background:var(--cfs-efficiency); width:[XX]%; height:8px; border-radius:2px;"></div>
-    </div>
-  </div>
-  <div>
-    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); margin-bottom:2px;">
-      <span>Momentum (ATH Proximity)</span>
-      <span>[XX] / 100 &nbsp;&middot;&nbsp; [X%] weight</span>
-    </div>
-    <div style="background:var(--border); border-radius:2px; height:8px;">
-      <div style="background:var(--cfs-momentum); width:[XX]%; height:8px; border-radius:2px;"></div>
-    </div>
+<div class="page">
+  <div class="foundation-section">
+    <h2>Before We Start — A Quick Foundation</h2>
+    <p style="margin-bottom:8px; color:var(--text-mid);">
+      You're new to unit trusts. Four short notes before we dive into the recommendations.
+    </p>
+
+    <h3>1. What is a Unit Trust?</h3>
+    <p>A unit trust is a pool of money from many investors, professionally managed and invested
+    across a basket of assets — stocks, bonds, cash — on your behalf. You own units; the fund
+    manager does the work.</p>
+
+    <h3>2. How Returns Work</h3>
+    <p>Your investment grows in two ways: the price per unit (NAV) rises as the underlying assets
+    appreciate, and some funds distribute income periodically. Reinvesting distributions compounds
+    your growth.</p>
+
+    <h3>3. Your Cooling-Off Right</h3>
+    <p>As a first-time investor with Public Mutual, you have a <strong>6 business day cooling-off
+    period</strong> from the date of your first purchase. If you change your mind, you may redeem
+    your units at the original NAV paid — no loss on the principal.</p>
+
+    <h3>4. Why a Starter Portfolio</h3>
+    <p>We're starting you with a focused 4-fund portfolio rather than a full 6-fund allocation.
+    This keeps the moving parts low, and we can layer in additional funds at your next portfolio
+    review once you're comfortable with the basics.</p>
   </div>
 </div>
 ```
 
-**Dimension colors (reference):**
-- Alpha: `var(--cfs-alpha)` — Navy `#1a365d`
-- Return Fit: `var(--cfs-return)` — Teal `#2c7a7b`
-- Efficiency: `var(--cfs-efficiency)` — Green `#276749`
-- Momentum: `var(--cfs-momentum)` — Amber `#b7791f`
+Omit the entire block (including its `.page` wrapper) for experienced investors. Sections 1–9
+then sit in their own `.page` wrapper.
 
-**For new investors** (Layer 1 jargon rule): on the fund's first CFS mini-bar in the document,
-add parenthetical definitions after each label — e.g., "Alpha (Manager Skill — how much this
-fund beat its benchmark)". Subsequent fund cards use the labels alone.
+---
 
-### Portfolio Summary Table
-
-Include a CFS column between Alloc% and 3Y Alpha. Show weighted portfolio CFS in the footer row:
+## 3. Section 1 — Executive Summary
 
 ```html
-<table>
-  <thead>
-    <tr>
-      <th>Fund</th><th>Type</th><th>Alloc %</th><th>CFS</th><th>3Y Alpha</th><th>Risk Level</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>[Abbr]</td><td>Equity</td><td>XX%</td><td>XX.X</td><td>+X.XX%</td><td>[1-5]</td></tr>
-    <!-- ... -->
-    <tr class="highlight-row">
-      <td>PORTFOLIO</td><td></td><td>100%</td><td>[Wtd CFS]</td><td>[Wtd Alpha]</td><td>[Wtd RL]</td>
-    </tr>
-  </tbody>
-</table>
-<p style="font-size:12px; color:var(--text-mid);">
-  Weighted Portfolio CFS: <strong>[XX.X] / 100</strong> &nbsp;|&nbsp;
-  Weighted Portfolio Alpha (3Y): <strong>[+X.XX%]</strong> &nbsp;|&nbsp;
-  Weighted Portfolio VF: <strong>[X.XX] ([Volatility Class])</strong>
-</p>
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">Executive Summary</div>
+  </div>
+  <div class="section-rule"></div>
+  <div class="exec-summary">
+    <ul>
+      <li><strong>Profile:</strong> [Profile] — [one-sentence positioning].</li>
+      <li><strong>Composition:</strong> [N]-fund portfolio &middot; [Asset class mix one-liner, e.g. "55% equity / 30% mixed asset / 10% gold / 5% cash"].</li>
+      <li><strong>Weighted CFS:</strong> [XX.X] / 100 &middot; <strong>3Y Alpha:</strong> [+X.XX]% p.a. &middot; <strong>Portfolio VF:</strong> [X.X] ([Volatility class]).</li>
+      <li><strong>Thesis:</strong> [one-sentence why this portfolio fits the macro environment + the client's profile].</li>
+    </ul>
+  </div>
+</div>
 ```
 
-### Exposure Gap Fund Cards
+Exactly **4 bullets** in this order — Profile, Composition, Weighted CFS / Alpha / VF, Thesis.
 
-When a portfolio includes an Exposure Gap pick (Step 4b), use the `.fund-card.exposure-gap` class:
+---
+
+## 4. Section 2 — Global & Local Macro Context
 
 ```html
-<div class="fund-card exposure-gap">
-  <div class="fund-card-header mixed-asset">
-    <h3>⚠ EXPOSURE GAP PICK — [Fund Name]</h3>
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">Global &amp; Local Macro Context</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <p style="margin-bottom:12px; color:var(--text-mid);">
+    Recent events shaping our positioning ([Month] [Year]):
+  </p>
+
+  <div class="table-wrap">
+    <table class="macro-table">
+      <thead>
+        <tr><th>Event</th><th>Date</th><th>Implication for the Portfolio</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>[Event 1 — short title]</td><td>[DD Mon YYYY]</td><td>[Implication — 1 sentence]</td></tr>
+        <tr><td>[Event 2]</td><td>[DD Mon YYYY]</td><td>[Implication]</td></tr>
+        <tr><td>[Event 3]</td><td>[DD Mon YYYY]</td><td>[Implication]</td></tr>
+        <!-- 3–5 rows total -->
+      </tbody>
+    </table>
+  </div>
+
+  <h4 style="font-size:13px; color:var(--navy); text-transform:uppercase; letter-spacing:0.06em; margin:20px 0 8px;">Medium-Long Horizon Themes</h4>
+  <p>[1–2 short paragraphs on structural themes — e.g., AI capex cycle, MY rate path, gold reserve diversification, BRICS de-dollarization. Each theme should connect to a named fund in the portfolio.]</p>
+</div>
+```
+
+- The `Event | Date | Implication` table is **mandatory** — do not substitute prose-only.
+- 3–5 event rows. Use real, dated events from the web search. Cite their source URLs in Section 9.
+
+---
+
+## 5. Section 3 — Client Risk Profile
+
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">Client Risk Profile</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <table>
+    <tbody>
+      <tr><td style="width:30%;"><strong>Profile</strong></td><td>[Profile] — [one-line description from Step 0]</td></tr>
+      <tr><td><strong>Return Target</strong></td><td>[E_target]% p.a. ([on profile midpoint / above midpoint by X% / below midpoint by X%])</td></tr>
+      <tr><td><strong>Shariah Preference</strong></td><td>[Yes / No / No preference]</td></tr>
+      <tr><td><strong>Experience Level</strong></td><td>[New Investor / Experienced]</td></tr>
+      <tr><td><strong>Risk Level Ceiling</strong></td><td>RL [≤ 2 / ≤ 3 / ≤ 4 / ≤ 5] (per profile rule)</td></tr>
+      <tr><td><strong>Target Portfolio VF</strong></td><td>[range from Step 4]</td></tr>
+    </tbody>
+  </table>
+</div>
+```
+
+---
+
+## 6. Section 4 — Fund Recommendations
+
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">Fund Recommendations</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <!-- One <div class="fund-card"> block per recommended fund (3–6 cards depending on profile + experience). -->
+  <!-- Cards rendered in order: highest-allocation first, money-market last. -->
+
+</div>
+```
+
+### Fund Card — locked structure
+
+```html
+<div class="fund-card">
+  <div class="fund-card-header [equity|fixed-income|mixed-asset|money-market|gold|alpha-outlier]">
+    <h3>[Fund Name] &middot; [Abbr]</h3>
     <span class="alloc">[XX]%</span>
   </div>
+
+  <div class="fund-meta">
+    <span><strong>Type:</strong> [Equity/Mixed Asset/FI/MM/Gold]</span>
+    <span><strong>RL:</strong> [1–5]</span>
+    <span><strong>VF:</strong> [X.X]</span>
+    <span><strong>Shariah:</strong> [Yes/No]</span>
+    <span><strong>AUM:</strong> RM [X,XXX]M</span>
+    <span><strong>Lipper:</strong> [Class]</span>
+  </div>
+
   <div class="fund-card-body">
-    <div class="alpha-warning">
-      [Explain alpha weakness and why the fund is included for exposure only]
+
+    <!-- (a) ALPHA WARNING — only if Status == "Disqualified" -->
+    <!-- <div class="alpha-warning">[explanation per Step 4 disclosure rule]</div> -->
+
+    <!-- (b) CFS mini-bar -->
+    <div class="cfs-bar">
+      <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">[XX.X]</span> / 100</div>
+      <div class="cfs-row">
+        <div class="cfs-row-label"><span>Alpha (Manager Skill)</span><span>[XX] / 100 &middot; [W%] weight</span></div>
+        <div class="cfs-track"><div class="cfs-fill alpha" style="width:[XX]%;"></div></div>
+      </div>
+      <div class="cfs-row">
+        <div class="cfs-row-label"><span>Return Fit (vs [E]% target)</span><span>[XX] / 100 &middot; [W%] weight</span></div>
+        <div class="cfs-track"><div class="cfs-fill return-fit" style="width:[XX]%;"></div></div>
+      </div>
+      <div class="cfs-row">
+        <div class="cfs-row-label"><span>Efficiency (Risk-Adjusted)</span><span>[XX] / 100 &middot; [W%] weight</span></div>
+        <div class="cfs-track"><div class="cfs-fill efficiency" style="width:[XX]%;"></div></div>
+      </div>
+      <div class="cfs-row">
+        <div class="cfs-row-label"><span>Momentum (ATH Proximity)</span><span>[XX] / 100 &middot; [W%] weight</span></div>
+        <div class="cfs-track"><div class="cfs-fill momentum" style="width:[XX]%;"></div></div>
+      </div>
     </div>
-    <!-- rest of card content -->
+
+    <!-- (c) Performance table -->
+    <h4>Performance vs Benchmark</h4>
+    <div class="table-wrap">
+      <table class="perf-table">
+        <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
+        <tbody>
+          <tr><td>YTD</td><td>[X.XX]</td><td>[X.XX]</td><td class="[alpha-pos|alpha-neg]">[+X.XX]</td></tr>
+          <tr><td>1Y</td><td>[X.XX]</td><td>[X.XX]</td><td class="[alpha-pos|alpha-neg]">[+X.XX]</td></tr>
+          <tr><td>3Y</td><td>[X.XX]</td><td>[X.XX]</td><td class="[alpha-pos|alpha-neg]">[+X.XX]</td></tr>
+          <tr><td>5Y</td><td>[X.XX]</td><td>[X.XX]</td><td class="[alpha-pos|alpha-neg]">[+X.XX]</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- (d) Cost & Alpha mini-card — verbatim PHS source values, see Step 6 PHS Lookup Rule -->
+    <h4>Cost &amp; Alpha</h4>
+    <div class="cost-alpha-mini">
+      <div class="cell"><span class="label">Sales Charge</span><span class="value">[X.X]%</span></div>
+      <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value">[X.XX]%</span></div>
+      <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value">[X.XX]%</span></div>
+      <div class="cell"><span class="label">Annual Cost</span><span class="value">[X.XX]%</span></div>
+      <div class="cell"><span class="label">3Y Alpha</span><span class="value [pos|neg]">[+X.XX]%</span></div>
+      <div class="cell"><span class="label">Net Value-Add</span><span class="value [pos|neg]">[+X.XX]%</span></div>
+      <div class="source">Fees sourced verbatim from <code>[Abbr]_PHS.pdf</code> &middot; PHS dated [Mon YYYY]</div>
+    </div>
+
+    <!-- (e) Why we chose it -->
+    <h4>Why We Chose It</h4>
+    <p>[2–4 sentences. Lead with the strongest selling point — alpha, return capability, macro fit, or diversification role. Tie to the client's profile.]</p>
+
+    <!-- (f) What to watch -->
+    <h4>What to Watch</h4>
+    <ul>
+      <li>[Watch item 1 — e.g., concentration risk, RL escalation, benchmark-hugger flag, drawdown depth, distribution policy]</li>
+      <li>[Watch item 2]</li>
+      <li>[Watch item 3 if relevant]</li>
+    </ul>
+
   </div>
 </div>
 ```
 
-### Portfolio Exposure Breakdown (Two Charts)
-
-See **SKILL.md Steps 7b–7c** for calculation logic, data sources, color maps, and grouping rules
-for both the Asset Class and Geographic pie charts.
-
-**Implementation notes (HTML/CSS only):**
-- Layout: flexbox row (side by side), using `.exposure-chart-wrap`
-- Each chart: 280×280px, CSS `conic-gradient` — no JavaScript
-- Legend: `.legend-swatch` (16×16px, 2px radius) + label + `.legend-pct`
-- Print CSS handles `print-color-adjust: exact`
-
-### Sources Section
-
-Include all web search sources used for macro context as clickable links at the end of the document.
-
-### New Investor Foundation Section
-
-**When to include:** Only when the consultant declares this is a new investor. Omit for experienced investors.
-
-**Placement:** Immediately after the Cover Page, before Executive Summary.
-
-**Contents (in order):**
-
-1. **What is a Unit Trust?**
-   > "A unit trust is a pool of money from many investors, professionally managed and invested across a basket of assets — stocks, bonds, cash — on your behalf. You own units; the fund manager does the work."
-
-2. **How Does Your Investment Grow?**
-   > "Your investment grows in two ways: the price per unit (NAV) rises as the underlying assets appreciate, and some funds distribute income periodically. Reinvesting distributions compounds your growth tax-free in Malaysia."
-
-3. **Your Cooling-Off Right**
-   > "As a first-time investor with Public Mutual, you have a 6 business day cooling-off period from the date of your first purchase. If you change your mind, you may redeem your units at the original NAV paid — no loss on the principal."
-
-4. **Realistic Expectations**
-   > "Unit trusts are medium-to-long term investments (3–5+ years). Short-term price fluctuations are normal — the data in this proposal reflects historical performance over full market cycles, which is what matters."
-
-**Styling:** Use the `.foundation-section` class from the stylesheet.
+**Fund card rules:**
+- Block order is fixed: header → fund-meta → ALPHA WARNING (conditional) → CFS bar →
+  Performance table → Cost & Alpha mini-card → Why We Chose It → What to Watch.
+- For new investors, on the **first** CFS mini-bar in the document, append parenthetical
+  definitions to each label (e.g., `Alpha (Manager Skill — how much this fund beat its benchmark)`).
+  Subsequent cards use the labels alone.
+- For **Exposure Gap** funds, wrap with `<div class="fund-card exposure-gap">` and force the
+  header to `mixed-asset`. Title prefix: `⚠ EXPOSURE GAP PICK — `.
 
 ---
 
-## What NOT to Include
+## 7. Section 5 — Portfolio Summary
 
-The following are **explicitly banned** from all generated proposals:
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-title">Portfolio Summary</div>
+  </div>
+  <div class="section-rule"></div>
 
-- **No Google Fonts** — no `@import url(...)`, no `<link>` to fonts.googleapis.com
-- **No serif fonts** — no Georgia, Times New Roman, Garamond, Baskerville, Libre Baskerville, EB Garamond, Cormorant
-- **No gradient backgrounds** — no `linear-gradient`, `radial-gradient` on cover or anywhere (only `conic-gradient` for pie charts)
-- **No diagonal stripe patterns** — no `repeating-linear-gradient` for decoration
-- **No decorative circles, blobs, or radial shapes**
-- **No box-shadows on cards** — flat design only
-- **No creative variations** — follow the stylesheet exactly as provided above
-- **No custom color palettes** — use only the CSS variables defined in `:root`
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Fund</th><th>Type</th><th>Alloc %</th><th>CFS</th><th>3Y Alpha</th><th>Risk Level</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>[Abbr]</td><td>[Type]</td><td>[XX]%</td><td>[XX.X]</td><td class="[alpha-pos|alpha-neg]">[+X.XX]%</td><td>[1-5]</td></tr>
+        <!-- one row per fund -->
+        <tr class="highlight-row">
+          <td>PORTFOLIO</td><td></td><td>100%</td><td>[Wtd CFS]</td><td>[Wtd Alpha]</td><td>[Wtd RL]</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:12px; color:var(--text-mid); margin-top:8px;">
+    Weighted Portfolio CFS: <strong>[XX.X] / 100</strong> &middot;
+    Weighted Portfolio Alpha (3Y): <strong>[+X.XX]%</strong> &middot;
+    Weighted Portfolio VF: <strong>[X.X] ([Volatility Class])</strong>
+  </p>
+</div>
+```
+
+Exactly 6 columns. Highlight row is mandatory.
+
+---
+
+## 8. Section 6 — Portfolio Exposure
+
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-title">Portfolio Exposure</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <p style="color:var(--text-mid); margin-bottom:12px;">
+    Look-through to what the portfolio actually holds — not the fund types, but the underlying
+    asset classes and countries.
+  </p>
+
+  <div class="exposure-chart-wrap">
+
+    <div class="exposure-chart-block">
+      <div class="exposure-chart-title">Asset Class</div>
+      <div class="pie-chart" style="background: conic-gradient(
+        var(--equity)       0% [a]%,
+        var(--teal)         [a]% [a+b]%,
+        var(--fixed-income) [a+b]% [a+b+c]%,
+        var(--money-market) [a+b+c]% [a+b+c+d]%,
+        var(--gold)         [a+b+c+d]% 100%
+      );"></div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--equity);"></span>     <span class="legend-label">Equity (Domestic)</span> <span class="legend-pct">[X.X]%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--teal);"></span>       <span class="legend-label">Equity (Foreign)</span>  <span class="legend-pct">[X.X]%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--fixed-income);"></span><span class="legend-label">Fixed Income / Sukuk</span><span class="legend-pct">[X.X]%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--money-market);"></span><span class="legend-label">Money Market &amp; Cash</span><span class="legend-pct">[X.X]%</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--gold);"></span>       <span class="legend-label">Gold / Other</span> <span class="legend-pct">[X.X]%</span></div>
+      </div>
+    </div>
+
+    <div class="exposure-chart-block">
+      <div class="exposure-chart-title">Geographic</div>
+      <div class="pie-chart" style="background: conic-gradient( /* slices per Step 7c color map */ );"></div>
+      <div class="legend">
+        <!-- legend items: slices ≥ 2% only, plus a single "Other" slice for combined < 2% slices -->
+      </div>
+    </div>
+
+  </div>
+
+  <p class="exposure-note">
+    Asset-class slices are the weighted average of each fund's underlying asset allocation.
+    Geographic slices treat Malaysian-issued bonds as Malaysia exposure. Slices below 2% are
+    merged into "Other" for readability.
+  </p>
+</div>
+```
+
+**Pie-chart rules (locked):**
+- Both pies use CSS `conic-gradient` only — no JavaScript, no SVG.
+- Legend percentages: **1 decimal place** (e.g., `12.4%`, not `12%` or `12.41%`).
+- Slices `< 2%` of the portfolio are merged into a single "Other" slice for legend display
+  (already required by SKILL.md Step 7c).
+- For the Asset Class chart, the slice order is fixed: domestic equity → foreign equity →
+  fixed income → money market → gold/other.
+
+---
+
+## 9. Section 7 — Investment Strategy
+
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">Investment Strategy</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <div class="strategy-card">
+    <h4>1. Regular Savings Plan (RSP)</h4>
+    <p>[DCA cadence + amount recommendation tied to E_target and capital]</p>
+  </div>
+
+  <div class="strategy-card">
+    <h4>2. Distribution Policy</h4>
+    <p>[Distributions per fund, reinvest vs payout recommendation, tax note]</p>
+  </div>
+
+  <div class="strategy-card">
+    <h4>3. Rebalancing Triggers</h4>
+    <p>[Time-based cadence + drift threshold + event triggers per Step 5]</p>
+  </div>
+
+  <div class="strategy-card">
+    <h4>4. Tactical Dip-Capture Playbook</h4>
+    <p>[Money market dry-powder rule: when index drops X% from ATH, deploy Y% from PeCDF-A into the equity sleeve]</p>
+  </div>
+</div>
+```
+
+Exactly 4 strategy-cards in this order.
+
+---
+
+## 10. Section 8 — Fee Disclosure
+
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-title">Fee Disclosure</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <p style="color:var(--text-mid); margin-bottom:8px;">
+    Every fee shown is sourced verbatim from each fund's Product Highlight Sheet (PHS).
+    No values are inferred or carried over from prior proposals.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fund</th>
+          <th>Sales Charge</th>
+          <th>Mgmt Fee p.a.</th>
+          <th>Trustee Fee p.a.</th>
+          <th>Annual Cost</th>
+          <th>3Y Alpha</th>
+          <th>Net Value-Add</th>
+          <th>PHS Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>[Abbr]</strong></td>
+          <td>[X.X]%</td>
+          <td>[X.XX]%</td>
+          <td>[X.XX]%</td>
+          <td>[X.XX]%</td>
+          <td class="[alpha-pos|alpha-neg]">[+X.XX]%</td>
+          <td class="[alpha-pos|alpha-neg]">[+X.XX]%</td>
+          <td>[Mon YYYY]</td>
+        </tr>
+        <!-- one row per fund -->
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+    <strong>Annual Cost</strong> = Mgmt Fee + Trustee Fee. <strong>Net Value-Add</strong> = 3Y Alpha − Annual Cost.
+    Sales Charge is a one-time entry load. Switching fee, redemption fee, and full disclosures are in each fund's PHS and Master Prospectus.
+  </p>
+</div>
+```
+
+Exactly **8 columns** in this exact order. Annual Cost and Net Value-Add are computed
+client-side from the PHS values — do not invent.
+
+---
+
+## 11. Section 9 — Disclaimer, Sources & References
+
+```html
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div class="section-title">Disclaimer, Sources &amp; References</div>
+  </div>
+  <div class="section-rule"></div>
+
+  <div class="disclaimer">
+    <h4>Regulatory Disclaimer</h4>
+    <p>Past performance is not indicative of future results. This analysis is based on historical
+    fund data and current market conditions. It should not be considered personal financial advice.
+    Please consult with a licensed financial advisor and review the fund's Product Highlight Sheet
+    (PHS) and Master Prospectus before making any investment decision. All investments carry risk,
+    including the possible loss of principal.</p>
+
+    <h4>Cooling-Off Right</h4>
+    <p>First-time investors with Public Mutual are entitled to a 6 business day cooling-off period
+    from the date of the first purchase, during which units may be redeemed at the original NAV
+    paid.</p>
+
+    <h4>Conflict of Interest</h4>
+    <p>Shoo Kyuk Wei (Solid) is a Licensed Unit Trust Consultant and Licensed Private Retirement
+    Scheme (PRS) Consultant representing Public Mutual Berhad (FIMM No: F01091705). Recommendations
+    are limited to funds within the Public Mutual range.</p>
+  </div>
+
+  <div class="sources">
+    <h4>Sources &amp; References</h4>
+    <ul>
+      <li>FundMaster workbook — <code>[filename].xlsx</code> (MFR data, [Month Year])</li>
+      <li>Product Highlight Sheets — <code>Unit Trust (UT)/Product Highlight Sheet (PHS)/[Abbr]_PHS.pdf</code> (one entry per recommended fund)</li>
+      <!-- web search sources (one <li> per URL) -->
+      <li><a href="[URL]">[Source title — publication, date]</a></li>
+    </ul>
+  </div>
+</div>
+```
+
+The three disclaimer sub-headings (Regulatory Disclaimer / Cooling-Off Right / Conflict of
+Interest) are mandatory. Sources sub-headings are optional grouping; one `<li>` per URL.
+
+---
+
+## 12. Document Footer
+
+```html
+<div class="doc-footer">
+  <div class="credit-line">
+    <strong>Shoo Kyuk Wei (Solid)</strong> &middot; Licensed UTC &amp; PRS Consultant &middot; Public Mutual Berhad
+  </div>
+  <div>+601173381713 &middot; me@engineerdad.my &middot; FIMM No: F01091705</div>
+  <div>Confidential — prepared [DD Mon YYYY]</div>
+</div>
+```
+
+---
+
+## Banned
+
+- **No Google Fonts** — no `@import`, no `<link>` to external font services.
+- **No serif fonts** anywhere.
+- **No gradient backgrounds** except `conic-gradient` for pie charts.
+- **No diagonal stripes, decorative blobs, drop shadows, or bevels.**
+- **No box-shadow on cards.**
+- **No external CSS files** — copy `design_system.css` into the `<style>` block byte-for-byte.
+- **No JavaScript.**
+- **No custom colors** — only the `:root` variables defined in `design_system.css`.
+- **No section reordering, renaming, or omission** (except the conditional Foundation block).
+- **No fee values copied from a prior proposal** — every value must come from the current PHS.

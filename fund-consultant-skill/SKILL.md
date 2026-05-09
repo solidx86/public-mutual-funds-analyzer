@@ -1,5 +1,5 @@
 ---
-version: "1.22"
+version: "1.23"
 name: fund-consultant
 description: >
   Public Mutual unit trust fund consultant — recommends funds suited to a client's risk profile
@@ -949,72 +949,99 @@ Based on the profile, include:
 
 ## Step 7: Generate Proposal Document
 
-After presenting the recommendation in-conversation and receiving user approval, generate a professional
-HTML proposal document using the **`frontend-design` skill** for elevated visual quality.
+After presenting the recommendation in-conversation and receiving user approval, generate the
+HTML output document. The skill has **two output modes** with separate locked-down templates —
+both share the same stylesheet so visuals are identical.
 
-**Invoke the frontend-design skill** with a detailed prompt describing all sections, data, and
-design requirements below. The frontend-design skill will produce the final HTML file.
+### Step 7.0: Route to the Correct Template
 
-**Output file:** See `fund-consultant-skill/references/proposal_template.md` for output file requirements (covers both standard Proposals and e-Series Shortlists).
+Branch on whether Step 4e was triggered:
 
-**Template reference:** See `fund-consultant-skill/references/proposal_template.md` for full structure,
-styling guidelines, and section requirements.
+| Output mode | When | Template to load | File-naming |
+|---|---|---|---|
+| **Standard Fund Proposal** | New investor with capital ≥ RM 1,000, OR experienced investor (any capital) | `references/proposal_template.md` | `output/fund_proposals/FundProposal_[Profile]_[MonYYYY]_[ClientLastName?].html` |
+| **e-Series Fund Shortlist** | New investor AND upfront capital < RM 1,000 (Step 4e was used) | `references/shortlist_template.md` | `output/fund_proposals/FundShortlist_[Profile]_[ClientLastName]_[MonYYYY].html` |
 
-**Document sections (in order):**
-1. Cover page — title, client profile, date, consultant branding
-2. Executive summary — 3-4 bullets: profile, composition, weighted alpha, key thesis
-3. Global & local macro context — on-going events table + medium-long horizon themes
-4. Client risk profile — description, constraints, allocation targets
-5. Fund recommendations — one styled card per fund (alpha story, macro alignment, costs, flags)
-6. Portfolio summary — table with all funds, allocation, alpha, risk level, macro thesis
-7. Portfolio exposure — CSS pie charts: (a) asset class breakdown, (b) country/geographic breakdown (see Steps 7b–7c)
-8. Investment strategy — DCA/RSP, distribution, rebalancing triggers, tactical playbook
-9. Fee disclosure — transparent per-fund breakdown of sales charges and annual fees. **Every fee value (sales charge cap, management fee, trustee fee) MUST come from `<Abbr>_PHS.pdf` per the "Fund Fee Sourcing Rule" in Step 6. Do not copy fee values from a prior proposal — re-read the PHS for each fund.**
-10. Disclaimer & disclosures — regulatory disclaimer, FIMM compliance
-11. Sources — all web search URLs used for macro context
+Read the chosen template file in full before generating. Both templates define the exact HTML
+skeleton — Cover → Foundation (conditional) → numbered sections → Footer.
 
-### e-Series Shortlist Mode — Proposal Differences
+### Step 7.1: Embed the Shared Design System
 
-When Step 4e was used, the following deviations apply from the standard template:
+Read `references/design_system.css`. Copy its **entire contents** verbatim into the document's
+`<style>` block. Do not modify, substitute, extend, or omit any rule. Do not load Google Fonts,
+external stylesheets, or any other CSS source. The design system is the single source of truth
+for every visual decision (colors, typography, spacing, component shapes, responsive breakpoints,
+print rules) — successive runs that improvise on CSS produce inconsistent proposals.
 
-| Section | Standard | e-Series Shortlist |
-|---------|----------|-------------------|
-| Cover title | "Fund Portfolio Proposal" | "e-Series Fund Shortlist" |
-| Cover subtitle | Client profile + date | "For Consultant Review — Allocation Not Finalised" |
-| Executive summary | Portfolio composition, weighted alpha | 3 candidates shortlisted by CFS; allocation to be decided at client meeting |
-| Fund cards | 4 cards with allocation % in header | 3 cards labelled **Candidate 1 / 2 / 3**; no allocation % shown |
-| Portfolio Summary table | All funds, alloc%, CFS, alpha, RL | **Candidate Comparison Table**: Candidate # \| Fund Name \| Fund Type \| RL \| CFS Score \| Weighted Alpha \| 3Y Return \| Key Strength |
-| Exposure pie charts | 2 portfolio-weighted charts (asset class + geo) | 2 per-fund charts inside each candidate card (asset class + geo for that fund's own holdings) — computed from that fund's raw column data, no allocation weighting needed |
-| Investment strategy | Full playbook | **Omit** — deferred to post-selection |
+### Step 7.2: Render the HTML Skeleton Verbatim
 
-**Per-fund pie charts (e-Series Shortlist Mode):** For each of the 3 candidate cards, append two CSS conic-gradient pie charts immediately after the CFS mini-bar section:
-- Chart A — **Asset class breakdown** for that fund (Dom. Equity %, For. Equity %, Fixed Income %, Money Market %, Others % — read directly from the fund's own columns)
-- Chart B — **Geographic breakdown** for that fund (Dom. Equity % as Malaysia; GEO BREAKDOWN cols 41–52 for all other countries; merge any country < 5% of the fund into "Other")
-Use the same color palette defined in Steps 7b–7c. Label each chart pair: "Fund Exposure — [Fund Abbr]". This gives the consultant a side-by-side feel when scrolling through the 3 candidates.
+Copy the HTML skeleton from the loaded template **exactly as written**. Substitute only the
+content tokens marked `[BRACKETED]`. Specifically:
 
-**Consultant branding** (load from memory or ask user):
-- Name, phone, email, FIMM license number, representative status
-- Display in cover page header and document footer
+- **Do not** add, remove, rename, or reorder sections.
+- **Do not** modify CSS class names, layout primitives, or component structures.
+- **Do not** introduce inline styles for properties already covered by `design_system.css`
+  (the only exceptions explicitly allowed by the templates are the `style="width:[XX]%"` on
+  CFS mini-bar fills and the `background: conic-gradient(...)` on pie charts).
+- **Do not** invent new sub-sections, headings, or info-boxes that aren't already in the
+  template skeleton.
 
-**Design brief to pass to frontend-design skill:**
+Both the proposal template and the shortlist template carry their own self-check rule (count
+of `<div class="section">` blocks must match the prescribed count). Run that check before
+finalizing.
 
-**CRITICAL: Use the EXACT CSS stylesheet defined in `fund-consultant-skill/references/proposal_template.md`
-"Design System — CSS Stylesheet" section. Copy the CSS verbatim into the `<style>` block. Do NOT
-create a custom design, substitute fonts, colors, or layout patterns. Both standard proposals and
-e-Series shortlists must use the identical stylesheet and cover page structure from the template.**
+### Step 7.3: Content Token Substitution
 
-- System fonts only — NO Google Fonts, NO serif fonts, NO `@import` or `<link>` to external font services
-- Cover: flat navy `#1a365d` background — NO gradients, NO diagonal stripes, NO decorative shapes
-- Brand hierarchy: "Solid" prominent at top-left of cover, "Public Mutual Berhad" secondary beneath
-- Modern Minimal aesthetic: flat design, generous whitespace, geometric accent bars only
-- Fund card header backgrounds: equity (`--equity`), mixed asset (`--mixed-asset`), FI/Sukuk (`--fixed-income`), gold (`--gold`), money market (`--money-market`), alpha outlier satellite (`--teal`), exposure gap (dashed amber border with `--mixed-asset` header)
-- Alpha performance: use a `Period | Fund % | Bench % | Alpha %` table per fund card; alpha column green (`.alpha-pos`) for positive, red (`.alpha-neg`) for negative; show `—` for unavailable periods
-- Portfolio summary: zebra-striped table, weighted totals row using `.highlight-row`
-- Pie chart: CSS `conic-gradient` only — no JS, no external libraries
-- Print-optimised: `@media print` block from the stylesheet handles page breaks and colour-exact flags
-- Self-contained: single HTML file, all CSS inline, no external dependencies
-- Fixed 900px width — no responsive/mobile design needed; output is for desktop Chrome and Print-to-PDF
-- Jargon layer (new investor): apply the two-layer rule from Step 6 — inline definitions on first use in all narrative sections (exec summary, alpha story, risk descriptions, strategy); Layer 2 informed-layman register in all prose sections; tables and grids are exempt and remain technical
+The template's `[BRACKETED]` tokens are the only places where content varies between runs:
+
+- **Numerical values** (CFS, alpha, fees, allocation %) — read from the FundMaster workbook
+  and (for fees) from the per-fund PHS PDF. No hard-coded carry-overs from prior proposals.
+- **Narrative prose** (Why We Chose It, What to Watch, Macro Context themes) — written fresh
+  for each run, but constrained to the locked sub-block locations.
+- **Consultant credentials** in the cover top-bar, document footer, and disclaimer block —
+  invariant. Sourced from memory file `user_consultant_details.md`.
+- **Macro context table rows** — populated from web-searched dated events; cite source URLs
+  in the Sources sub-section of the final disclaimer block.
+- **Pie-chart slice values** — computed per Steps 7b/7c and rounded to **1 decimal place** for
+  the legend.
+
+### Step 7.4: Cross-Reference With Other Steps
+
+These rules from elsewhere in the skill must hold in the rendered HTML:
+
+- **PHS Lookup Rule (Step 6):** every Sales Charge / Mgmt Fee / Trustee Fee value in both the
+  per-fund Cost & Alpha mini-card and the Section-8 Fee Disclosure table is read verbatim from
+  `Unit Trust (UT)/Product Highlight Sheet (PHS)/<Abbr>_PHS.pdf`. The mini-card's `.source`
+  footer must cite the PHS filename and date.
+- **Disqualified-fund disclosure (Step 4):** any recommended fund whose Status is "Disqualified"
+  must carry an `<div class="alpha-warning">` block at the top of its fund-card body.
+- **Pie-chart calculation (Steps 7b–7c):** see the dedicated subsections below for the exact
+  weighted-exposure formulas, color maps, and grouping thresholds. The template fixes the
+  legend format (1-decimal percentages, slices < 2% merged for portfolio charts, < 5% for
+  per-candidate charts in shortlist mode).
+- **Jargon layering (Step 6):** new-investor outputs apply parenthetical inline definitions on
+  the **first** use of each technical term in narrative prose (Exec Summary, Why We Chose It,
+  Macro Context themes, Risk Profile description). Tables and grids are exempt — they remain
+  technical regardless of experience level. The Foundation Intro renders only for new investors.
+
+### Step 7.5: Self-Check Before Saving
+
+Before writing the file, scan the generated DOM and confirm every item:
+
+1. The `<style>` block matches `design_system.css` byte-for-byte (no missing rules, no added rules).
+2. The number of `<div class="section">` elements equals the template's prescribed count
+   (9 for proposal, 7 for shortlist).
+3. Section titles, in order, match the template's section list 1-to-1.
+4. The cover top-bar has both `cover-brand` (Solid + Public Mutual) and `cover-contact`
+   (full consultant credentials) blocks.
+5. Each fund card includes — in this order — header, fund-meta, optional alpha-warning, CFS bar,
+   performance table, Cost & Alpha mini-card, "Why" paragraph, "Watch" list. Shortlist
+   candidate cards additionally have the per-fund pie-pair after the CFS bar.
+6. The Section-8 (proposal) / Section-6 (shortlist) Fee Disclosure table has exactly 8 columns.
+7. The document footer is present, with consultant credentials.
+
+If any check fails, the gap is in the template — patch the template, do not patch the rendered
+output. The template is the single source of truth.
 
 ---
 
@@ -1177,7 +1204,9 @@ Always end the recommendation with:
 
 | File | Purpose |
 |------|---------|
-| `fund-consultant-skill/references/proposal_template.md` | HTML proposal document structure, styling, and section requirements |
+| `fund-consultant-skill/references/design_system.css` | Shared stylesheet — single source of truth for all visual styling. Embed verbatim in every generated HTML. |
+| `fund-consultant-skill/references/proposal_template.md` | Mode A — Standard Fund Proposal HTML skeleton (cover, foundation, 9 numbered sections, footer). |
+| `fund-consultant-skill/references/shortlist_template.md` | Mode B — e-Series Fund Shortlist HTML skeleton (Step 4e output: 7 numbered sections, 3 candidate cards, no allocation). |
 | `fund-screener-skill/references/framework.md` | 8-checkpoint fund analysis framework with engineering analogies |
 
 ---
@@ -1186,6 +1215,7 @@ Always end the recommendation with:
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.23 | 2026-05-09 | Standardization | Lock down complete HTML skeleton (not just CSS) for both output modes so every generated proposal is structurally identical — only content tokens vary. Extract the shared stylesheet into `references/design_system.css` (single source of truth, includes new `@media (max-width: 768px)` responsive block and the v1.22 print fix). Rewrite `references/proposal_template.md` to prescribe verbatim HTML for cover, conditional Foundation intro, 9 numbered sections, fund-card block-order (header → meta → alpha-warning → CFS bar → perf table → Cost & Alpha mini-card → Why → Watch), 6-col Portfolio Summary, two-pie Exposure layout (1-decimal legend, <2% merged), 4-card Investment Strategy, and 8-col Fee Disclosure. Add new `references/shortlist_template.md` for Step 4e e-Series output — previously had no template, structural rules lived as prose in Step 7. Shortlist locks 7 numbered sections, 3 candidate cards (no allocation, `.candidate-num` ribbon, per-fund 200×200 pie pair after CFS bar), 8-col Candidate Comparison table, identical Fee Disclosure and Disclaimer blocks. New `cost-alpha-mini` component (2×3 grid: Sales / Mgmt / Trustee / Annual Cost / 3Y Alpha / Net Value-Add, PHS-sourced). Step 7 rewritten to route by output mode, mandate verbatim HTML+CSS copy, and run a 7-point self-check before saving. Backporting the four pre-v1.23 proposals in `output/fund_proposals/` is a follow-up. |
 | 1.22 | 2026-05-08 | Fix | Print CSS now applies `print-color-adjust: exact` globally (`* { ... !important }`) inside `@media print`, replacing the per-selector allowlist that missed `.cover`. Symptom: saving any proposal to PDF via Chrome stripped the navy cover background, producing a near-white first page. The allowlist approach was inherently fragile — every new styled background needed manual addition. Fix lives in `references/proposal_template.md` so all future proposals inherit it. |
 | 1.21 | 2026-05-08 | Feature | Add Step 1b "Retail Eligibility Exclusion" — drop funds at workbook load that the consultant cannot actually transact for retail clients via PMO Plus: (1) any **Fund Name** (col 1) starting with `"PB "` — the PB series is not offered in the PMO Plus app; (2) any **Abbr** (col 2) ending with `-B` (Class B units are not for retail; e.g., PeCDF-B, PMMF-B, PBCMF-B, PeICDF-B, PIMMF-B, PBICMF-B); (3) hardcoded wholesale funds PBCPF, PWSIF, PIWSIF, PeWS20F. Excluded funds never enter Step 2 filters, Step 3 CFS scoring, Step 4d Alpha Outlier scan, or Step 4e e-Series Shortlist — saves token spend on unbuyable funds and prevents recommending one. Step 2, Step 4d, and Step 4e gain explicit cross-references. |
 | 1.20 | 2026-05-07 | Fix | Add mandatory "Fund Fee Sourcing Rule (PHS Lookup)" in Step 6. Sales charge, management fee, and trustee fee MUST be read from `Unit Trust (UT)/Product Highlight Sheet (PHS)/<Abbr>_PHS.pdf` for every recommended fund — never copied from a prior proposal or inferred from a similar fund. Cost & Alpha block now shows all three fees explicitly (annual cost = mgmt + trustee). Step 7 section 9 cross-references this rule. Triggered by a real bug: the May 2026 PISTF→PITSEQ replacement card inherited PISTF's 6.5% sales charge and 0.08% trustee fee verbatim — both wrong for PITSEQ (actual 5.0% / 0.06%). The 1.50% management fee matched by coincidence, masking the bug. |
