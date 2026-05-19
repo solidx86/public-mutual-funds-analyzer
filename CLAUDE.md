@@ -1,6 +1,51 @@
-This folder contains public mutual unit trust funds and private retirement scheme (PRS) funds.
+# CLAUDE.md
 
-Inside Unit Trust (UT)
-- Master Prospectus
-- Product Highlight Sheet (PHS) containing PHS for each of the funds.
-- MFR (Monthly Funds Review) data prefixed by month and year.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this repo is
+
+A two-stage system for a Public Mutual unit trust consultant (Malaysia):
+
+1. **Screening pipeline** — ingests Public Mutual Monthly Fund Report (MFR) PDFs + scrapes ATH NAV from publicmutual.com.my, produces a formatted Excel "FundMaster" workbook.
+2. **Consulting layer** — reads the latest FundMaster workbook + a client's risk profile, generates an HTML client proposal.
+
+Both stages are driven by skills. The skills' `SKILL.md` files are the source of truth for procedure — read them before doing pipeline or proposal work, and don't duplicate their content here.
+
+## Where the logic lives
+
+| Skill | Trigger phrases | Path |
+|---|---|---|
+| `fund-screener` | "screen the new MFR", "run the fund screener", "new MFR is out" | `fund-screener-skill/SKILL.md` |
+| `fund-consultant` | "recommend funds for a moderate investor", "build a portfolio for…" | `fund-consultant-skill/SKILL.md` |
+
+Each skill bundle has a `references/` directory (templates, framework docs, design system CSS) and, for the screener, a `scripts/` directory with the pipeline.
+
+## Pipeline at a glance
+
+Run all four steps **from the Funds project root** — every script auto-derives its paths from `__file__`, which only works if relative reads (`Unit Trust (UT)/`, `mfr_results.json`, etc.) resolve from cwd.
+
+```bash
+python3 fund-screener-skill/scripts/extract_mfr.py        # → mfr_results.json
+python3 fund-screener-skill/scripts/fetch_ath.py          # → ath_results.json (warm, ~30s)
+python3 fund-screener-skill/scripts/build_sheet_data.py   # → master_funds.csv
+python3 fund-screener-skill/scripts/build_xlsx.py         # → output/fundmasters/PublicMutual_FundMaster_<MonYYYY>_v<ver>.xlsx
+```
+
+`fetch_ath.py --cold` does a full NAV history pull (~2 min, first run only). `--refresh-codes` force-refreshes `fund_code_map.json` when a new fund is missing.
+
+Full step-by-step semantics, sanity checks, and troubleshooting live in `fund-screener-skill/SKILL.md`.
+
+## Outputs & versioning
+
+- `output/fundmasters/PublicMutual_FundMaster_<MonYYYY>_v<skill-version>.xlsx` — screener output
+- `output/fund_proposals/FundProposal_<RiskProfile>_<MonYYYY>[_<ClientName>]_v<skill-version>.html` — consultant output
+
+The `<skill-version>` is parsed from the `version:` field in the corresponding `SKILL.md` frontmatter and stamped automatically into output filenames and footers. Bump the skill's frontmatter version when changing the skill (semver: minor for backward-compatible, major for breaking).
+
+## Repo conventions worth knowing
+
+- **Qualification rule is weighted alpha > 0%**, not a binary beat-rate. Legacy beat-rate columns (Beat %, period checkmarks) are kept for display only — do not reintroduce the old binary gate as the qualifier.
+- **Cached intermediate files** at repo root: `mfr_results.json`, `ath_results.json`, `fund_code_map.json` are **tracked** (so a fresh clone has working data without re-scraping). `master_funds.csv` is **gitignored** (cheap to regenerate from the three JSONs).
+- **PRS PDFs** in `Private Retirement Scheme (PRS)/` are deliberately excluded by `extract_mfr.py` — the screener is UT-only.
+- **MFR parsing edge cases** (abbreviations with spaces like `P SmallCap`, casing mismatches like `PSMALLCAP` vs `P SmallCap` in the API code map) are handled inside the pipeline. If a fund goes missing from ATH output, the escape hatch is `fetch_ath.py --refresh-codes`.
+- `funds_risk_level.xlsx` is the authoritative risk-level lookup (1–5 scale) keyed by fund abbreviation, joined in `build_sheet_data.py`.
