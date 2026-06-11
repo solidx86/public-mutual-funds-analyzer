@@ -77,11 +77,21 @@ Tests run offline from the tracked cached data:
 pip install pytest && pytest
 ```
 
-### Data provenance
+### Data files & provenance
+
+The repo-root data files (all tracked so a fresh clone works offline):
+
+| File | What it is | Produced / maintained by |
+|---|---|---|
+| `mfr_results.json` | Raw per-fund extraction from the latest MFR PDFs (~171 funds: performance, allocation, holdings) | `extract_mfr.py` |
+| `ath_results.json` | All-time-high NAV, drawdown %, and days-from-ATH per fund | `fetch_ath.py` |
+| `fund_code_map.json` | Persistent abbreviation → fund-code cache for the NAV API (the warm-run speedup) | `fetch_ath.py` |
+| `funds_risk_level.xlsx` | Authoritative 1–5 risk-level lookup joined in `build_sheet_data.py` | manually maintained from Public Mutual's published classifications |
+| `data_funds_risk_levels_list` | CSV source list behind `funds_risk_level.xlsx` | manually maintained reference |
+| `data_epf_qualified_funds_list` | CSV reference list of EPF-i qualified funds | manually maintained reference |
 
 - The PDFs under `Unit Trust (UT)/` and `Private Retirement Scheme (PRS)/` are official Public Mutual Berhad publications (Monthly Fund Reports, Master Prospectuses, Product Highlight Sheets), included solely as inputs for data extraction. All rights to those documents remain with Public Mutual Berhad.
-- `funds_risk_level.xlsx` is a manually maintained lookup of Public Mutual's published fund risk levels (1–5).
-- Sample proposals use fictitious client details.
+- Sample proposals are generic (no client) and generated from the tracked Apr 2026 FundMaster.
 
 ## License & reuse
 

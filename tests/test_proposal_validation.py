@@ -30,30 +30,13 @@ LOCKED_SECTIONS = [
 
 WHOLESALE_ABBRS = {"PBCPF", "PWSIF", "PIWSIF", "PeWS20F"}
 
-# Step 1b violations present in already-published samples. Pinned so the suite
-# stays green while preventing NEW violations; see SKILL.md Step 1b.
-# PBGTHF ("PB GLOBAL TECHNOLOGY & HEALTHCARE FUND") is a "PB "-series fund that
-# should have been excluded at workbook load.
-KNOWN_ELIGIBILITY_VIOLATIONS = {
-    ("FundProposal_Aggressive_May2026_v1.26.html", "PBGTHF"),
-}
-
-# Template drift in an already-published sample (template forbids renaming
-# sections): section 7 was retitled. Pinned for the same reason as above.
-KNOWN_SECTION_DEVIATIONS = {
-    "FundProposal_ModeratelyAggressive_May2026_v1.26.html": {
-        6: "Investment Strategy &amp; Tactical Playbook",
-    },
-}
-
-# CFS composites in published samples that don't equal the weighted sum of
-# their displayed dimension scores (generation-time arithmetic drift — the
-# exact failure mode this suite exists to catch going forward).
-KNOWN_CFS_INCONSISTENCIES = {
-    ("FundProposal_Aggressive_May2026_NguiSuiFen_v1.26.html", 62.5),
-    ("FundProposal_Aggressive_May2026_v1.26.html", 73.7),
-    ("FundProposal_Aggressive_May2026_v1.26.html", 35.8),
-}
+# Pinned violations found in earlier published samples (a Step-1b "PB "-fund
+# recommendation, a renamed section, three CFS composites that didn't recompute).
+# Those samples were regenerated clean in June 2026 — the sets stay so any NEW
+# drift fails loudly.
+KNOWN_ELIGIBILITY_VIOLATIONS = set()
+KNOWN_SECTION_DEVIATIONS = {}
+KNOWN_CFS_INCONSISTENCIES = set()
 
 
 def fund_cards(text):
