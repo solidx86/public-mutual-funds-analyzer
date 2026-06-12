@@ -22,7 +22,7 @@ Each skill bundle has a `references/` directory (templates, framework docs, desi
 
 ## Pipeline at a glance
 
-Run all four steps **from the Funds project root** — every script auto-derives its paths from `__file__`, which only works if relative reads (`Unit Trust (UT)/`, `mfr_results.json`, etc.) resolve from cwd.
+Run all four steps **from the repo root** — every script derives its paths from its own location, and relative reads (`Unit Trust (UT)/`, `mfr_results.json`, etc.) resolve from cwd.
 
 ```bash
 python3 fund-screener-skill/scripts/extract_mfr.py        # → mfr_results.json
@@ -34,6 +34,16 @@ python3 fund-screener-skill/scripts/build_xlsx.py         # → output/fundmaste
 `fetch_ath.py --cold` does a full NAV history pull (~2 min, first run only). `--refresh-codes` force-refreshes `fund_code_map.json` when a new fund is missing.
 
 Full step-by-step semantics, sanity checks, and troubleshooting live in `fund-screener-skill/SKILL.md`.
+
+## Tests & CI
+
+```bash
+pip install -r requirements.txt pytest && pytest
+```
+
+- `tests/test_pipeline.py` runs pipeline steps 3–4 offline from the tracked JSONs in a temp workspace — it never touches the repo's tracked outputs.
+- `tests/test_proposal_validation.py` is the eval layer for generated proposals (locked-template conformance, CFS recomputation, disclosure rules, retail eligibility) cross-checked against the FundMaster workbook each proposal names. The `KNOWN_*` pin sets at the top must stay empty — if a regenerated proposal trips one, fix the proposal, don't pin it.
+- CI (`.github/workflows/ci.yml`) runs the same `pytest` on every push to main; keep it green.
 
 ## Outputs & versioning
 
