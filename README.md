@@ -87,8 +87,7 @@ The repo-root data files (all tracked so a fresh clone works offline):
 | `ath_results.json` | All-time-high NAV, drawdown %, and days-from-ATH per fund | `fetch_ath.py` |
 | `fund_code_map.json` | Persistent abbreviation → fund-code cache for the NAV API (the warm-run speedup) | `fetch_ath.py` |
 | `funds_risk_level.xlsx` | Authoritative 1–5 risk-level lookup joined in `build_sheet_data.py` | manually maintained from Public Mutual's published classifications |
-| `data_funds_risk_levels_list` | CSV source list behind `funds_risk_level.xlsx` | manually maintained reference |
-| `data_epf_qualified_funds_list` | CSV reference list of EPF-i qualified funds | manually maintained reference |
+| `data_epf_qualified_funds_list.csv` | EPF i-Invest qualified funds — consultant reference only, not consumed by the pipeline | manually maintained reference |
 
 - The PDFs under `Unit Trust (UT)/` and `Private Retirement Scheme (PRS)/` are official Public Mutual Berhad publications (Monthly Fund Reports, Master Prospectuses, Product Highlight Sheets), included solely as inputs for data extraction. All rights to those documents remain with Public Mutual Berhad.
 - Sample proposals are generic (no client) and generated from the tracked Apr 2026 FundMaster.
