@@ -55,7 +55,7 @@ is the actual qualification driver.
 | Step | Script | Output |
 |---|---|---|
 | 1 | `extract_mfr.py` | `mfr_results.json` |
-| 1.5 | (Claude Code, in-session — no script) | mfr_results.json (relabeled) |
+| 1.5 | (Claude Code, in-session — no script) | `mfr_results.json` (relabeled) |
 | 2 | `fetch_ath.py` | `ath_results.json` + `fund_code_map.json` |
 | 3 | `build_sheet_data.py` | `master_funds.csv` |
 | 4 | `build_xlsx.py` | `.xlsx` workbook |
@@ -202,7 +202,7 @@ Data rows: 171 (qualified: ~110, disqualified: ~61)
 | Top 5 Holdings | MFR right column (x > midpoint) | Coordinate-based |
 | Geo breakdown | MFR right column | KNOWN_COUNTRIES whitelist |
 | Volatility Class | Derived from VF | SC banding: Very Low ≤4.245, Low ≤7.795, Moderate ≤10.235, High ≤13.595, Very High >13.595 |
-| Fund Objective | PHS PDF (page 0) | Keyword classification (asset class, geography, objective, PHS fund type are keyword classification, refined in Step 1.5) |
+| Fund Objective | PHS PDF (page 0) | Keyword classification (asset class, geography, objective, PHS fund type) — refined in Step 1.5 |
 | Risk Level | funds_risk_level.xlsx | Lookup by abbreviation |
 | Lipper Class, Benchmark | MFR left column | Regex |
 | ATH NAV, ATH Date | publicmutual.com.my | Full NAV history → max(Nav) |
