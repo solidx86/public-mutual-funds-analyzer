@@ -131,6 +131,10 @@ choose the corrected value from the bounded enum below, write it back, and add a
 - If `objective_text` is empty and the objective can't be resolved, leave it and do NOT set `_source`.
 - Never invent an out-of-enum value.
 
+**Reproducibility:** re-running Step 1 (`extract_mfr.py`) overwrites `mfr_results.json` and wipes these
+relabels (the four fields reset to keyword defaults). Step 1.5 must be re-applied on every full
+regeneration — the committed `mfr_results.json` always reflects a post-relabel state.
+
 **Verify:** run `pytest tests/test_relabel.py -v` — it must pass.
 
 ---
