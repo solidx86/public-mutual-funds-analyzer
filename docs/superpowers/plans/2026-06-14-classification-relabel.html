@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Implementation Plan — Classification Relabel (Step 1.5)</title>
+<style>
+  :root{
+    --ink:#1f2328; --muted:#57606a; --line:#d8dee4; --bg:#fbfcfd;
+    --accent:#9a3b2e; --accent-soft:#f3e7e4; --code-bg:#f4f1ea; --ok:#1a7f4b; --warn:#9a6700;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:56px 28px 96px}
+  header.doc{border-bottom:3px solid var(--accent); padding-bottom:22px}
+  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:29px; line-height:1.2; margin:0 0 14px; letter-spacing:-.01em}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--muted)}
+  .meta b{color:var(--ink); font-weight:600}
+  h2{font-size:20px; margin:40px 0 12px; padding-top:12px; border-top:1px solid var(--line); letter-spacing:-.01em}
+  h2.task{color:var(--ink)}
+  h3{font-size:15px; margin:22px 0 6px; color:var(--accent)}
+  code{background:var(--code-bg); padding:.12em .4em; border-radius:4px; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre code{background:none; padding:0}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  tr:nth-child(even) td{background:#fff}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; font-size:14.5px}
+  .callout.ok{border-color:var(--ok); background:#e9f5ee}
+  ul.tight{margin:8px 0; padding-left:22px}
+  ul.tight li{margin:4px 0}
+  ol.steps{margin:8px 0; padding-left:0; list-style:none; counter-reset:step}
+  ol.steps>li{margin:14px 0; padding-left:34px; position:relative}
+  ol.steps>li::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0;
+    width:24px; height:24px; border-radius:6px; background:var(--accent); color:#fff; font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center}
+  .filebox{font-size:13.5px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin:10px 0}
+  .filebox b{color:var(--accent)}
+  .muted{color:var(--muted)}
+  .step-label{font-weight:600}
+  .expect{font-size:13px; color:var(--muted)}
+  footer.doc{margin-top:48px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <p class="eyebrow">Implementation Plan</p>
+  <h1>Classification Relabel (Step&nbsp;1.5)</h1>
+  <div class="meta">
+    <span><b>Project:</b> public-mutual-funds-analyzer</span>
+    <span><b>Date:</b> 2026-06-14</span>
+    <span><b>Spec:</b> 2026-06-14-classification-relabel-design.html</span>
+  </div>
+</header>
+
+<div class="callout">
+  <strong>For agentic workers:</strong> REQUIRED SUB-SKILL — use
+  <code>superpowers:subagent-driven-development</code> (recommended) or <code>superpowers:executing-plans</code>
+  to implement this plan task-by-task. Steps use checkbox syntax in the Markdown source for tracking.
+</div>
+
+<p><strong>Goal:</strong> Add an in-session LLM relabel step (Step&nbsp;1.5) to the fund-screener skill that corrects only the low-confidence classification fields in <code>mfr_results.json</code>, guarded by an offline regression test.</p>
+<p><strong>Architecture:</strong> No new pipeline scripts and no edits to <code>extract_mfr.py</code>. Step&nbsp;1.5 is an instruction block in <code>fund-screener-skill/SKILL.md</code> that Claude executes during the normal skill run: it reads each flagged fund's <code>name</code>/<code>lipper_class</code>/<code>objective_text</code>, rewrites only <code>asset_class</code>/<code>geography</code>/<code>objective_class</code>/<code>phs_fund_type</code> from a bounded enum, and stamps a <code>&lt;field&gt;_source</code> audit flag. A new <code>tests/test_relabel.py</code> validates the committed JSON offline.</p>
+<p><strong>Tech Stack:</strong> Python 3, pytest, JSON. No new runtime dependencies.</p>
+
+<h2>File Structure</h2>
+<table>
+  <tr><th>File</th><th>Responsibility</th><th>Action</th></tr>
+  <tr><td><code>fund-screener-skill/SKILL.md</code></td><td>Step 1.5 procedure + pipeline row + sanity check + extract note + version/changelog</td><td>Modify</td></tr>
+  <tr><td><code>tests/test_relabel.py</code></td><td>Offline validator (enums, source flags, non-interference, pinned fixes)</td><td>Create</td></tr>
+  <tr><td><code>mfr_results.json</code></td><td>Tracked extraction output; receives relabeled values + <code>_source</code> flags</td><td>Modify (data)</td></tr>
+</table>
+<p class="muted"><strong>Source of truth for enums:</strong> constants at the top of <code>tests/test_relabel.py</code>. SKILL.md Step&nbsp;1.5 reproduces them in prose; the test enforces them in code.</p>
+
+<h2>Reference data (ground truth for this MFR set)</h2>
+<h3><code>asset_class == "Other"</code> (8 funds)</h3>
+<table>
+  <tr><th>Abbr</th><th>Name</th><th>lipper_class</th><th>Correct asset_class</th></tr>
+  <tr><td>PIMMF-A</td><td>Public Islamic MoneyMarket Fund -Class A</td><td><em>(empty)</em></td><td>Money Market</td></tr>
+  <tr><td>PFEDF</td><td>Public Far-East Dividend Fund</td><td>Asia</td><td>Equity - Foreign</td></tr>
+  <tr><td>PGCF</td><td>Public Greater China Fund</td><td>Greater China</td><td>Equity - Foreign</td></tr>
+  <tr><td>PASGF</td><td>Public ASEAN Growth Fund</td><td>ASEAN</td><td>Equity - Foreign</td></tr>
+  <tr><td>PIRESGF</td><td>Public Islamic Regional ESG Fund</td><td><em>(empty)</em></td><td>Equity - Foreign</td></tr>
+  <tr><td>PISGSGF</td><td>Public Islamic Global Sustainable Growth Fund</td><td><em>(empty)</em></td><td>Equity - Foreign</td></tr>
+  <tr><td>PISGRTF</td><td>Public Islamic Sustainable Growth Fund</td><td><em>(empty)</em></td><td>Equity - Foreign <span class="muted">(confirm from objective_text)</span></td></tr>
+  <tr><td>PeEMAS</td><td>Public e-EMAS Gold Fund</td><td>Commodity Precious Fund-of-Funds</td><td><strong>leave "Other"</strong> — gold/commodity, no enum fits</td></tr>
+</table>
+<h3><code>geography == "Malaysia"</code> with foreign/empty lipper (judgment set)</h3>
+<table>
+  <tr><th>Abbr</th><th>Name</th><th>lipper_class</th><th>Correct geography</th></tr>
+  <tr><td>PCIF</td><td>Public China Ittikal Fund</td><td>Equity Greater China Greater China</td><td>Greater China</td></tr>
+  <tr><td>PAIF</td><td>Public Asia Ittikal Fund</td><td>Equity Asia Pacific Asia</td><td>Asia</td></tr>
+  <tr><td>PRSEC</td><td>Public Regional Sector Fund</td><td>Equity Asia Pacific Asia</td><td>Asia Pacific</td></tr>
+  <tr><td>PeISMF</td><td>Public e-Islamic Sustainable Millennial Fund</td><td>Equity Global</td><td>Global</td></tr>
+  <tr><td>PINDGF</td><td>Public Industry Growth Fund</td><td><em>(domestic)</em></td><td>Malaysia <span class="muted">(confirm, no change)</span></td></tr>
+  <tr><td>PISGRTF / PIRESGF / PISGSGF</td><td>Islamic sustainable/ESG</td><td><em>(empty)</em></td><td>judge from objective_text (PISGSGF already "Global")</td></tr>
+</table>
+<div class="callout ok">
+  <strong>Pinned, unambiguous corrections</strong> (enforced by the acceptance test):
+  PIMMF-A&rarr;Money Market · PFEDF&rarr;Equity - Foreign · PGCF&rarr;Equity - Foreign · PASGF&rarr;Equity - Foreign · PCIF&rarr;Greater China · PAIF&rarr;Asia.
+</div>
+
+<h2 class="task">Task 1 — Add Step 1.5 and ancillary edits to SKILL.md</h2>
+<div class="filebox"><b>Modify:</b> <code>fund-screener-skill/SKILL.md</code></div>
+<ol class="steps">
+  <li><span class="step-label">Insert the Step 1.5 section</span> immediately after the Step&nbsp;1 section (after <code>Expected: mfr_results.json with ~171 funds.</code>):
+<pre><code>## Step 1.5: Relabel low-confidence classifications (Claude Code, in-session — no script)
+
+`extract_mfr.py` classifies four fields with keyword matching, which silently defaults hard cases.
+After Step 1, Claude (not a script) relabels ONLY the funds the keyword classifier punted on. No API
+key, no console spend — this runs in the skill session under the Max plan.
+
+**Relabel a field only when its value is low-confidence:**
+
+| Field | Relabel when… |
+|---|---|
+| `asset_class` | `== "Other"` |
+| `objective_class` | `== ""` |
+| `phs_fund_type` | `== ""` |
+| `geography` | `== "Malaysia"` AND `"malaysia"` not in `lipper_class` (lowercased) |
+
+**For each flagged fund:** read its `name`, `lipper_class`, `objective_text` (already in `mfr_results.json`),
+choose the corrected value from the bounded enum below, write it back, and add a sibling
+`"&lt;field&gt;_source": "llm-relabel"`.
+
+**Bounded enums (choose only these values):**
+- `asset_class`: Equity - Malaysia · Equity - Foreign · Bond / Fixed Income · Bond / Sukuk · Mixed Asset · Balanced · Money Market
+- `geography`: Malaysia · Greater China · ASEAN · Asia Pacific · Asia · Global · United States · India · Indonesia · Japan · Australia · Vietnam · Singapore
+- `objective_class`: Capital Growth · Income · Capital Growth + Income
+- `phs_fund_type`: Equity · Fixed Income · Mixed Asset / Balanced · Money Market · Fund of Funds  (one combined value — NOT split, unlike asset_class)
+
+**Rules:**
+- NEVER modify `performance`, `ytd`, `weighted_alpha`, `asset_allocation`, `top5_holdings`, `top5_sectors`,
+  or any other field. Numbers and holdings are deterministic and authoritative.
+- If no enum fits (e.g. a gold/commodity fund), leave the original value and do NOT set `_source`.
+- If `objective_text` is empty and the objective can't be resolved, leave it and do NOT set `_source`.
+- Never invent an out-of-enum value.
+
+**Verify:** run `pytest tests/test_relabel.py -v` — it must pass.</code></pre></li>
+
+  <li><span class="step-label">Add the pipeline-overview table row</span> after the Step&nbsp;1 row:
+<pre><code>| 1.5 | (Claude Code, in-session — no script) | mfr_results.json (relabeled) |</code></pre></li>
+
+  <li><span class="step-label">Add a sanity-check row</span>:
+<pre><code>| mfr_results.json — asset_class == "Other" | ~0 after Step 1.5 (gold/commodity funds excepted) |</code></pre></li>
+
+  <li><span class="step-label">Annotate the extraction note</span> — mark asset class, geography, objective, and PHS fund type as "keyword classification, refined in Step&nbsp;1.5".</li>
+
+  <li><span class="step-label">Bump version + changelog</span> — minor frontmatter <code>version</code> bump and a new changelog row:
+<pre><code>| &lt;new-version&gt; | 2026-06-14 | Feature | Step 1.5: in-session LLM relabel of low-confidence classifications, guarded by tests/test_relabel.py |</code></pre></li>
+
+  <li><span class="step-label">Verify the edits landed.</span>
+    <div class="expect">Run: <code>grep -c "Step 1.5" fund-screener-skill/SKILL.md</code> → Expected: <code>&gt;= 2</code><br>
+    Run: <code>grep -n "llm-relabel" fund-screener-skill/SKILL.md</code> → Expected: at least one match</div></li>
+
+  <li><span class="step-label">Commit.</span>
+<pre><code>git add fund-screener-skill/SKILL.md
+git commit -m "feat(screener): add Step 1.5 in-session classification relabel to SKILL.md"</code></pre></li>
+</ol>
+
+<h2 class="task">Task 2 — Write the failing relabel validator test</h2>
+<div class="filebox"><b>Create:</b> <code>tests/test_relabel.py</code></div>
+<ol class="steps">
+  <li><span class="step-label">Write the test file.</span>
+<pre><code>"""Offline validator for the Step 1.5 relabel of mfr_results.json.
+
+Runs against the tracked mfr_results.json at the repo root (read-only), mirroring
+the existing offline-test pattern. The in-session relabel (SKILL.md Step 1.5) is
+what makes these assertions pass; this file is the regression guard.
+"""
+import json
+import os
+
+import pytest
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MFR_PATH = os.path.join(REPO_ROOT, "mfr_results.json")
+
+# --- Bounded enums (single source of truth) ---------------------------------
+ASSET_CLASS = {
+    "Equity - Malaysia", "Equity - Foreign", "Bond / Fixed Income",
+    "Bond / Sukuk", "Mixed Asset", "Balanced", "Money Market",
+}
+GEOGRAPHY = {
+    "Malaysia", "Greater China", "ASEAN", "Asia Pacific", "Asia", "Global",
+    "United States", "India", "Indonesia", "Japan", "Australia", "Vietnam",
+    "Singapore",
+}
+OBJECTIVE_CLASS = {"Capital Growth", "Income", "Capital Growth + Income"}
+PHS_FUND_TYPE = {
+    "Equity", "Fixed Income", "Mixed Asset / Balanced", "Money Market",
+    "Fund of Funds",
+}
+ENUMS = {
+    "asset_class": ASSET_CLASS,
+    "geography": GEOGRAPHY,
+    "objective_class": OBJECTIVE_CLASS,
+    "phs_fund_type": PHS_FUND_TYPE,
+}
+RELABEL_FIELDS = list(ENUMS.keys())
+
+# Permitted residue when no enum fits (documented domain facts, not bug pins).
+COMMODITY_ALLOWLIST = {"PeEMAS"}  # gold/commodity fund — no asset_class enum applies
+
+# Numeric / transcribed fields the relabel must never touch.
+PROTECTED_FIELDS = [
+    "performance", "ytd", "weighted_alpha", "asset_allocation",
+    "top5_holdings", "top5_sectors", "annual_returns",
+]
+
+
+@pytest.fixture(scope="module")
+def funds():
+    with open(MFR_PATH) as fp:
+        data = json.load(fp)
+    return data["all_funds"]
+
+
+def test_relabeled_values_are_in_enum(funds):
+    """Any field carrying a _source flag must hold an in-enum value."""
+    violations = []
+    for f in funds:
+        for field in RELABEL_FIELDS:
+            if f.get(f"{field}_source") == "llm-relabel":
+                if f.get(field) not in ENUMS[field]:
+                    violations.append((f["abbr"], field, f.get(field)))
+    assert not violations, f"relabeled values out of enum: {violations}"
+
+
+def test_source_flags_are_valid(funds):
+    """_source flags appear only on the four fields and equal 'llm-relabel'."""
+    bad = []
+    for f in funds:
+        for key, val in f.items():
+            if key.endswith("_source"):
+                base = key[: -len("_source")]
+                if base not in RELABEL_FIELDS or val != "llm-relabel":
+                    bad.append((f["abbr"], key, val))
+    assert not bad, f"invalid _source flags: {bad}"
+
+
+def test_no_residual_other_asset_class(funds):
+    """After relabel, asset_class == 'Other' only for allowlisted commodity funds."""
+    leftovers = [
+        f["abbr"] for f in funds
+        if f.get("asset_class") == "Other" and f["abbr"] not in COMMODITY_ALLOWLIST
+    ]
+    assert not leftovers, f"unexpected 'Other' asset_class: {leftovers}"
+
+
+def test_geography_not_defaulted_for_foreign_lipper(funds):
+    """No fund keeps geography 'Malaysia' while its lipper names a foreign region."""
+    bad = []
+    for f in funds:
+        lipper = (f.get("lipper_class") or "").lower()
+        if f.get("geography") == "Malaysia" and lipper and "malaysia" not in lipper:
+            bad.append((f["abbr"], f.get("lipper_class")))
+    assert not bad, f"geography still defaulted to Malaysia on foreign-lipper funds: {bad}"
+
+
+def test_protected_fields_present(funds):
+    """Relabel must not have dropped any numeric/holdings field that Step 1 produced."""
+    missing = []
+    for f in funds:
+        for field in ("performance", "weighted_alpha", "top5_holdings"):
+            if field not in f:
+                missing.append((f["abbr"], field))
+    assert not missing, f"protected fields missing: {missing}"
+
+
+@pytest.mark.parametrize("abbr,field,expected", [
+    ("PIMMF-A", "asset_class", "Money Market"),
+    ("PFEDF", "asset_class", "Equity - Foreign"),
+    ("PGCF", "asset_class", "Equity - Foreign"),
+    ("PASGF", "asset_class", "Equity - Foreign"),
+    ("PCIF", "geography", "Greater China"),
+    ("PAIF", "geography", "Asia"),
+])
+def test_pinned_bug_fixes(funds, abbr, field, expected):
+    """The unambiguous keyword-bug cases are corrected."""
+    match = next((f for f in funds if f["abbr"] == abbr), None)
+    assert match is not None, f"{abbr} not found in mfr_results.json"
+    assert match.get(field) == expected, (
+        f"{abbr}.{field} = {match.get(field)!r}, expected {expected!r}"
+    )</code></pre></li>
+
+  <li><span class="step-label">Run the test to verify it fails.</span>
+    <div class="expect">Run: <code>pytest tests/test_relabel.py -v</code> → Expected: FAIL — <code>test_no_residual_other_asset_class</code> reports ~8 Others, geography test reports PCIF/PAIF/etc., and <code>test_pinned_bug_fixes</code> fails (data uncorrected).</div></li>
+
+  <li><span class="step-label">Commit the failing test.</span>
+<pre><code>git add tests/test_relabel.py
+git commit -m "test(screener): add relabel validator for mfr_results.json (failing)"</code></pre></li>
+</ol>
+
+<h2 class="task">Task 3 — Verify integration with the existing suite</h2>
+<ol class="steps">
+  <li><span class="step-label">Run the full suite</span> to confirm collection works and only relabel tests fail.
+    <div class="expect">Run: <code>pytest -v</code> → Expected: <code>test_pipeline.py</code> and <code>test_proposal_validation.py</code> pass; <code>test_relabel.py</code> fails as above; no import/collection errors.</div></li>
+</ol>
+
+<h2 class="task">Task 4 — Perform the in-session relabel pass (make the tests pass)</h2>
+<div class="filebox"><b>Modify (data only):</b> <code>mfr_results.json</code> — the four classification fields + <code>_source</code> flags</div>
+<div class="callout">This task <strong>IS</strong> the Step&nbsp;1.5 procedure. Apply it by editing <code>mfr_results.json</code> directly, following SKILL.md Step&nbsp;1.5 and the Reference data table. <strong>Do NOT edit <code>extract_mfr.py</code>.</strong></div>
+<ol class="steps">
+  <li><span class="step-label">Apply the pinned, unambiguous corrections</span> (set value + add <code>_source</code>):
+    <ul class="tight">
+      <li><code>PIMMF-A</code>: <code>asset_class</code> &rarr; <code>"Money Market"</code></li>
+      <li><code>PFEDF</code>, <code>PGCF</code>, <code>PASGF</code>: <code>asset_class</code> &rarr; <code>"Equity - Foreign"</code></li>
+      <li><code>PCIF</code>: <code>geography</code> &rarr; <code>"Greater China"</code></li>
+      <li><code>PAIF</code>: <code>geography</code> &rarr; <code>"Asia"</code></li>
+    </ul></li>
+  <li><span class="step-label">Apply the judgment corrections</span> (read each fund's <code>objective_text</code>, then pick the in-enum value):
+    <ul class="tight">
+      <li><code>PIRESGF</code>, <code>PISGSGF</code>, <code>PISGRTF</code>: <code>asset_class</code> &rarr; <code>"Equity - Foreign"</code>; relabel <code>geography</code> if <code>"Malaysia"</code> with empty lipper (Global / Asia Pacific / Asia from objective_text).</li>
+      <li><code>PRSEC</code>: <code>geography</code> &rarr; <code>"Asia Pacific"</code>.</li>
+      <li><code>PeISMF</code>: <code>geography</code> &rarr; <code>"Global"</code>.</li>
+      <li><code>PINDGF</code>: confirm <code>"Malaysia"</code> (domestic) — leave unchanged, no <code>_source</code>.</li>
+      <li><code>PeEMAS</code>: no asset_class enum fits — leave <code>"Other"</code>, no <code>_source</code>.</li>
+    </ul></li>
+  <li><span class="step-label">Sweep remaining flagged funds</span> — for any fund still matching a trigger, read-and-relabel from the enums. Leave a field untouched (no <code>_source</code>) only when no enum fits or <code>objective_text</code> is absent.</li>
+  <li><span class="step-label">Run the relabel tests to verify they pass.</span>
+    <div class="expect">Run: <code>pytest tests/test_relabel.py -v</code> → Expected: PASS (all green).</div></li>
+  <li><span class="step-label">Verify non-interference against Step&nbsp;1 output.</span>
+<pre><code>git stash push mfr_results.json &amp;&amp; \
+python3 fund-screener-skill/scripts/extract_mfr.py &gt;/dev/null 2&gt;&amp;1 &amp;&amp; \
+python3 - &lt;&lt;'PY'
+import json
+base = json.load(open("mfr_results.json"))["all_funds"]
+PROT = ["performance","ytd","weighted_alpha","asset_allocation","top5_holdings","top5_sectors","annual_returns"]
+json.dump({f["abbr"]:{k:f.get(k) for k in PROT} for f in base}, open("/tmp/base_prot.json","w"))
+print("baseline captured:", len(base), "funds")
+PY
+git checkout mfr_results.json 2&gt;/dev/null; git stash pop &amp;&amp; \
+python3 - &lt;&lt;'PY'
+import json
+base = json.load(open("/tmp/base_prot.json"))
+cur = {f["abbr"]:f for f in json.load(open("mfr_results.json"))["all_funds"]}
+PROT = ["performance","ytd","weighted_alpha","asset_allocation","top5_holdings","top5_sectors","annual_returns"]
+diffs = [(a,k) for a,b in base.items() for k in PROT if cur.get(a,{}).get(k) != b[k]]
+print("PROTECTED FIELD DIFFS:", diffs or "none")
+assert not diffs, "relabel altered protected fields!"
+PY</code></pre>
+    <div class="expect">Expected: <code>PROTECTED FIELD DIFFS: none</code>. If the MFR PDFs are absent (regen impossible), diff the relabeled JSON against <code>git show HEAD:mfr_results.json</code> for the protected fields instead.</div></li>
+  <li><span class="step-label">Commit the relabeled data.</span>
+<pre><code>git add mfr_results.json
+git commit -m "data: apply Step 1.5 relabel to mfr_results.json classification fields"</code></pre></li>
+</ol>
+
+<h2 class="task">Task 5 — Full suite green + finalize</h2>
+<ol class="steps">
+  <li><span class="step-label">Run the entire suite.</span>
+    <div class="expect">Run: <code>pytest -v</code> → Expected: ALL pass (<code>test_pipeline</code>, <code>test_proposal_validation</code>, <code>test_relabel</code>).</div></li>
+  <li><span class="step-label">Confirm CI parity</span> — CI runs <code>pytest</code>; verify no new dependency.
+    <div class="expect">Run: <code>git diff --name-only HEAD~4 HEAD</code> → Expected: only SKILL.md, test_relabel.py, mfr_results.json, and the spec/plan docs.</div></li>
+  <li><span class="step-label">Final status.</span>
+    <div class="expect">Run: <code>git status --short</code> → expect clean.</div></li>
+</ol>
+
+<h2>Notes for the implementer</h2>
+<ul class="tight">
+  <li><strong>Do not edit <code>extract_mfr.py</code>.</strong> The two keyword bugs are intentionally fixed by the relabel pass, not by patching the classifier (locked decision).</li>
+  <li><strong><code>mfr_results.json</code> is tracked</strong> — committing the relabeled data is correct and lets the test run offline in CI.</li>
+  <li><strong>Reproducibility:</strong> re-running <code>extract_mfr.py</code> overwrites the JSON and wipes the relabel; re-apply Step&nbsp;1.5 on each full regeneration. The committed state always reflects a post-relabel JSON.</li>
+  <li><strong><code>COMMODITY_ALLOWLIST</code></strong> is a documented domain fact (a gold fund has no equity/bond enum), not a mechanism to pin away a misclassification. Keep it minimal.</li>
+</ul>
+
+<footer class="doc">
+  Generated from <code>docs/superpowers/plans/2026-06-14-classification-relabel.md</code> · spec <code>docs/superpowers/specs/2026-06-14-classification-relabel-design.html</code>
+</footer>
+
+</div>
+</body>
+</html>
