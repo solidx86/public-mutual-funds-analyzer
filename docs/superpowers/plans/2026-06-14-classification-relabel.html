@@ -90,16 +90,33 @@
   <tr><td>PISGRTF</td><td>Public Islamic Sustainable Growth Fund</td><td><em>(empty)</em></td><td>Equity - Foreign <span class="muted">(confirm from objective_text)</span></td></tr>
   <tr><td>PeEMAS</td><td>Public e-EMAS Gold Fund</td><td>Commodity Precious Fund-of-Funds</td><td><strong>leave "Other"</strong> — gold/commodity, no enum fits</td></tr>
 </table>
-<h3><code>geography == "Malaysia"</code> with foreign/empty lipper (judgment set)</h3>
+<h3>Geography foreign-defaults (predicate set) — 13 funds</h3>
+<p class="muted">geography <code>"Malaysia"</code> with a foreign-region lipper. These 13 match the refined predicate and must be relabeled; target picked from <code>lipper_class</code> + <code>geo_breakdown</code> holdings.</p>
 <table>
-  <tr><th>Abbr</th><th>Name</th><th>lipper_class</th><th>Correct geography</th></tr>
-  <tr><td>PCIF</td><td>Public China Ittikal Fund</td><td>Equity Greater China Greater China</td><td>Greater China</td></tr>
-  <tr><td>PAIF</td><td>Public Asia Ittikal Fund</td><td>Equity Asia Pacific Asia</td><td>Asia</td></tr>
-  <tr><td>PRSEC</td><td>Public Regional Sector Fund</td><td>Equity Asia Pacific Asia</td><td>Asia Pacific</td></tr>
-  <tr><td>PeISMF</td><td>Public e-Islamic Sustainable Millennial Fund</td><td>Equity Global</td><td>Global</td></tr>
-  <tr><td>PINDGF</td><td>Public Industry Growth Fund</td><td><em>(domestic)</em></td><td>Malaysia <span class="muted">(confirm, no change)</span></td></tr>
-  <tr><td>PISGRTF / PIRESGF / PISGSGF</td><td>Islamic sustainable/ESG</td><td><em>(empty)</em></td><td>judge from objective_text (PISGSGF already "Global")</td></tr>
+  <tr><th>Abbr</th><th>Name</th><th>lipper_class</th><th>geo_breakdown (top)</th><th>Correct geography</th></tr>
+  <tr><td>POEF</td><td>Public Optimal Equity Fund</td><td>Equity Asia Pacific Asia</td><td>Taiwan/Korea/China/USA</td><td>Asia Pacific</td></tr>
+  <tr><td>PRSEC</td><td>Public Regional Sector Fund</td><td>Equity Asia Pacific Asia</td><td>Taiwan/Korea/China/Japan/SG</td><td>Asia Pacific</td></tr>
+  <tr><td>PLTF</td><td>Public Lifestyle &amp; Technology Fund</td><td>Equity Global Global</td><td>USA 53%</td><td>Global</td></tr>
+  <tr><td>PAIF</td><td>Public Asia Ittikal Fund</td><td>Equity Asia Pacific Asia</td><td>Korea/Taiwan/Japan/China</td><td>Asia</td></tr>
+  <tr><td>PIOEF</td><td>Public Islamic Optimal Equity Fund</td><td>Equity Asia Pacific Asia</td><td>Taiwan/Korea/China/USA</td><td>Asia Pacific</td></tr>
+  <tr><td>PCIF</td><td>Public China Ittikal Fund</td><td>Equity Greater China Greater China</td><td>Taiwan/China</td><td>Greater China</td></tr>
+  <tr><td>PeAITF</td><td>Public e-Artificial Intelligence Technology Fund</td><td>Equity Sector Global</td><td>USA 70%</td><td>Global</td></tr>
+  <tr><td>PeCEF</td><td>Public e-Carbon Efficient Fund</td><td>Equity Global Global</td><td>USA 49%</td><td>Global</td></tr>
+  <tr><td>PePEF</td><td>Public e-Pioneer Entrepreneur Fund</td><td>Equity Global Global</td><td>USA 44%</td><td>Global</td></tr>
+  <tr><td>PeISITF</td><td>Public e-Islamic Innovative Technology Fund</td><td>Equity Sector Global</td><td>USA 61%</td><td>Global</td></tr>
+  <tr><td>PeIPE40F</td><td>Public e-Islamic Pioneer Entrepreneur 40 Fund</td><td>Equity Global Global</td><td>USA 58%</td><td>Global</td></tr>
+  <tr><td>PeISMF</td><td>Public e-Islamic Sustainable Millennial Fund</td><td>Equity Global</td><td>USA 67%</td><td>Global</td></tr>
+  <tr><td>PBEPEF</td><td>PB Euro Pacific Equity Fund</td><td>Equity Global Asia</td><td>Korea/China/Taiwan/USA/France</td><td>Global</td></tr>
 </table>
+<h3>Empty-lipper ESG funds (judgment — not enforced by the test, but correct to relabel)</h3>
+<table>
+  <tr><th>Abbr</th><th>Name</th><th>lipper_class</th><th>geo_breakdown (top)</th><th>Correct geography</th></tr>
+  <tr><td>PISGRTF</td><td>Public Islamic Sustainable Growth Fund</td><td><em>(empty)</em></td><td>USA/Taiwan/China</td><td>Global</td></tr>
+  <tr><td>PIRESGF</td><td>Public Islamic Regional ESG Fund</td><td><em>(empty)</em></td><td>Korea/Taiwan/Japan/USA</td><td>Asia Pacific</td></tr>
+</table>
+<div class="callout">
+  <strong>Stay Malaysian — do NOT relabel</strong> (lipper carries <code>MYR</code>/<code>Domestic</code>, or names no region): all <code>Bond MYR</code> and <code>Mixed Asset MYR [Domestic|Global]</code> funds (P BOND, PSBF, PBF, PSMACF, PIMXAF, PBBF, …, ~31 funds), plus <code>PI INCOME</code> (<code>Consistent</code>), <code>PIMMF-A</code> (domestic money market), and <code>PeEMAS</code> (gold).
+</div>
 <div class="callout ok">
   <strong>Pinned, unambiguous corrections</strong> (enforced by the acceptance test):
   PIMMF-A&rarr;Money Market · PFEDF&rarr;Equity - Foreign · PGCF&rarr;Equity - Foreign · PASGF&rarr;Equity - Foreign · PCIF&rarr;Greater China · PAIF&rarr;Asia.
@@ -122,7 +139,17 @@ key, no console spend — this runs in the skill session under the Max plan.
 | `asset_class` | `== "Other"` |
 | `objective_class` | `== ""` |
 | `phs_fund_type` | `== ""` |
-| `geography` | `== "Malaysia"` AND `"malaysia"` not in `lipper_class` (lowercased) |
+| `geography` | `== "Malaysia"` AND `lipper_class` names a foreign region AND carries no domestic marker (predicate below) |
+
+&gt; **Geography predicate (important):** a fund is a foreign-default only when its lowercased `lipper_class`
+&gt; (a) is non-empty, (b) contains **none** of the domestic markers `malaysia` / `myr` / `domestic`, and
+&gt; (c) contains at least one foreign-region token (`asia`, `china`, `global`, `asean`, `pacific`, `india`,
+&gt; `indonesia`, `japan`, `australia`, `vietnam`, `singapore`, `europe`, `emerging`, `far east`,
+&gt; `united states`). `Bond MYR` and `Mixed Asset MYR Domestic` are **Malaysian** (the "MYR"/"Domestic"
+&gt; marker is the home signal) — never relabel them. `Consistent` (a Lipper performance tag, not a region)
+&gt; and `Commodity Precious Fund-of-Funds` (gold) name no region — leave them. Funds with an **empty**
+&gt; lipper but clearly-foreign `geo_breakdown`/`objective_text` (e.g. the Islamic ESG funds) may still be
+&gt; relabeled by judgment, but the test does not require it.
 
 **For each flagged fund:** read its `name`, `lipper_class`, `objective_text` (already in `mfr_results.json`),
 choose the corrected value from the bounded enum below, write it back, and add a sibling
@@ -207,6 +234,25 @@ RELABEL_FIELDS = list(ENUMS.keys())
 # Permitted residue when no enum fits (documented domain facts, not bug pins).
 COMMODITY_ALLOWLIST = {"PeEMAS"}  # gold/commodity fund — no asset_class enum applies
 
+# --- Geography foreign-default predicate ------------------------------------
+# A lipper string signals a foreign default only when it (a) is non-empty,
+# (b) carries no domestic marker, and (c) names a foreign region. "Bond MYR"
+# and "Mixed Asset MYR Domestic" are Malaysian; "Consistent" / commodity name
+# no region.
+DOMESTIC_MARKERS = ("malaysia", "myr", "domestic")
+FOREIGN_REGION_TOKENS = (
+    "asia", "china", "global", "asean", "pacific", "india", "indonesia",
+    "japan", "australia", "vietnam", "singapore", "europe", "emerging",
+    "far east", "united states",
+)
+
+
+def lipper_names_foreign_region(lipper):
+    l = (lipper or "").lower()
+    if not l or any(m in l for m in DOMESTIC_MARKERS):
+        return False
+    return any(tok in l for tok in FOREIGN_REGION_TOKENS)
+
 # Numeric / transcribed fields the relabel must never touch.
 PROTECTED_FIELDS = [
     "performance", "ytd", "weighted_alpha", "asset_allocation",
@@ -254,13 +300,14 @@ def test_no_residual_other_asset_class(funds):
 
 
 def test_geography_not_defaulted_for_foreign_lipper(funds):
-    """No fund keeps geography 'Malaysia' while its lipper names a foreign region."""
+    """No fund keeps geography 'Malaysia' when its lipper names a foreign region
+    and carries no domestic (MYR/Domestic/Malaysia) marker. MYR/Domestic funds
+    are legitimately Malaysian and must be left alone."""
     bad = []
     for f in funds:
-        lipper = (f.get("lipper_class") or "").lower()
-        if f.get("geography") == "Malaysia" and lipper and "malaysia" not in lipper:
+        if f.get("geography") == "Malaysia" and lipper_names_foreign_region(f.get("lipper_class")):
             bad.append((f["abbr"], f.get("lipper_class")))
-    assert not bad, f"geography still defaulted to Malaysia on foreign-lipper funds: {bad}"
+    assert not bad, f"geography still defaulted to Malaysia on foreign-region funds: {bad}"
 
 
 def test_protected_fields_present(funds):
@@ -290,7 +337,7 @@ def test_pinned_bug_fixes(funds, abbr, field, expected):
     )</code></pre></li>
 
   <li><span class="step-label">Run the test to verify it fails.</span>
-    <div class="expect">Run: <code>pytest tests/test_relabel.py -v</code> → Expected: FAIL — <code>test_no_residual_other_asset_class</code> reports ~8 Others, geography test reports PCIF/PAIF/etc., and <code>test_pinned_bug_fixes</code> fails (data uncorrected).</div></li>
+    <div class="expect">Run: <code>pytest tests/test_relabel.py -v</code> → Expected: FAIL — <code>test_no_residual_other_asset_class</code> reports the 8 <code>Other</code> funds minus PeEMAS → 7, <code>test_geography_not_defaulted_for_foreign_lipper</code> reports the 13 foreign-region funds, and <code>test_pinned_bug_fixes</code> fails for PIMMF-A/PFEDF/PGCF/PASGF/PCIF/PAIF (current data is uncorrected).</div></li>
 
   <li><span class="step-label">Commit the failing test.</span>
 <pre><code>git add tests/test_relabel.py
@@ -306,24 +353,30 @@ git commit -m "test(screener): add relabel validator for mfr_results.json (faili
 <h2 class="task">Task 4 — Perform the in-session relabel pass (make the tests pass)</h2>
 <div class="filebox"><b>Modify (data only):</b> <code>mfr_results.json</code> — the four classification fields + <code>_source</code> flags</div>
 <div class="callout">This task <strong>IS</strong> the Step&nbsp;1.5 procedure. Apply it by editing <code>mfr_results.json</code> directly, following SKILL.md Step&nbsp;1.5 and the Reference data table. <strong>Do NOT edit <code>extract_mfr.py</code>.</strong></div>
+<div class="callout"><strong>Full relabel set for this MFR.</strong> <code>objective_class</code> and <code>phs_fund_type</code> have <strong>no</strong> empty values in the current data, so no relabel is needed for those two fields — only <code>asset_class</code> and <code>geography</code>. Each value set must be accompanied by its sibling <code>"&lt;field&gt;_source": "llm-relabel"</code>.</div>
 <ol class="steps">
-  <li><span class="step-label">Apply the pinned, unambiguous corrections</span> (set value + add <code>_source</code>):
+  <li><span class="step-label"><code>asset_class</code> relabels (7 funds → add <code>asset_class_source</code>).</span>
     <ul class="tight">
-      <li><code>PIMMF-A</code>: <code>asset_class</code> &rarr; <code>"Money Market"</code></li>
-      <li><code>PFEDF</code>, <code>PGCF</code>, <code>PASGF</code>: <code>asset_class</code> &rarr; <code>"Equity - Foreign"</code></li>
-      <li><code>PCIF</code>: <code>geography</code> &rarr; <code>"Greater China"</code></li>
-      <li><code>PAIF</code>: <code>geography</code> &rarr; <code>"Asia"</code></li>
+      <li><code>PIMMF-A</code> &rarr; <code>"Money Market"</code> <span class="muted">(pinned)</span></li>
+      <li><code>PFEDF</code>, <code>PGCF</code>, <code>PASGF</code> &rarr; <code>"Equity - Foreign"</code> <span class="muted">(pinned)</span></li>
+      <li><code>PISGRTF</code>, <code>PIRESGF</code>, <code>PISGSGF</code> &rarr; <code>"Equity - Foreign"</code> <span class="muted">(Islamic sustainable/ESG global-equity mandates)</span></li>
+      <li><code>PeEMAS</code> → leave <code>"Other"</code>, <strong>no</strong> <code>_source</code> (gold/commodity, no enum fits).</li>
     </ul></li>
-  <li><span class="step-label">Apply the judgment corrections</span> (read each fund's <code>objective_text</code>, then pick the in-enum value):
+  <li><span class="step-label"><code>geography</code> relabels — predicate set (13 funds → add <code>geography_source</code>).</span> Foreign-region lipper, no domestic marker:
     <ul class="tight">
-      <li><code>PIRESGF</code>, <code>PISGSGF</code>, <code>PISGRTF</code>: <code>asset_class</code> &rarr; <code>"Equity - Foreign"</code>; relabel <code>geography</code> if <code>"Malaysia"</code> with empty lipper (Global / Asia Pacific / Asia from objective_text).</li>
-      <li><code>PRSEC</code>: <code>geography</code> &rarr; <code>"Asia Pacific"</code>.</li>
-      <li><code>PeISMF</code>: <code>geography</code> &rarr; <code>"Global"</code>.</li>
-      <li><code>PINDGF</code>: confirm <code>"Malaysia"</code> (domestic) — leave unchanged, no <code>_source</code>.</li>
-      <li><code>PeEMAS</code>: no asset_class enum fits — leave <code>"Other"</code>, no <code>_source</code>.</li>
+      <li><code>PLTF</code>, <code>PeAITF</code>, <code>PeCEF</code>, <code>PePEF</code>, <code>PeISITF</code>, <code>PeIPE40F</code>, <code>PeISMF</code>, <code>PBEPEF</code> &rarr; <code>"Global"</code></li>
+      <li><code>POEF</code>, <code>PRSEC</code>, <code>PIOEF</code> &rarr; <code>"Asia Pacific"</code></li>
+      <li><code>PAIF</code> &rarr; <code>"Asia"</code> <span class="muted">(pinned)</span></li>
+      <li><code>PCIF</code> &rarr; <code>"Greater China"</code> <span class="muted">(pinned)</span></li>
     </ul></li>
-  <li><span class="step-label">Sweep remaining flagged funds</span> — for any fund still matching a trigger, read-and-relabel from the enums. Leave a field untouched (no <code>_source</code>) only when no enum fits or <code>objective_text</code> is absent.</li>
+  <li><span class="step-label"><code>geography</code> relabels — empty-lipper ESG funds (2 funds → add <code>geography_source</code>).</span> Judge from <code>geo_breakdown</code>/<code>objective_text</code>:
+    <ul class="tight">
+      <li><code>PISGRTF</code> &rarr; <code>"Global"</code> (holdings USA/Taiwan/China — global mandate)</li>
+      <li><code>PIRESGF</code> &rarr; <code>"Asia Pacific"</code> (holdings Korea/Taiwan/Japan — regional Asia)</li>
+      <li><code>PIMMF-A</code>: geography stays <code>"Malaysia"</code> (domestic money market) — <strong>no</strong> <code>geography_source</code>.</li>
+    </ul></li>
   <li><span class="step-label">Run the relabel tests to verify they pass.</span>
+    <div class="callout">After Steps 1–3: <code>PISGRTF</code> and <code>PIRESGF</code> carry <strong>both</strong> <code>asset_class_source</code> and <code>geography_source</code>. No other fund's <code>geography</code> is <code>"Malaysia"</code> with a foreign-region lipper, so the geography test will pass. Do not touch any <code>Bond MYR</code> / <code>Mixed Asset MYR Domestic</code> fund — those are correctly Malaysian.</div>
     <div class="expect">Run: <code>pytest tests/test_relabel.py -v</code> → Expected: PASS (all green).</div></li>
   <li><span class="step-label">Verify non-interference against Step&nbsp;1 output.</span>
 <pre><code>git stash push mfr_results.json &amp;&amp; \
