@@ -2990,7 +2990,8 @@
       "abbr": "PFEDF",
       "page": 32,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
       "geography": "Asia Pacific",
       "is_shariah": false,
       "performance": {
@@ -3511,7 +3512,8 @@
       "page": 36,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -3626,7 +3628,8 @@
       "page": 37,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -4136,7 +4139,8 @@
       "abbr": "PGCF",
       "page": 41,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
       "geography": "Greater China",
       "is_shariah": false,
       "performance": {
@@ -4256,7 +4260,8 @@
       "abbr": "PASGF",
       "page": 42,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
       "geography": "ASEAN",
       "is_shariah": false,
       "performance": {
@@ -5390,7 +5395,8 @@
       "page": 51,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -9337,8 +9343,10 @@
       "abbr": "PISGRTF",
       "page": 21,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
-      "geography": "Malaysia",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -9828,7 +9836,8 @@
       "page": 25,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -10208,7 +10217,8 @@
       "page": 28,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -10322,8 +10332,10 @@
       "abbr": "PIRESGF",
       "page": 29,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
-      "geography": "Malaysia",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -10418,7 +10430,8 @@
       "page": 30,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Greater China",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -10789,7 +10802,8 @@
       "abbr": "PISGSGF",
       "page": 33,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
       "geography": "Global",
       "is_shariah": true,
       "performance": {
@@ -12506,7 +12520,8 @@
       "abbr": "PIMMF-A",
       "page": 48,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Money Market",
+      "asset_class_source": "llm-relabel",
       "geography": "Malaysia",
       "is_shariah": true,
       "performance": {
@@ -12826,7 +12841,8 @@
       "page": 10,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -12947,7 +12963,8 @@
       "page": 11,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -13068,7 +13085,8 @@
       "page": 12,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -14291,7 +14309,8 @@
       "page": 24,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -14394,7 +14413,8 @@
       "page": 25,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -14501,7 +14521,8 @@
       "page": 26,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -17018,7 +17039,8 @@
       "page": 24,
       "source_file": "[MFR APR26] PB Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -23709,7 +23731,8 @@
       "page": 36,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -23824,7 +23847,8 @@
       "page": 37,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -24334,7 +24358,8 @@
       "abbr": "PGCF",
       "page": 41,
       "source_file": "[MFR APR26] Public Series Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
       "geography": "Greater China",
       "is_shariah": false,
       "performance": {
@@ -28032,8 +28057,10 @@
       "abbr": "PISGRTF",
       "page": 21,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
-      "geography": "Malaysia",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -28523,7 +28550,8 @@
       "page": 25,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -28903,7 +28931,8 @@
       "page": 28,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -29017,8 +29046,10 @@
       "abbr": "PIRESGF",
       "page": 29,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
-      "geography": "Malaysia",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
+      "geography": "Asia Pacific",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -29113,7 +29144,8 @@
       "page": 30,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Greater China",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -29241,7 +29273,8 @@
       "abbr": "PISGSGF",
       "page": 33,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Equity - Foreign",
+      "asset_class_source": "llm-relabel",
       "geography": "Global",
       "is_shariah": true,
       "performance": {
@@ -30836,7 +30869,8 @@
       "abbr": "PIMMF-A",
       "page": 48,
       "source_file": "[MFR APR26] Public Series of Shariah-Based Funds.pdf",
-      "asset_class": "Other",
+      "asset_class": "Money Market",
+      "asset_class_source": "llm-relabel",
       "geography": "Malaysia",
       "is_shariah": true,
       "performance": {
@@ -31045,7 +31079,8 @@
       "page": 11,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -31166,7 +31201,8 @@
       "page": 12,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
@@ -32092,7 +32128,8 @@
       "page": 24,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -32195,7 +32232,8 @@
       "page": 26,
       "source_file": "[MFR APR26] Public e-Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": true,
       "performance": {
         "Year-to-Date_total": [
@@ -34083,7 +34121,8 @@
       "page": 24,
       "source_file": "[MFR APR26] PB Series Funds.pdf",
       "asset_class": "Equity - Foreign",
-      "geography": "Malaysia",
+      "geography": "Global",
+      "geography_source": "llm-relabel",
       "is_shariah": false,
       "performance": {
         "Year-to-Date_total": [
