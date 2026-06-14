@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Spec — In-Session Classification Relabel (Step 1.5)</title>
+<style>
+  :root{
+    --ink:#1f2328; --muted:#57606a; --line:#d8dee4; --bg:#fbfcfd;
+    --accent:#9a3b2e; --accent-soft:#f3e7e4; --code-bg:#f4f1ea; --ok:#1a7f4b; --warn:#9a6700;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:56px 28px 96px}
+  header.doc{border-bottom:3px solid var(--accent); padding-bottom:22px; margin-bottom:8px}
+  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 14px; letter-spacing:-.01em}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--muted)}
+  .meta b{color:var(--ink); font-weight:600}
+  h2{font-size:21px; margin:42px 0 12px; padding-top:10px; letter-spacing:-.01em}
+  h3{font-size:16px; margin:26px 0 8px; color:var(--accent)}
+  p,li{color:var(--ink)}
+  .muted{color:var(--muted)}
+  code{background:var(--code-bg); padding:.12em .4em; border-radius:4px; font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre code{background:none; padding:0}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  tr:nth-child(even) td{background:#fff}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft); padding:12px 16px; border-radius:0 8px 8px 0; margin:18px 0}
+  .callout.ok{border-color:var(--ok); background:#e9f5ee}
+  .callout.warn{border-color:var(--warn); background:#fbf3da}
+  .pill{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:var(--accent); color:#fff; vertical-align:middle}
+  ul.tight{margin:8px 0; padding-left:22px}
+  ul.tight li{margin:4px 0}
+  .kbd{font:12.5px ui-monospace,monospace; background:#fff; border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px}
+  hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+  footer.doc{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  .nowrap{white-space:nowrap}
+  s{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <p class="eyebrow">Design Specification</p>
+  <h1>In-Session Classification Relabel (Step&nbsp;1.5)</h1>
+  <div class="meta">
+    <span><b>Project:</b> public-mutual-funds-analyzer</span>
+    <span><b>Skill:</b> fund-screener</span>
+    <span><b>Date:</b> 2026-06-14</span>
+    <span><b>Status:</b> Approved design — pending implementation plan</span>
+  </div>
+</header>
+
+<h2>1. Problem</h2>
+<p>
+  <code>extract_mfr.py</code> assigns four classification fields per fund using <em>keyword/substring matching</em>:
+  <code>asset_class</code>, <code>geography</code>, <code>objective_class</code>, and <code>phs_fund_type</code>.
+  This ladder-of-<code>if</code>-statements cannot <em>understand</em> a fund — it only matches anticipated tokens — so hard cases
+  silently fall through to defaults (<code>"Other"</code>, <code>""</code>, or <code>"Malaysia"</code>).
+</p>
+<p>Measured against the tracked <code>mfr_results.json</code> (171 funds), the keyword classifier was wrong on
+<strong>12 of 13</strong> genuinely ambiguous funds — all silently, with no error:</p>
+<ul class="tight">
+  <li><strong>8/8 wrong</strong> on <code>asset_class</code> — all dumped to <code>"Other"</code> (e.g. Greater China, ASEAN, Islamic ESG equity funds; and a money-market fund).</li>
+  <li><strong>4/5 wrong</strong> on <code>geography</code> — defaulted to <code>"Malaysia"</code> (e.g. China&nbsp;Ittikal, Asia&nbsp;Ittikal, regional/global funds).</li>
+</ul>
+<p>Two are outright code bugs: <code>'MONEY MARKET'</code> (with a space) fails to match <code>MONEYMARKET</code> (line&nbsp;617),
+and the <code>ITTIKAL&rarr;Malaysia</code> rule runs <em>before</em> the <code>CHINA</code>/<code>ASIA</code> rules (line&nbsp;650), so a China fund is labelled Malaysia.</p>
+
+<h2>2. Goal &amp; non-goals</h2>
+<p><strong>Goal.</strong> Raise the accuracy of the four fuzzy classification fields by having Claude relabel
+<em>only the funds the keyword classifier punted on</em>, during the normal skill run — no API key, no console spend,
+no change to the user's routine (download MFR &rarr; invoke <code>fund-screener</code>).</p>
+<table>
+  <tr><th>Non-goal</th><th>Why</th></tr>
+  <tr><td>Touching numeric / transcribed fields (<code>performance</code>, <code>ytd</code>, <code>weighted_alpha</code>, <code>asset_allocation</code>, <code>top5_holdings</code>, <code>top5_sectors</code>)</td><td>These are deterministic and authoritative; an LLM could only add silent drift to numbers and proper nouns shown to clients.</td></tr>
+  <tr><td>Editing <code>extract_mfr.py</code> (including the two known bugs)</td><td>Decision locked: LLM-relabel-only. The failure trigger already catches both bug cases (see §4).</td></tr>
+  <tr><td>Re-classifying all 171 funds</td><td>Decision locked: failures-only. A confident keyword result is never second-guessed.</td></tr>
+  <tr><td>A standalone script / API path</td><td>Not needed while a Claude Code session drives the run. Reserved for a future fully-unattended pipeline.</td></tr>
+</table>
+
+<h2>3. Architecture</h2>
+<p>
+  A new instruction block — <strong>Step&nbsp;1.5</strong> — in <code>fund-screener-skill/SKILL.md</code>, executed by Claude
+  between Step&nbsp;1 (<code>extract_mfr.py</code>) and Step&nbsp;3 (<code>build_sheet_data.py</code>).
+  <strong>No new scripts. No Python changes.</strong> It is a read-modify-write on <code>mfr_results.json</code>.
+</p>
+<pre><code>Step 1   extract_mfr.py        → mfr_results.json   (keyword classification)
+         ── Step 1.5  relabel pass (Claude, in-session) ──  rewrites mfr_results.json
+Step 2   fetch_ath.py          → ath_results.json
+Step 3   build_sheet_data.py   → master_funds.csv   (reads corrected JSON, unchanged)
+Step 4   build_xlsx.py         → workbook           (unchanged)</code></pre>
+<p class="muted">Step&nbsp;1.5 is independent of the ATH fetch, so its order relative to Step&nbsp;2 does not matter.
+Because Steps&nbsp;3–4 read the classification fields straight out of the JSON, correcting them in the JSON requires zero downstream changes.</p>
+
+<h2>4. Trigger — per-field low-confidence test</h2>
+<p>A fund's field is relabeled <strong>only</strong> when its deterministic value is low-confidence:</p>
+<table>
+  <tr><th>Field</th><th>Relabel when…</th></tr>
+  <tr><td><code>asset_class</code></td><td><code>== "Other"</code></td></tr>
+  <tr><td><code>objective_class</code></td><td><code>== ""</code></td></tr>
+  <tr><td><code>phs_fund_type</code></td><td><code>== ""</code></td></tr>
+  <tr><td><code>geography</code></td><td><code>== "Malaysia"</code> <strong>and</strong> <code>"malaysia"</code> not in <code>lipper_class</code> (lowercased)</td></tr>
+</table>
+<div class="callout ok">
+  <strong>Why this catches the bugs without touching <code>extract_mfr.py</code>.</strong>
+  PIMMF-A (MONEYMARKET bug) surfaces as <code>asset_class == "Other"</code>. The ITTIKAL/regional geography bugs
+  (PCIF, PAIF, PRSEC, PeISMF) all have <code>geography == "Malaysia"</code> while their <code>lipper_class</code> reads
+  China&nbsp;/&nbsp;Asia&nbsp;/&nbsp;Global — so the geography rule flags them. No keyword logic is re-implemented.
+</div>
+<p class="muted">
+  The geography rule also flags empty-<code>lipper</code> Malaysia funds (empty string trivially lacks "malaysia").
+  That is intentional: empty lipper = low signal = worth a look. A fund that is genuinely Malaysian simply gets
+  <em>confirmed</em> — a harmless no-op.
+</p>
+
+<h2>5. Behaviour per flagged fund</h2>
+<ol class="tight">
+  <li>Read the fund's <code>name</code>, <code>lipper_class</code>, and <code>objective_text</code> — all already present in <code>mfr_results.json</code>.</li>
+  <li>Choose the corrected value from the field's <strong>bounded enum</strong> (§6). No free text.</li>
+  <li>Write the corrected value back into the fund object, and stamp a sibling
+      <code>&lt;field&gt;_source: "llm-relabel"</code> for audit.</li>
+  <li>Leave every other field byte-for-byte unchanged.</li>
+</ol>
+
+<h2>6. Bounded enums</h2>
+<p>Values must come from the vocabulary the Excel columns already expect, so nothing downstream breaks.</p>
+<table>
+  <tr><th>Field</th><th>Allowed values</th></tr>
+  <tr><td><code>asset_class</code></td><td>Equity&nbsp;-&nbsp;Malaysia · Equity&nbsp;-&nbsp;Foreign · Bond&nbsp;/&nbsp;Fixed&nbsp;Income · Bond&nbsp;/&nbsp;Sukuk · Mixed&nbsp;Asset · Balanced · Money&nbsp;Market</td></tr>
+  <tr><td><code>geography</code></td><td>Malaysia · Greater&nbsp;China · ASEAN · Asia&nbsp;Pacific · Asia · Global · United&nbsp;States · India · Indonesia · Japan · Australia · Vietnam · Singapore</td></tr>
+  <tr><td><code>objective_class</code></td><td>Capital&nbsp;Growth · Income · Capital&nbsp;Growth&nbsp;+&nbsp;Income</td></tr>
+  <tr><td><code>phs_fund_type</code></td><td>Equity · Fixed&nbsp;Income · Mixed&nbsp;Asset · Balanced · Money&nbsp;Market · Fund&nbsp;of&nbsp;Funds</td></tr>
+</table>
+
+<h2>7. Error handling &amp; edge cases</h2>
+<ul class="tight">
+  <li><strong>Unresolvable field</strong> (e.g. empty <code>objective_text</code>): keep the original keyword value and do <em>not</em> set <code>_source</code>. Never blank a field.</li>
+  <li><strong>No enum fits</strong> (e.g. PeEMAS, a gold/commodity fund-of-funds): leave the value as-is rather than force a wrong enum. A genuine <code>"Other"</code> is allowed to remain.</li>
+  <li><strong>Never invent</strong> an out-of-enum value, and never modify a non-targeted field.</li>
+</ul>
+
+<h2>8. Reproducibility</h2>
+<p>
+  Bounded enums plus explicit rules keep output stable in practice. Step&nbsp;1 regenerates <code>mfr_results.json</code> on
+  every run, so the relabel re-runs every run. Both the proposal and the FundMaster workbook derive from the
+  <em>same post-relabel JSON</em> within a run, so <code>tests/test_proposal_validation.py</code> stays internally consistent.
+  The <code>_source</code> flag provides a clean audit trail.
+</p>
+<div class="callout warn">
+  <strong>Accepted tradeoff.</strong> Because the relabel is model-driven, a label could occasionally flap month-to-month
+  on a borderline fund. This is cosmetic (a category label, never a number or a gate input) and traceable via <code>_source</code>.
+</div>
+
+<h2>9. Changes to SKILL.md</h2>
+<ul class="tight">
+  <li>New <strong>Step&nbsp;1.5</strong> section after Step&nbsp;1 — trigger rules, enums, write-back + <code>_source</code>, "never touch numerics", "Max-plan in-session, no API key".</li>
+  <li>Pipeline-overview table row: <code>1.5 | (Claude Code, in-session) | mfr_results.json (relabel)</code>.</li>
+  <li>Sanity-check row: <code>asset_class == "Other"</code> → ~0 after Step&nbsp;1.5 (was ~8).</li>
+  <li>"What the scripts extract" note: flag the four fields as "keyword classification, refined in Step&nbsp;1.5".</li>
+  <li>Frontmatter <code>version</code> minor bump + changelog line.</li>
+</ul>
+
+<h2>10. Testing &amp; verification</h2>
+<ul class="tight">
+  <li><strong>Sanity:</strong> after Step&nbsp;1.5, <code>asset_class == "Other"</code> count ≈ 0 (legitimate commodity cases excepted); no targeted field left empty except where <code>objective_text</code> is absent.</li>
+  <li><strong>Enum conformance:</strong> every relabeled value is within its §6 enum.</li>
+  <li><strong>Non-interference:</strong> numeric/holdings/sector/allocation fields identical to the Step&nbsp;1 output (diff check).</li>
+  <li><strong>Existing eval:</strong> <code>tests/test_proposal_validation.py</code> continues to pass against a regenerated proposal — the <code>KNOWN_*</code> pin sets stay empty.</li>
+</ul>
+
+<h2>11. Acceptance criteria</h2>
+<ul class="tight">
+  <li>Invoking <code>fund-screener</code> on the current MFR set yields <code>asset_class == "Other"</code> ≈ 0 and no spurious <code>"Malaysia"</code> on China/Asia/Global funds.</li>
+  <li>PIMMF-A → Money Market; PCIF → Greater China; PAIF → Asia; PGCF/PASGF → Equity – Foreign.</li>
+  <li>No numeric/holdings/sector value changed by Step&nbsp;1.5.</li>
+  <li>User routine unchanged: download MFR, invoke skill.</li>
+</ul>
+
+<footer class="doc">
+  Decisions locked during brainstorming: failures-only · LLM-relabel-only (no <code>extract_mfr.py</code> edits) ·
+  in-session execution (Max plan) · spec as HTML, plan as Markdown&nbsp;+&nbsp;HTML.
+</footer>
+
+</div>
+</body>
+</html>
