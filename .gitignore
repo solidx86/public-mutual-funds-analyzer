@@ -16,3 +16,7 @@ fetch_ath.py
 # Playwright cache & local verification screenshots (skill-creator workflow artifacts)
 .playwright-mcp/
 .standardization-screenshots/
+
+# local test virtualenv
+.venv/
+.venv-test/
