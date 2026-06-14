@@ -108,7 +108,7 @@ Because Steps&nbsp;3–4 read the classification fields straight out of the JSON
   <tr><td><code>asset_class</code></td><td><code>== "Other"</code></td></tr>
   <tr><td><code>objective_class</code></td><td><code>== ""</code></td></tr>
   <tr><td><code>phs_fund_type</code></td><td><code>== ""</code></td></tr>
-  <tr><td><code>geography</code></td><td><code>== "Malaysia"</code> <strong>and</strong> <code>"malaysia"</code> not in <code>lipper_class</code> (lowercased)</td></tr>
+  <tr><td><code>geography</code></td><td><code>== "Malaysia"</code> <strong>and</strong> <code>lipper_class</code> names a foreign region (asia/china/global/asean/pacific/…) <strong>and</strong> carries no domestic marker (<code>malaysia</code>/<code>myr</code>/<code>domestic</code>). <code>Bond MYR</code> and <code>Mixed Asset MYR Domestic</code> stay Malaysian.</td></tr>
 </table>
 <div class="callout ok">
   <strong>Why this catches the bugs without touching <code>extract_mfr.py</code>.</strong>
