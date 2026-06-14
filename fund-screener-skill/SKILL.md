@@ -1,5 +1,5 @@
 ---
-version: "1.4"
+version: "1.5"
 name: fund-screener
 description: >
   Bulk-screen all Public Mutual unit trust funds from Monthly Fund Report (MFR) PDFs and produce a fund master list as a formatted Excel file (importable to Google Sheets). Applies weighted alpha scoring: qualifies funds whose weighted alpha (YTD 5%, 1Y 15%, 3Y 40%, 5Y 25%, 10Y 15%) is positive, ensuring alpha quality matters more than binary pass/fail counts. Use this skill whenever the user says things like: "screen the new MFR", "update the fund qualification list", "which funds qualify this month", "run the fund screener", "update with the [month] MFR", "new monthly report is out — re-run the analysis", or any request to produce or refresh a qualified funds shortlist from Public Mutual MFR data. Also trigger when the user wants to compare qualified funds across months, filter by asset class (equity, bond, Shariah), or update the Google Sheet / Excel output. If the user drops new MFR PDFs and says "these are out" or "new reports", use this skill.
@@ -55,6 +55,7 @@ is the actual qualification driver.
 | Step | Script | Output |
 |---|---|---|
 | 1 | `extract_mfr.py` | `mfr_results.json` |
+| 1.5 | (Claude Code, in-session — no script) | mfr_results.json (relabeled) |
 | 2 | `fetch_ath.py` | `ath_results.json` + `fund_code_map.json` |
 | 3 | `build_sheet_data.py` | `master_funds.csv` |
 | 4 | `build_xlsx.py` | `.xlsx` workbook |
@@ -85,6 +86,52 @@ python3 fund-screener-skill/scripts/extract_mfr.py
 ```
 
 Expected: `mfr_results.json` with ~171 funds.
+
+---
+
+## Step 1.5: Relabel low-confidence classifications (Claude Code, in-session — no script)
+
+`extract_mfr.py` classifies four fields with keyword matching, which silently defaults hard cases.
+After Step 1, Claude (not a script) relabels ONLY the funds the keyword classifier punted on. No API
+key, no console spend — this runs in the skill session under the Max plan.
+
+**Relabel a field only when its value is low-confidence:**
+
+| Field | Relabel when… |
+|---|---|
+| `asset_class` | `== "Other"` |
+| `objective_class` | `== ""` |
+| `phs_fund_type` | `== ""` |
+| `geography` | `== "Malaysia"` AND `lipper_class` names a foreign region AND carries no domestic marker (predicate below) |
+
+> **Geography predicate (important):** a fund is a foreign-default only when its lowercased `lipper_class`
+> (a) is non-empty, (b) contains **none** of the domestic markers `malaysia` / `myr` / `domestic`, and
+> (c) contains at least one foreign-region token (`asia`, `china`, `global`, `asean`, `pacific`, `india`,
+> `indonesia`, `japan`, `australia`, `vietnam`, `singapore`, `europe`, `emerging`, `far east`,
+> `united states`). `Bond MYR` and `Mixed Asset MYR Domestic` are **Malaysian** (the "MYR"/"Domestic"
+> marker is the home signal) — never relabel them. `Consistent` (a Lipper performance tag, not a region)
+> and `Commodity Precious Fund-of-Funds` (gold) name no region — leave them. Funds with an **empty**
+> lipper but clearly-foreign `geo_breakdown`/`objective_text` (e.g. the Islamic ESG funds) may still be
+> relabeled by judgment, but the test does not require it.
+
+**For each flagged fund:** read its `name`, `lipper_class`, `objective_text` (already in `mfr_results.json`),
+choose the corrected value from the bounded enum below, write it back, and add a sibling
+`"<field>_source": "llm-relabel"`.
+
+**Bounded enums (choose only these values):**
+- `asset_class`: Equity - Malaysia · Equity - Foreign · Bond / Fixed Income · Bond / Sukuk · Mixed Asset · Balanced · Money Market
+- `geography`: Malaysia · Greater China · ASEAN · Asia Pacific · Asia · Global · United States · India · Indonesia · Japan · Australia · Vietnam · Singapore
+- `objective_class`: Capital Growth · Income · Capital Growth + Income
+- `phs_fund_type`: Equity · Fixed Income · Mixed Asset / Balanced · Money Market · Fund of Funds  (one combined value — NOT split, unlike asset_class)
+
+**Rules:**
+- NEVER modify `performance`, `ytd`, `weighted_alpha`, `asset_allocation`, `top5_holdings`, `top5_sectors`,
+  or any other field. Numbers and holdings are deterministic and authoritative.
+- If no enum fits (e.g. a gold/commodity fund), leave the original value and do NOT set `_source`.
+- If `objective_text` is empty and the objective can't be resolved, leave it and do NOT set `_source`.
+- Never invent an out-of-enum value.
+
+**Verify:** run `pytest tests/test_relabel.py -v` — it must pass.
 
 ---
 
@@ -155,7 +202,7 @@ Data rows: 171 (qualified: ~110, disqualified: ~61)
 | Top 5 Holdings | MFR right column (x > midpoint) | Coordinate-based |
 | Geo breakdown | MFR right column | KNOWN_COUNTRIES whitelist |
 | Volatility Class | Derived from VF | SC banding: Very Low ≤4.245, Low ≤7.795, Moderate ≤10.235, High ≤13.595, Very High >13.595 |
-| Fund Objective | PHS PDF (page 0) | Keyword classification |
+| Fund Objective | PHS PDF (page 0) | Keyword classification (asset class, geography, objective, PHS fund type are keyword classification, refined in Step 1.5) |
 | Risk Level | funds_risk_level.xlsx | Lookup by abbreviation |
 | Lipper Class, Benchmark | MFR left column | Regex |
 | ATH NAV, ATH Date | publicmutual.com.my | Full NAV history → max(Nav) |
@@ -210,6 +257,7 @@ Median stats, Top-N tables, and fund type breakdowns all use FILTER/SORTBY/MEDIA
 | Check | Expected |
 |---|---|
 | mfr_results.json — total funds | ~171 (4 MFR series) |
+| mfr_results.json — asset_class == "Other" | ~0 after Step 1.5 (gold/commodity funds excepted) |
 | Qualified count | ~110 at weighted alpha > 0% threshold |
 | Risk Level coverage | 171/171 |
 | ath_results.json — total_processed | 171 |
@@ -296,6 +344,7 @@ All formatting, filters, and conditional formatting carry over automatically.
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| 1.5 | 2026-06-14 | Feature | Step 1.5: in-session LLM relabel of low-confidence classifications (asset_class/geography/objective_class/phs_fund_type), guarded by tests/test_relabel.py |
 | 1.4 | 2026-05-06 | Bugfix | Fix asset-allocation parser misattributing Domestic/Foreign equity split for Shariah funds whose MFR layout places the `- Domestic` / `- Foreign` sub-qualifier on a separate line below the percentage row (e.g. PeIGRF, PBIEF, PBISCF, PeMZSF) |
 | 1.3 | 2026-04-17 | Refactor | Organize output files into output/fundmasters/ directory and update build_xlsx.py to target this new location |
 | 1.2 | 2026-04-15 | Feature | Auto-derive output filename, sheet titles, and footer from MFR month/year (parsed from mfr_results.json) and skill version (parsed from SKILL.md frontmatter) — no manual hardcoding required each month; generated date also dynamic |
