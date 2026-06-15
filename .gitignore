@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Intermediate pipeline outputs (regenerated each run)
+data/cache/master_funds.csv
+
+# Live skill outputs — real/client runs stay local; curated samples live in output/examples/
+# (no trailing slash: these are gitignored symlinks into the private repo, not real dirs)
+output/fund_proposals
+output/fundmasters
+
+# Legacy scripts at root level (superseded by fund-screener-skill/scripts/)
+fetch_ath.py
+
+# Playwright cache & local verification screenshots (skill-creator workflow artifacts)
+.playwright-mcp/
+.standardization-screenshots/
+
+# local test virtualenv
+.venv/
+.venv-test/
+
+# Private data source — copyrighted PDFs, mounted from public-mutual-funds-analyzer-private (gitignored symlinks)
+# (no trailing slash so the patterns also match the symlinks, not just real dirs)
+/unit-trust
+/private-retirement-scheme

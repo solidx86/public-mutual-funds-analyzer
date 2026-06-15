@@ -1,0 +1,739 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   fund-consultant Design System — v[SKILL_VERSION]
+   Single source of truth for all generated HTML (proposals + shortlists).
+
+   Copy this entire file verbatim into the <style> block of every generated
+   document. Do NOT modify, substitute, or extend. All visual decisions must
+   live in this file so every output is structurally identical.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Primary ── */
+  --navy: #1a365d;
+  --blue: #2b6cb0;
+  --white: #ffffff;
+
+  /* ── Neutral ── */
+  --text: #1a202c;
+  --text-mid: #4a5568;
+  --text-muted: #718096;
+  --border: #e2e8f0;
+  --bg-subtle: #f7fafc;
+
+  /* ── Fund Type Accents ── */
+  --equity: #2b6cb0;
+  --fixed-income: #276749;
+  --mixed-asset: #975a16;
+  --money-market: #4a5568;
+  --gold: #b7791f;
+  --teal: #2c7a7b;
+
+  /* ── Semantic ── */
+  --positive: #276749;
+  --positive-bg: #f0fff4;
+  --negative: #c53030;
+  --negative-bg: #fff5f5;
+  --amber: #b7791f;
+  --amber-bg: #fffff0;
+  --info-bg: #ebf4ff;
+  --info-border: #bee3f8;
+
+  /* ── CFS Dimension Colors ── */
+  --cfs-alpha: #1a365d;
+  --cfs-return: #2c7a7b;
+  --cfs-efficiency: #276749;
+  --cfs-momentum: #b7791f;
+
+  /* ── Typography ── */
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+
+  /* ── Spacing (8px base) ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+}
+
+/* ── Reset & Base ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--white);
+}
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px;
+}
+
+/* ── Cover Page ── */
+.cover {
+  min-height: 100vh;
+  background: var(--navy);  /* FLAT. No gradient. No pattern. */
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  page-break-after: always;
+}
+
+.cover-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 36px 48px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.cover-brand {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+}
+
+.cover-brand strong {
+  color: rgba(255,255,255,0.95);
+  display: block;
+  font-size: 18px;
+  margin-bottom: 2px;
+  letter-spacing: 0.04em;
+}
+
+.cover-contact {
+  text-align: right;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.7;
+}
+
+.cover-contact strong {
+  color: rgba(255,255,255,0.85);
+  font-size: 13px;
+}
+
+.cover-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 48px;
+}
+
+.cover-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 16px;
+}
+
+.cover-divider {
+  width: 60px;
+  height: 3px;
+  background: var(--blue);
+  margin-bottom: 32px;
+  border-radius: 0;
+}
+
+.cover-title {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--white);
+  margin-bottom: 12px;
+}
+
+.cover-subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 48px;
+}
+
+.cover-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px 48px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.cover-meta-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 2px;
+}
+
+.cover-meta-value {
+  font-size: 15px;
+  color: var(--white);
+  font-weight: 600;
+}
+
+.cover-footer {
+  padding: 20px 48px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.04em;
+}
+
+/* ── Section Headers ── */
+.section {
+  margin-bottom: var(--space-2xl);
+  padding-top: var(--space-xl);
+  page-break-inside: avoid;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.section-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: 0;
+}
+
+.section-rule {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: var(--space-lg);
+}
+
+/* ── Executive Summary ── */
+.exec-summary {
+  background: var(--info-bg);
+  border-left: 4px solid var(--blue);
+  padding: 20px 24px;
+  border-radius: 0 4px 4px 0;
+}
+
+.exec-summary ul { list-style: none; padding: 0; }
+
+.exec-summary li {
+  padding: 6px 0 6px 20px;
+  position: relative;
+}
+
+.exec-summary li::before {
+  content: "\25B8";
+  position: absolute;
+  left: 0;
+  color: var(--blue);
+  font-weight: bold;
+}
+
+/* ── Tables (default) ── */
+.table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+th {
+  background: var(--navy);
+  color: var(--white);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:nth-child(even) td { background: var(--bg-subtle); }
+
+/* ── Macro Context Table (Section 2) ──
+   Middle column hint is `min-width` only, NOT a fixed width with `nowrap`.
+   The fixed-width + nowrap combo was brittle: any middle column whose content
+   was longer than ~100px (e.g., a "Status" sentence in place of a short date)
+   would expand the column to fit the longest line, squeezing the third column
+   to a tiny strip. min-width keeps short dates on one line via natural sizing
+   while still letting longer content wrap. */
+.macro-table th:nth-child(2),
+.macro-table td:nth-child(2) { min-width: 100px; }
+
+/* ── Fund Cards ── */
+.fund-card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin: var(--space-lg) 0;
+  overflow: hidden;
+  page-break-inside: avoid;
+}
+
+.fund-card-header {
+  padding: 14px 20px;
+  color: var(--white);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.fund-card-header h3 { color: var(--white); margin: 0; font-size: 15px; font-weight: 700; }
+.fund-card-header .alloc { font-size: 24px; font-weight: 700; }
+.fund-card-header .candidate-num {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.18);
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.fund-card-header.equity       { background: var(--equity); }
+.fund-card-header.fixed-income { background: var(--fixed-income); }
+.fund-card-header.mixed-asset  { background: var(--mixed-asset); }
+.fund-card-header.money-market { background: var(--money-market); }
+.fund-card-header.gold         { background: var(--gold); }
+.fund-card-header.alpha-outlier { background: var(--teal); }
+
+.fund-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  background: var(--bg-subtle);
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.fund-meta span { white-space: nowrap; }
+
+.fund-card-body { padding: 16px 20px; }
+
+.fund-card-body h4 {
+  font-size: 13px;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 14px 0 6px;
+}
+
+.fund-card-body h4:first-child { margin-top: 0; }
+.fund-card-body ul { padding-left: 18px; margin: 4px 0; }
+.fund-card-body li { margin: 3px 0; font-size: 13px; }
+
+/* ── Performance Table (inside fund cards) ── */
+.perf-table { margin: 8px 0; font-size: 12px; }
+
+.perf-table th {
+  background: var(--navy);
+  color: var(--white);
+  padding: 6px 10px;
+  font-size: 11px;
+  text-align: right;
+}
+
+.perf-table th:first-child { text-align: left; }
+
+.perf-table td {
+  padding: 5px 10px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.perf-table td:first-child {
+  text-align: left;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.alpha-pos { color: var(--positive); font-weight: 700; background: var(--positive-bg); }
+.alpha-neg { color: var(--negative); font-weight: 700; background: var(--negative-bg); }
+
+/* ── Cost & Alpha Mini-Card (per fund — locked component) ── */
+.cost-alpha-mini {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 16px;
+}
+
+.cost-alpha-mini .cell { display: flex; flex-direction: column; gap: 2px; }
+
+.cost-alpha-mini .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.cost-alpha-mini .value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  font-family: var(--font-mono);
+}
+
+.cost-alpha-mini .value.pos { color: var(--positive); }
+.cost-alpha-mini .value.neg { color: var(--negative); }
+
+.cost-alpha-mini .source {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
+/* ── Info Boxes (legacy — kept for backward compat) ── */
+.cost-box {
+  background: var(--positive-bg);
+  border: 1px solid #c6f6d5;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.cost-box .net-value { font-weight: 700; color: var(--positive); }
+
+.watch-box {
+  background: var(--amber-bg);
+  border: 1px solid #fefcbf;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.macro-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+/* ── Portfolio Summary Highlight ── */
+.highlight-row { background: var(--navy) !important; color: var(--white) !important; font-weight: 700; }
+.highlight-row td { color: var(--white) !important; border-bottom: none; }
+
+/* ── Strategy Cards ── */
+.strategy-card {
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin: 12px 0;
+}
+
+.strategy-card h4 { color: var(--navy); margin-bottom: 8px; }
+
+/* ── Pie Charts ── */
+.exposure-chart-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+
+.exposure-chart-block { flex: 1 1 320px; min-width: 0; }
+
+.exposure-chart-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.pie-chart {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.pie-chart.small { width: 200px; height: 200px; }
+
+.legend {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-label { flex: 1; color: var(--text-mid); }
+
+.legend-pct {
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--navy);
+}
+
+.exposure-note {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 16px;
+  line-height: 1.6;
+}
+
+/* ── Fund-Level Pie Pair (used inside candidate cards in shortlist mode) ── */
+.fund-pies {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+}
+
+.fund-pies .exposure-chart-block { flex: 1 1 240px; }
+
+/* ── Disclaimer ── */
+.disclaimer {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-top: 30px;
+}
+
+.disclaimer h4 {
+  font-size: 12px;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 12px 0 6px;
+}
+
+.disclaimer h4:first-child { margin-top: 0; }
+
+/* ── Sources ── */
+.sources { font-size: 11px; color: var(--text-muted); margin-top: 20px; }
+.sources h4 {
+  font-size: 11px;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.sources ul { padding-left: 18px; margin: 0; }
+.sources li { margin: 3px 0; }
+.sources a { color: var(--blue); text-decoration: none; word-break: break-word; }
+.sources a:hover { text-decoration: underline; }
+
+/* ── Document Footer ── */
+.doc-footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  line-height: 1.7;
+}
+
+.doc-footer .credit-line strong { color: var(--navy); }
+
+/* ── New Investor Foundation ── */
+.foundation-section {
+  background: var(--info-bg);
+  border-left: 4px solid var(--blue);
+  border-radius: 0 4px 4px 0;
+  padding: 24px 28px;
+  margin: 24px 0;
+  page-break-inside: avoid;
+}
+
+.foundation-section h2 {
+  color: var(--blue);
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.foundation-section h3 {
+  color: var(--navy);
+  font-size: 15px;
+  margin: 16px 0 6px;
+}
+
+.foundation-section p {
+  font-size: 14px;
+  margin: 6px 0;
+}
+
+/* ── Exposure Gap Card ── */
+.fund-card.exposure-gap {
+  border: 2px dashed var(--amber);
+}
+
+.fund-card.exposure-gap .fund-card-header {
+  background: var(--mixed-asset);
+}
+
+.alpha-warning {
+  background: var(--amber-bg);
+  border: 1px solid #fefcbf;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+/* ── CFS Mini-Bar ── */
+.cfs-bar {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+
+.cfs-bar .cfs-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--navy);
+  margin-bottom: 10px;
+}
+
+.cfs-bar .cfs-title .cfs-score { font-size: 16px; }
+
+.cfs-row { margin-bottom: 6px; }
+.cfs-row:last-child { margin-bottom: 0; }
+
+.cfs-row .cfs-row-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 2px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cfs-track {
+  background: var(--border);
+  border-radius: 2px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.cfs-fill { height: 8px; border-radius: 2px; }
+.cfs-fill.alpha       { background: var(--cfs-alpha); }
+.cfs-fill.return-fit  { background: var(--cfs-return); }
+.cfs-fill.efficiency  { background: var(--cfs-efficiency); }
+.cfs-fill.momentum    { background: var(--cfs-momentum); }
+
+/* ── Responsive (mobile/tablet only — print and desktop unchanged) ── */
+@media (max-width: 768px) {
+  .page { padding: 20px; }
+
+  .cover-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 28px 24px 20px;
+  }
+  .cover-contact { text-align: left; }
+  .cover-body { padding: 40px 24px; }
+  .cover-title { font-size: 32px; }
+  .cover-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 12px 0;
+    width: 100%;
+  }
+  .cover-footer { padding: 16px 24px; flex-direction: column; gap: 4px; }
+
+  table { font-size: 12px; }
+  th, td { padding: 8px 8px; }
+
+  .cost-alpha-mini { grid-template-columns: repeat(2, 1fr); }
+
+  .exposure-chart-wrap { flex-direction: column; gap: 24px; }
+  .pie-chart { width: 100%; height: auto; aspect-ratio: 1 / 1; max-width: 280px; }
+  .pie-chart.small { max-width: 200px; }
+
+  .fund-pies { flex-direction: column; }
+}
+
+/* ── Print Styles ── */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { font-size: 12px; }
+  .cover { min-height: auto; padding: 48px; page-break-after: always; }
+  .page { padding: 20px; }
+  .section { page-break-inside: avoid; }
+  .fund-card { page-break-inside: avoid; }
+  .section-title { page-break-after: avoid; }
+  .table-wrap { overflow: visible; }
+}
