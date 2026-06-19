@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track 0 — Headless Consultant Engine (design review)</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2129; --panel2:#212b35; --ink:#e6edf3; --muted:#9fb0c0;
+    --line:#2d3a47; --accent:#4ea1ff; --accent2:#7ee787; --warn:#ffb454; --pyt:#79c0ff;
+    --llm:#d2a8ff; --loop:#ff9492; --good:#56d364; --chip:#243240;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 24px 80px;}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:30px;}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.3px}
+  .sub{color:var(--muted);font-size:14px}
+  .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--chip);border:1px solid var(--line);color:var(--muted);
+    font-size:12px;padding:3px 10px;border-radius:20px}
+  .chip b{color:var(--ink);font-weight:600}
+  h2{font-size:18px;margin:38px 0 14px;padding-top:10px;border-top:1px solid var(--line);
+    display:flex;align-items:center;gap:10px}
+  h2 .n{color:var(--accent);font-variant-numeric:tabular-nums;font-size:14px;
+    background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+  h3{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 10px}
+  p{margin:10px 0}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;
+    padding:1px 6px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#cdd9e5}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;
+    overflow-x:auto;font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#cdd9e5;margin:12px 0}
+  pre code{background:none;border:none;padding:0}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:6px}
+  .card .v{font-size:14px}
+  .card.full{grid-column:1 / -1}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag.py{background:rgba(121,192,255,.15);color:var(--pyt);border:1px solid rgba(121,192,255,.35)}
+  .tag.llm{background:rgba(210,168,255,.15);color:var(--llm);border:1px solid rgba(210,168,255,.35)}
+  .tag.loop{background:rgba(255,148,146,.15);color:var(--loop);border:1px solid rgba(255,148,146,.35)}
+  /* pipeline diagram */
+  .flow{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin:14px 0;overflow-x:auto}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .node{border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;white-space:nowrap;border:1px solid}
+  .node.py{background:rgba(121,192,255,.12);color:var(--pyt);border-color:rgba(121,192,255,.4)}
+  .node.llm{background:rgba(210,168,255,.12);color:var(--llm);border-color:rgba(210,168,255,.4)}
+  .node.loop{background:rgba(255,148,146,.12);color:var(--loop);border-color:rgba(255,148,146,.4)}
+  .node.int{background:rgba(255,180,84,.12);color:var(--warn);border-color:rgba(255,180,84,.45)}
+  .node.end{background:rgba(86,211,100,.12);color:var(--good);border-color:rgba(86,211,100,.4)}
+  .arr{color:var(--muted);font-size:16px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .review{background:linear-gradient(0deg,rgba(255,180,84,.07),rgba(255,180,84,.07)),var(--panel);
+    border:1px solid rgba(255,180,84,.4);border-radius:10px;padding:14px 16px;margin:12px 0}
+  .review .k{color:var(--warn);font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px}
+  ul{margin:10px 0;padding-left:22px}
+  li{margin:5px 0}
+  .pill{font-size:11px;padding:2px 8px;border-radius:5px;background:var(--chip);border:1px solid var(--line);color:var(--muted)}
+  .in{color:var(--good)} .out{color:var(--loop)}
+  .kv{display:grid;grid-template-columns:140px 1fr;gap:4px 14px;font-size:14px;margin:8px 0}
+  .kv .key{color:var(--accent);font-family:ui-monospace,monospace;font-size:13px}
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  @media(max-width:680px){.cards{grid-template-columns:1fr}.kv{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Track 0 — Headless Consultant Engine</h1>
+  <div class="sub">Design review · rebuild the <code>fund-consultant</code> generate→validate→repair loop as a LangGraph graph</div>
+  <div class="meta">
+    <span class="chip">Date <b>2026-06-19</b></span>
+    <span class="chip">Status <b>Design — pending review → writing-plans</b></span>
+    <span class="chip">Tracking <b>ENH-5</b> · ENH-4 · ENH-6</span>
+    <span class="chip">Phase 1 · Track 0</span>
+  </div>
+</header>
+
+<h2><span class="n">1</span> Summary</h2>
+<p>Re-implement the <code>fund-consultant</code> procedure as a runnable, headless <b>LangGraph <code>StateGraph</code></b> in a new package <code>consultant_engine/</code>. Input: a client risk profile + the latest FundMaster workbook + a macro-context input. Output: a version-stamped HTML proposal that passes <code>tests/test_proposal_validation.py</code>.</p>
+<p>This <b>replaces the <code>fund-consultant</code> skill entirely</b> — the skill bundle is <b>retired</b> once the engine exists; invocation is via CLI / Python import (no natural-language trigger). The procedure is <b>not</b> kept as a parallel prose spec (nothing to drift). <code>SKILL.md</code> decomposes into two homes, each a single source of truth:</p>
+<ul>
+  <li><b>Steps 1–4</b> (load, eligibility, filters, CFS, allocation) → <b>Python code</b> — precise, testable.</li>
+  <li><b>Steps 5–7</b> (macro narrative, jargon layering, fee presentation, HTML skeleton) → the engine's <b>LLM prompt(s) + HTML template assets</b> — the generation guidance <i>becomes</i> the prompt; the skeleton already lives in <code>references/</code> and moves into the engine.</li>
+</ul>
+<p>Track 0 folds in the deterministic core ENH-1/ENH-2 described — those become the spine of this engine rather than a separate accelerant.</p>
+
+<h2><span class="n">2</span> Locked decisions <span class="pill">the resolved forks</span></h2>
+<div class="cards">
+  <div class="card"><div class="k">1 · Role</div><div class="v"><b>Full headless re-implementation</b>; the <b>skill bundle is retired</b> (CLI / import invocation). Full-parity end goal across every branch.</div></div>
+  <div class="card"><div class="k">2 · Determinism line</div><div class="v">Python owns <b>all numbers</b> (ground truth); the <b>LLM writes prose AND fills a locked, slotted skeleton</b> (placeholder / <code>data-*</code> slots, not free-form HTML), transcribing numbers into fixed slots. Loop guards slot-transcription + conformance + disclosure.</div></div>
+  <div class="card"><div class="k">3 · Macro acquisition</div><div class="v"><b>Outside the graph</b> — a contract-bound structured input. Fixture/script now, <b>ENH-6</b> agent later, graph unchanged.</div></div>
+  <div class="card"><div class="k">4 · Build order</div><div class="v"><b>Horizontal by layer</b> (compute → LLM → loop), with a <b>Layer 0 skeleton + stubs</b> standing up first so each layer slots into a runnable shell.</div></div>
+  <div class="card"><div class="k">5 · Checkpointer + interrupt</div><div class="v"><b>In scope</b> — SQLite checkpointer + an <code>interrupt()</code> on the <b>main path, after <code>build_portfolio</code></b> (a "Proposed Allocation — for Consultant Review" gate). Review <b>ON by default</b>; <code>--no-review</code> auto-approves for evals / CI / batch. <b>Streaming deferred</b>.</div></div>
+  <div class="card"><div class="k">6 · e-Series branch retired</div><div class="v"><b>Removed entirely</b> — Step 4e, the <code>mode</code> conditional, <code>build_shortlist</code>, and the Pe-only universe filter. One linear path for all clients; only the experience-tier branch + validate→repair loop remain (plus the interrupt above).</div></div>
+  <div class="card full"><div class="k">7 · Review-gate interaction = exit-and-resume</div><div class="v">On <code>interrupt()</code> the engine writes an <b>editable review artifact</b> (<code>data/review/&lt;thread_id&gt;.json</code>) + a read-only HTML preview, then exits <code>0</code>. <code>--resume &lt;thread_id&gt;</code> continues from the checkpoint. Human edits are <b>re-validated</b> against the deterministic invariants before generation: consultant owns <b>intent</b> (funds + %), engine owns <b>facts</b> (CFS / rank / eligibility — re-derived, never trusted from the file). Contract in §7.</div></div>
+  <div class="card full"><div class="k">8 · Validation = one rule module, two consumers</div><div class="v"><b>Not redundant.</b> One shared rule module. The runtime <code>validate</code> node imports it for LLM-driven <b>self-correction</b>; the offline pytest suite imports the <i>same</i> module as a deterministic <b>CI regression gate</b> (+ checker-correctness via known-good/known-bad fixtures, + the Track-A eval seam). Different time, input, guarantee — see §8.</div></div>
+</div>
+
+<h2><span class="n">3</span> Determinism boundary</h2>
+<table>
+  <tr><th>Concern</th><th>Owner</th><th>Notes</th></tr>
+  <tr><td>Load FundMaster + Step 1b retail-eligibility exclusion</td><td><span class="tag py">Python</span></td><td>openpyxl read of latest workbook</td></tr>
+  <tr><td>Step 2 filters (Shariah, risk ceiling)</td><td><span class="tag py">Python</span></td><td>on the eligible universe</td></tr>
+  <tr><td>Step 3 CFS (4 dims, profile weights, ER-stretch, tiebreaker)</td><td><span class="tag py">Python</span></td><td>the deterministic scoring core (= ENH-1/2)</td></tr>
+  <tr><td>Step 4 allocation (templates, 4b/4c/4d)</td><td><span class="tag py">Python</span></td><td>one linear build for all clients</td></tr>
+  <tr><td>Human edits at the review gate</td><td><span class="tag py">Python</span></td><td>invariants replayed on resume; facts re-derived</td></tr>
+  <tr><td>Macro context</td><td><span class="tag py">Python</span></td><td>normalize/validate the input contract</td></tr>
+  <tr><td>Prose (rationale, macro narrative, jargon layering)</td><td><span class="tag llm">LLM</span></td><td></td></tr>
+  <tr><td>HTML assembly into the locked slotted skeleton (numbers → slots)</td><td><span class="tag llm">LLM</span></td><td>the surface the loop guards</td></tr>
+</table>
+<p class="sub">Numbers are correct-by-construction in state → the loop catches mis-transcription, broken section order, and disclosure-rule violations, not wrong numbers.</p>
+
+<h2><span class="n">4</span> Graph topology</h2>
+<p>One linear path — no <code>mode</code> branch, no e-Series universe restriction. Every client runs the same build.</p>
+<div class="flow">
+  <div class="row" style="margin-bottom:10px">
+    <span class="node py">load_profile</span><span class="arr">→</span>
+    <span class="node py">load_funds <span style="opacity:.7">+1b</span></span><span class="arr">→</span>
+    <span class="node py">filter_universe</span><span class="arr">→</span>
+    <span class="node py">score_cfs</span><span class="arr">→</span>
+    <span class="node py">build_portfolio</span>
+  </div>
+  <div class="row">
+    <span class="node int">⏸ interrupt: consultant review</span><span class="arr">→</span><span class="pill">resume: re-validate edits</span><span class="arr">→</span>
+    <span class="node py">macro_context</span><span class="arr">→</span>
+    <span class="node llm">generate_proposal</span><span class="arr">→</span>
+    <span class="node loop">validate</span>
+    <span class="arr">⇄</span>
+    <span class="node loop">repair</span>
+    <span class="arr">→</span>
+    <span class="node end">emit</span>
+  </div>
+  <p class="sub" style="margin-top:14px">
+    <b class="int">interrupt</b> sits on the <b>main path, after <code>build_portfolio</code></b> — <i>every</i> proposal pauses for review (unless <code>--no-review</code>). Interaction is <b>exit-and-resume</b>: write the review artifact (§7) + preview, exit; state persists in the SQLite checkpointer (keyed by <code>thread_id</code>); <code>--resume</code> continues. On resume, a human-edited allocation is <b>re-validated against the invariants</b> before <code>macro_context</code> — a violating edit re-pauses (review ON) or fails loudly (<code>--no-review</code>).<br>
+    <b>validate → repair</b> cycles while violations exist and <code>iters &lt; MAX</code>; otherwise → <b>emit</b>. At cap with unresolved violations: <b class="out">fail loudly</b> (non-zero exit + violation list) — never emit a broken proposal.<br>
+    <b>Only two conditionals remain:</b> the <b>experience-tier</b> branch (new vs experienced, set at <code>load_profile</code>) at <code>generate_proposal</code>, and the validate→repair loop.
+  </p>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--pyt)"></i> Python (deterministic)</span>
+    <span><i class="dot" style="background:var(--llm)"></i> LLM</span>
+    <span><i class="dot" style="background:var(--loop)"></i> validate / repair</span>
+    <span><i class="dot" style="background:var(--warn)"></i> human-in-the-loop</span>
+    <span><i class="dot" style="background:var(--good)"></i> emit</span>
+  </div>
+</div>
+
+<h2><span class="n">5</span> State schema</h2>
+<div class="kv">
+  <div class="key">inputs</div><div>client_profile (risk_level, shariah, experience, upfront_capital, E_target), macro_context (contract), fundmaster_path</div>
+  <div class="key">routing</div><div>experience_tier (<code>new</code>|<code>experienced</code>)</div>
+  <div class="key">computed</div><div>eligible_funds, filtered_funds, cfs_scores (4 dims + composite + weights), portfolio, structural/satellite/exposure_gap picks, fees (PHS)</div>
+  <div class="key">review</div><div>proposed_allocation (artifact at interrupt), resume_payload (decision + edited allocation); re-validation reuses validation.violations[]</div>
+  <div class="key">generation</div><div>proposal_html</div>
+  <div class="key">validation</div><div>violations[], repair_iterations</div>
+  <div class="key">output</div><div>output_path</div>
+</div>
+
+<h2><span class="n">6</span> Macro contract <span class="pill">the ENH-6 seam</span></h2>
+<p>Typed schema — a list of dated events <code>{date, theme, claim, source_url}</code> (theme tags align with the Step-5 query set / ENH-4 taxonomy). Interchangeable producers behind one schema:</p>
+<ul>
+  <li><b>Now:</b> a fixture (tests) or a small producer script.</li>
+  <li><b>Later (ENH-6):</b> a macro-researcher agent — its own LangGraph subgraph (search → dedupe → date → cite → cluster), optionally backed by the ENH-4 persistent store for longitudinal deltas.</li>
+</ul>
+<p>The <code>macro_context</code> node only normalizes/validates the contract; prose is rendered in <code>generate_proposal</code>. The graph is byte-for-byte unchanged across producer swaps.</p>
+
+<h2><span class="n">7</span> Review-artifact contract <span class="pill">the HITL gate</span></h2>
+<p>At <code>interrupt()</code> the engine writes <code>data/review/&lt;thread_id&gt;.json</code> (editable) + a read-only HTML allocation preview. The consultant edits the JSON (or not) and runs <code>--resume &lt;thread_id&gt;</code>. Example — a Moderate, experienced investor, RM 50k:</p>
+<pre><code>{
+  "thread_id": "moderate-20260619-a3f9",
+  "schema_version": "1.0",
+
+  "context": {
+    "client_profile": {
+      "risk_level": "Moderate", "risk_band": 3, "shariah": false,
+      "experience": "experienced", "upfront_capital_rm": 50000, "target_equity_pct": 60
+    },
+    "fundmaster": "output/fundmasters/PublicMutual_FundMaster_Jun2026_v2.3.xlsx",
+    "engine_version": "0.1.0", "generated_at": "2026-06-19T10:42:00+08:00"
+  },
+
+  "constraints": {
+    "_comment": "Re-validation enforces these on resume. Stay within them or it re-pauses (review ON) / fails loudly (--no-review).",
+    "allocations_sum_to_pct": 100,
+    "fund_count": { "min": 4, "max": 6 },
+    "per_fund_cap_pct": 40,
+    "risk_level_ceiling": 3,
+    "required_structural": { "gold": 1, "money_market": 1 },
+    "universe": "scored eligible funds only (retail-eligible, risk &lt;= ceiling, Shariah filter applied)"
+  },
+
+  "allocation": [
+    { "abbrev": "PeEMAS",     "role": "structural:gold",         "allocation_pct": 10, "cfs": 0.71, "rank": 7,  "risk_level": 3, "eligible": true },
+    { "abbrev": "PeCDF-A",    "role": "structural:money_market", "allocation_pct": 10, "cfs": 0.55, "rank": 12, "risk_level": 1, "eligible": true },
+    { "abbrev": "PIX",        "role": "core",                    "allocation_pct": 40, "cfs": 0.88, "rank": 1,  "risk_level": 3, "eligible": true },
+    { "abbrev": "PeDividend", "role": "core",                    "allocation_pct": 40, "cfs": 0.83, "rank": 3,  "risk_level": 3, "eligible": true }
+  ],
+
+  "review": { "decision": "approve", "note": "" }
+}</code></pre>
+<table>
+  <tr><th>Block</th><th>Editable?</th><th>Purpose</th></tr>
+  <tr><td><code>context</code></td><td>read-only</td><td>provenance — who/what this build is for</td></tr>
+  <tr><td><code>constraints</code></td><td>read-only</td><td>the rules re-validation enforces, surfaced so edits are <i>informed</i></td></tr>
+  <tr><td><code>allocation</code></td><td><b>editable</b></td><td>the decision — change <code>allocation_pct</code>, add/remove funds</td></tr>
+  <tr><td><code>review.decision</code></td><td><b>editable</b></td><td><code>approve</code> / <code>revise</code> (resume re-validates either way)</td></tr>
+</table>
+<ul>
+  <li><b>No change is required</b> — the default file is already a valid, approvable allocation; save and <code>--resume</code> to accept. Edits are optional overrides.</li>
+  <li><b>Intent vs facts:</b> the consultant edits only <code>abbrev</code> and <code>allocation_pct</code>. The computed fields (<code>cfs</code>, <code>rank</code>, <code>risk_level</code>, <code>eligible</code>) are <b>display-only</b> — on resume the engine re-derives them and ignores anything typed there. You cannot fake a CFS, and can only pick from the scored eligible universe.</li>
+  <li><b>Add/swap a fund:</b> add <code>{ "abbrev": "PISTF", "allocation_pct": 15 }</code> and rebalance to 100. On resume the engine backfills its facts and checks the eligible universe; an ineligible or over-ceiling pick produces a re-validation violation.</li>
+</ul>
+
+<h2><span class="n">8</span> Validate → repair loop</h2>
+<p><span class="tag loop">validate</span> recomputes from the structured ground truth in state and cross-checks the rendered HTML — the seven <code>test_proposal_validation.py</code> checks run programmatically: section order, CFS composite == weighted recompute (HTML slot values vs state numbers), recommended funds exist in source workbook, alpha-warning iff disqualified, retail eligibility, version stamp + AI disclosure. Emits <code>violations[]</code>.</p>
+<p><span class="tag loop">repair</span> receives <code>violations[]</code> + current HTML and fixes <b>only those</b>, re-emitting HTML.</p>
+<h3>One rule module, two consumers</h3>
+<table>
+  <tr><th></th><th><code>validate</code> node (runtime)</th><th>pytest suite (CI)</th></tr>
+  <tr><td><b>When</b></td><td>during a live generation run</td><td>every push, offline</td></tr>
+  <tr><td><b>Input</b></td><td>the one proposal being generated</td><td>committed fixtures + golden sample</td></tr>
+  <tr><td><b>LLM?</b></td><td>yes (drives <code>repair</code>)</td><td>no — deterministic</td></tr>
+  <tr><td><b>Job</b></td><td>self-correct <i>this</i> output</td><td>catch <i>code</i> regressions</td></tr>
+</table>
+<p>The runtime loop structurally <b>cannot</b> do three things the suite owns: (1) <b>validate the validator</b> — known-good/known-bad fixtures prove the shared module is correct; (2) <b>gate CI</b> — runtime validation runs at generation time and can't stop a bad commit landing, while CI pytest runs LLM-free on every push; (3) <b>seed Track A</b> — which re-expresses these checks as evals on the offline form. So <code>test_proposal_validation.py</code> is <b>refactored, not deleted</b>: imports the shared module, reads <code>version</code> from the package (not <code>SKILL.md</code>), points at fixtures + golden anchor.</p>
+<div class="review">
+  <div class="k">★ Review focus — §8</div>
+  <code>MAX = 3</code> repair iterations (revisit in planning); at cap → <b class="out">fail loudly</b>, never emit a broken proposal.
+</div>
+
+<h2><span class="n">9</span> Tech stack</h2>
+<p>Python 3 · LangGraph <code>StateGraph</code> + SQLite checkpointer · Anthropic SDK for LLM nodes (Sonnet default for generate/repair, configurable) · openpyxl · the shared rule module reused as the validate node · CLI <code>python -m consultant_engine --profile … --fundmaster … --macro … -o …</code> with <code>--no-review</code> (skip the gate) and <code>--resume &lt;thread_id&gt;</code> (continue from checkpoint). Review artifacts under <code>data/review/</code>. Streaming deferred.</p>
+
+<h2><span class="n">10</span> Build order <span class="pill">horizontal, skeleton-first</span></h2>
+<table>
+  <tr><th>Layer</th><th>What</th></tr>
+  <tr><td><b>L0</b></td><td>graph skeleton + state schema + <b>all nodes stubbed</b>; runs end-to-end with stubs (checkpointer wired, interrupt as no-op stub)</td></tr>
+  <tr><td><b>L1</b></td><td>deterministic compute nodes, full-parity all branches, unit-TDD'd (the ENH-1/2 core); graph still uses the stub LLM node</td></tr>
+  <tr><td><b>L2</b></td><td>real <code>generate_proposal</code> LLM node (prose + slotted HTML assembly)</td></tr>
+  <tr><td><b>L3</b></td><td>real <code>validate</code>→<code>repair</code> loop + the consultant-review <code>interrupt()</code> gate on the main path (exit-and-resume, edit re-validation, <code>--no-review</code>)</td></tr>
+</table>
+<p class="sub">Each layer green before the next.</p>
+
+<h2><span class="n">11</span> Repo layout</h2>
+<ul>
+  <li>New top-level importable package <code>consultant_engine/</code> (graph, nodes, state, CLI, checkpointer setup, <b>LLM prompts + HTML slotted-template assets</b>, the <b>shared validation rule module</b>).</li>
+  <li><b>Retire the <code>fund-consultant-skill/</code> bundle</b> once the engine is live: Steps 1–4 → code; Steps 5–7 → engine prompt/template assets; <code>references/</code> design-system + skeleton move into the engine. NL trigger dropped — invocation is CLI / import.</li>
+  <li><b>Move the version source</b> off <code>SKILL.md</code> frontmatter onto the engine/package version; update <code>skill_version()</code> + filename/footer stamping.</li>
+  <li><code>tests/test_proposal_validation.py</code> imports the shared rule module (single source of truth) and points at fixtures + the golden anchor.</li>
+  <li>Macro contract schema + fixture/script producer live with the engine (the ENH-6 seam). Review artifacts under <code>data/review/</code>.</li>
+</ul>
+<div class="review">
+  <div class="k">★ Review focus — §11</div>
+  Package at top-level <code>consultant_engine/</code>; the <code>fund-consultant</code> skill bundle is <b>retired entirely</b> (rules → code, prose-gen → prompt/template assets, version source → package).
+</div>
+
+<h2><span class="n">12</span> Deliverables</h2>
+<ol>
+  <li>Runnable LangGraph engine that emits a validator-passing proposal, with the main-path consultant-review HITL gate (exit-and-resume + edit re-validation) and a <code>--no-review</code> path.</li>
+  <li>"Primitives ↔ framework" mapping note (conditional dispatch, retry-until-valid loop, shared-state blackboard, planner-executor, agent handoff/subgraph, human-in-the-loop, tool use → LangGraph expressions; incl. MCP-tool → node).</li>
+  <li>The macro-context contract + a fixture/script producer (the ENH-6 seam).</li>
+  <li>The <code>fund-consultant</code> skill bundle retired — rules → code, prose-generation → prompt/template assets, version source → package; CLI / import is the sole entry point.</li>
+</ol>
+
+<h2><span class="n">13</span> Scoped out of Track 0</h2>
+<ul>
+  <li>Streaming / token-level UI (Phase 2 hosted demo).</li>
+  <li>The macro-researcher agent (ENH-6) and the persistent macro store (ENH-4) — Track 0 ships only the contract + a fixture (optionally a thin script); the <b>live web-search producer is deferred to ENH-6</b>.</li>
+  <li>Track A eval harness and Track B regulatory RAG — separate tracks.</li>
+  <li>Deploy / hosting / observability — Phase 2.</li>
+</ul>
+
+<h2><span class="n">14</span> Open items for writing-plans</h2>
+<ul>
+  <li>Exact <code>MAX</code> repair iterations (default 3) + the fail-loud surface (exit code + machine-readable violation log).</li>
+  <li>Precise macro-contract schema fields + theme taxonomy (resolve jointly with ENH-4/ENH-6). <b>Track 0 ships the contract + a fixture only; the live producer is ENH-6's.</b></li>
+  <li><b>Parity golden anchor</b> — nominate an existing <code>output/examples/</code> proposal as the structural reference the engine must reproduce at L2/L3, so "full parity" is falsifiable.</li>
+  <li><b>Fan-out/fan-in — assessed viable, but single-node is the working default.</b> Selection interdependence (overlap dedup, diversification, satellite carving, ranks, roles) is resolved deterministically before prose, so per-fund cards are self-contained. Shape: <b>map</b> per-fund cards → <b>reduce</b> = whole-portfolio sections (Exec Summary, Macro Alignment, Strategy) + the global jargon define-once pass + HTML assembly. Refinements that shrink the map set: the two structural positions (gold <code>PeEMAS</code>; money market <code>PeCDF-A</code>, or <code>PIMMF-A</code> for Shariah) are always-included with formulaic rationale → <b>template their cards deterministically</b>, out of the LLM map set. So the map set is only the alpha-selected cards (+ optional satellite / exposure-gap) — roughly <b>2 in a 4-fund Starter, up to ~5 in a full Aggressive</b>. At N≈2 fan-out isn't worth the orchestration; only marginally attractive at the high end, and then for isolation/repair + the <code>Send</code>-API showcase, not throughput. Caveat: naive workers break the jargon define-once-per-document rule (handle deterministically or in reduce). Decide map-vs-single at planning.</li>
+  <li>Model selection per node + token/cost budget for a full run.</li>
+  <li>Cutover plan for retiring the skill bundle without breaking CI: CLAUDE.md skill table + trigger docs, <code>scripts/sync-private.sh</code> refs, and the version-source move — sequenced so <code>pytest</code> stays green.</li>
+</ul>
+<div class="review">
+  <div class="k">★ Review focus — §14</div>
+  <b>Fan-out/fan-in assessed viable — single-node is the working default.</b> Structural cards (gold + MM) are templated deterministically, so the LLM map set is just the alpha picks (~2 Starter, ~5 Aggressive). The reduce stage owns more than assembly; jargon define-once must be handled globally. Map-vs-single decided at planning.
+</div>
+
+<footer>
+  Source spec: <code>docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md</code><br>
+  This HTML is a review aid generated from that spec. Markdown remains the source of truth.
+</footer>
+</div>
+</body>
+</html>

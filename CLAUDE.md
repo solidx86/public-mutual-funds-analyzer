@@ -67,3 +67,4 @@ Copyrighted source PDFs (`unit-trust/`, `private-retirement-scheme/`) and real o
 - **PRS PDFs** in `private-retirement-scheme/` are deliberately excluded by `extract_mfr.py` — the screener is UT-only.
 - **MFR parsing edge cases** (abbreviations with spaces like `P SmallCap`, casing mismatches like `PSMALLCAP` vs `P SmallCap` in the API code map) are handled inside the pipeline. If a fund goes missing from ATH output, the escape hatch is `fetch_ath.py --refresh-codes`.
 - `data/reference/funds_risk_level.xlsx` is the authoritative risk-level lookup (1–5 scale) keyed by fund abbreviation, joined in `build_sheet_data.py`.
+- **Specs and plans always ship an HTML companion.** Every design spec (`docs/superpowers/specs/*.md`) and implementation plan must have a standalone, self-contained HTML copy alongside it (same basename, `.html`) for easy browser review — regenerate it whenever the markdown changes so the two never drift. Markdown remains the source of truth.
