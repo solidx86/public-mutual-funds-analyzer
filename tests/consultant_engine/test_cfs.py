@@ -73,3 +73,17 @@ def test_momentum_none_drawdown_defaults_to_minus_50():
 def test_momentum_clamped():
     from consultant_engine.cfs import momentum_score
     assert momentum_score(-3.0, 500) == 70        # 80 base + (-10) old → 70
+
+
+def test_base_weights_sum_100():
+    from consultant_engine.cfs import profile_weights
+    w = profile_weights("Moderate", 5.0)        # at midpoint → no stretch
+    assert round(sum(w.values())) == 100
+    assert w["returnfit"] == 40
+
+
+def test_stretch_above_shifts_alpha_to_returnfit():
+    from consultant_engine.cfs import profile_weights
+    w = profile_weights("Moderate", 6.0)        # +20% stretch
+    base = profile_weights("Moderate", 5.0)
+    assert w["returnfit"] > base["returnfit"] and w["alpha"] < base["alpha"]

@@ -93,3 +93,29 @@ def _recovery(days):
 def momentum_score(drawdown, days) -> float:
     dd = drawdown if drawdown is not None else -50.0
     return max(0.0, min(100.0, _dd_base(dd) + _recovery(days)))
+
+
+BASE = {
+    "Conservative": {"alpha": 28, "returnfit": 40, "efficiency": 25, "momentum": 7},
+    "Moderate": {"alpha": 28, "returnfit": 40, "efficiency": 20, "momentum": 12},
+    "Moderately Aggressive": {"alpha": 26, "returnfit": 40, "efficiency": 17, "momentum": 17},
+    "Aggressive": {"alpha": 30, "returnfit": 40, "efficiency": 13, "momentum": 17},
+}
+MID = {"Conservative": 3.5, "Moderate": 5.0, "Moderately Aggressive": 7.0, "Aggressive": 9.0}
+
+
+def profile_weights(profile, e_target) -> dict:
+    w = dict(BASE[profile])
+    mid = MID[profile]
+    stretch = (e_target - mid) / mid
+    if stretch > 0:
+        shift = min(10.0, 10.0 * stretch)
+        w["alpha"] -= shift
+        w["returnfit"] += shift
+    elif stretch < 0:
+        shift = min(5.0, 5.0 * abs(stretch))
+        w["returnfit"] -= shift
+        w["alpha"] += shift
+    w = {k: max(5.0, min(50.0, v)) for k, v in w.items()}
+    total = sum(w.values())
+    return {k: round(v * 100 / total, 2) for k, v in w.items()}
