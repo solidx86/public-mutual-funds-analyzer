@@ -47,6 +47,7 @@ def build(
 
     Returns:
         List of 4 Holding dicts: {"abbr", "role", "allocation_pct"}.
+        Core holdings additionally carry "alpha_n" (structurals omit it).
     """
     mm_abbr = MM_ABBR_SHARIAH if shariah is True else MM_ABBR_CONVENTIONAL
 
@@ -66,19 +67,22 @@ def build(
     else:
         core_raws = [core_budget * s["composite"] / composite_sum for s in core_scores]
 
-    # Assemble raw weights
-    raw_weights: list[tuple[str, str, float]] = []
+    # Assemble raw weights — cores carry alpha_n so downstream substitution
+    # (exposure_gap_pick / alpha_outlier) can pick the genuinely lowest-alpha core.
+    raw_weights: list[tuple[str, str, float, float | None]] = []
     for s, raw in zip(core_scores, core_raws):
-        raw_weights.append((s["abbr"], "core", raw))
-    raw_weights.append((GOLD_ABBR, "structural:gold", gold_raw))
-    raw_weights.append((mm_abbr, "structural:money_market", mm_raw))
+        raw_weights.append((s["abbr"], "core", raw, s["alpha_n"]))
+    raw_weights.append((GOLD_ABBR, "structural:gold", gold_raw, None))
+    raw_weights.append((mm_abbr, "structural:money_market", mm_raw, None))
 
     # Normalize to 100.0
     total_raw = sum(w[2] for w in raw_weights)
-    holdings = [
-        {"abbr": abbr, "role": role, "allocation_pct": round(raw / total_raw * 100, 1)}
-        for abbr, role, raw in raw_weights
-    ]
+    holdings = []
+    for abbr, role, raw, alpha_n in raw_weights:
+        h = {"abbr": abbr, "role": role, "allocation_pct": round(raw / total_raw * 100, 1)}
+        if alpha_n is not None:
+            h["alpha_n"] = alpha_n
+        holdings.append(h)
 
     # Fix rounding residual on the largest holding
     residual = round(100.0 - sum(h["allocation_pct"] for h in holdings), 1)

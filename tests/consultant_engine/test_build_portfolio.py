@@ -83,10 +83,38 @@ def test_overlap_preserves_non_overlapping_and_order():
     assert abbrs == ["A", "C"]
 
 
+def test_build_carries_alpha_n_on_cores_only():
+    scores = [
+        {"abbr": "HIA", "composite": 90.0, "alpha_n": 95},
+        {"abbr": "LOA", "composite": 80.0, "alpha_n": 40},
+    ]
+    port = build(scores, {}, "Moderate", shariah=False)
+    cores = [h for h in port if h["role"] == "core"]
+    structurals = [h for h in port if h["role"].startswith("structural")]
+    assert {h["abbr"]: h["alpha_n"] for h in cores} == {"HIA": 95, "LOA": 40}
+    assert all("alpha_n" not in h for h in structurals)
+
+
 # ---------------------------------------------------------------------------
 # exposure_gap_pick tests
 # ---------------------------------------------------------------------------
 from consultant_engine.portfolio import exposure_gap_pick
+
+
+def test_build_then_exposure_gap_replaces_true_lowest_alpha_core():
+    # HIA: highest composite AND highest alpha_n -> list-first.
+    # LOA: lower composite AND lowest alpha_n  -> the one that SHOULD be replaced.
+    scores = [
+        {"abbr": "HIA", "composite": 90.0, "alpha_n": 95},
+        {"abbr": "LOA", "composite": 80.0, "alpha_n": 40},
+    ]
+    port = build(scores, {}, "Moderate", shariah=False)
+    candidate = {"abbr": "GAP", "returns": {"3y": {"alpha": 1.0}}}
+    out = exposure_gap_pick(port, candidates=[candidate], gaps=["china"], profile="Moderate")
+    abbrs = [h["abbr"] for h in out]
+    assert "GAP" in abbrs                # the gap pick was substituted in
+    assert "LOA" not in abbrs            # the LOWEST-alpha core was the one replaced
+    assert "HIA" in abbrs                # the higher-alpha core survived
 
 CAND = [{"abbr": "PUSEQ", "returns": {"3y": {"alpha": 1.5}}, "fund_type": "Equity"}]
 CORE = [{"abbr": "PIX", "role": "core", "allocation_pct": 45, "alpha_n": 70},
