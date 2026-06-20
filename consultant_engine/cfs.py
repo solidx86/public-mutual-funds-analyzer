@@ -1,3 +1,6 @@
+import functools
+
+
 def derived_class(fund) -> str:
     """
     Determine derived asset class from asset allocation.
@@ -7,8 +10,8 @@ def derived_class(fund) -> str:
     Otherwise Balanced
     """
     a = fund["assets"]
-    eq = a.get("dom_equity", 0) + a.get("for_equity", 0)
-    deff = a.get("fi", 0) + a.get("mm", 0) + a.get("deposits", 0)
+    eq = (a.get("dom_equity") or 0) + (a.get("for_equity") or 0)
+    deff = (a.get("fi") or 0) + (a.get("mm") or 0) + (a.get("deposits") or 0)
     if eq >= 60:
         return "Equity-equivalent"
     if deff >= 60:
@@ -119,3 +122,100 @@ def profile_weights(profile, e_target) -> dict:
     w = {k: max(5.0, min(50.0, v)) for k, v in w.items()}
     total = sum(w.values())
     return {k: round(v * 100 / total, 2) for k, v in w.items()}
+
+
+def score_all(funds: list, profile: str, e_target: float) -> list:
+    """
+    Compose per-fund CFS dimensions into a final score.
+
+    Steps:
+    1. Group funds by derived_class.
+    2. Within each class, compute Alpha_N and Efficiency_N as percentile ranks.
+    3. ReturnFit_N uses the absolute piecewise curve (returnfit_score), except
+       when ALL funds in the class have Wtd_Return < 0 (bear exception), in
+       which case ReturnFit_N becomes a percentile rank within the class.
+    4. Momentum_N is always absolute (momentum_score), never percentile.
+    5. Composite = weighted dot product / 100.
+    6. Sort descending: within 2.0 composite gap → tiebreak by alpha_n desc,
+       then efficiency_n desc; else by composite desc.
+    """
+    w = profile_weights(profile, e_target)
+
+    # --- pre-compute raw dimension values per fund ---
+    raw = {}
+    for fund in funds:
+        abbr = fund["abbr"]
+        cls = derived_class(fund)
+        alpha_raw = raw_alpha_penalised(fund)
+        eff_raw = efficiency_raw(fund)
+        wtd_ret = weighted_blend(
+            {p: fund["returns"].get(p, {}).get("fund") for p in WEIGHTS}
+        )
+        mom = momentum_score(fund.get("drawdown"), fund.get("days_from_ath"))
+        raw[abbr] = {
+            "fund": fund,
+            "cls": cls,
+            "alpha_raw": alpha_raw,
+            "eff_raw": eff_raw,
+            "wtd_ret": wtd_ret,
+            "mom": mom,
+        }
+
+    # --- group by derived class ---
+    classes: dict[str, list[str]] = {}
+    for abbr, r in raw.items():
+        classes.setdefault(r["cls"], []).append(abbr)
+
+    # --- compute normalised dimensions per class then build result dicts ---
+    scores: list[dict] = []
+    for cls, abbrs in classes.items():
+        alpha_pop = [raw[a]["alpha_raw"] for a in abbrs]
+        eff_pop = [raw[a]["eff_raw"] for a in abbrs]
+        wtd_ret_pop = [raw[a]["wtd_ret"] for a in abbrs]
+
+        bear_exception = all(r < 0 for r in wtd_ret_pop)
+
+        for abbr in abbrs:
+            r = raw[abbr]
+            alpha_n = round(percentile_rank(r["alpha_raw"], alpha_pop), 2)
+            eff_n = round(percentile_rank(r["eff_raw"], eff_pop), 2)
+
+            if bear_exception:
+                rf_n = round(percentile_rank(r["wtd_ret"], wtd_ret_pop), 2)
+            else:
+                ratio = r["wtd_ret"] / e_target if e_target else 0.0
+                rf_n = round(returnfit_score(ratio), 2)
+
+            mom_n = round(r["mom"], 2)
+
+            composite = round(
+                (w["alpha"] * alpha_n
+                 + w["returnfit"] * rf_n
+                 + w["efficiency"] * eff_n
+                 + w["momentum"] * mom_n) / 100,
+                2,
+            )
+
+            scores.append({
+                "abbr": abbr,
+                "alpha_n": alpha_n,
+                "returnfit_n": rf_n,
+                "efficiency_n": eff_n,
+                "momentum_n": mom_n,
+                "composite": composite,
+                "weights": w,
+                "derived_class": cls,
+            })
+
+    # --- sort: composite desc, with 2.0-gap tiebreaker ---
+    def _cmp(a, b):
+        if abs(a["composite"] - b["composite"]) <= 2.0:
+            if a["alpha_n"] != b["alpha_n"]:
+                return -1 if a["alpha_n"] > b["alpha_n"] else 1
+            if a["efficiency_n"] != b["efficiency_n"]:
+                return -1 if a["efficiency_n"] > b["efficiency_n"] else 1
+            return 0
+        return -1 if a["composite"] > b["composite"] else 1
+
+    scores.sort(key=functools.cmp_to_key(_cmp))
+    return scores
