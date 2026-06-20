@@ -209,6 +209,45 @@ def check_cfs_consistency(html_text: str) -> list[dict[str, str]]:
     return violations
 
 
+def check_perf_consistency(html_text: str) -> list[dict[str, str]]:
+    """For each performance-table row, verify displayed Alpha == Fund - Bench
+    (the MFR 'value add' relation). Rows with any missing cell ("&mdash;"/"—")
+    are skipped. Tolerance: ±0.1.
+
+    Violation code: ``perf_recompute``
+    """
+    violations: list[dict[str, str]] = []
+    tables = re.findall(r'<table class="perf-table">.*?</table>', html_text, re.DOTALL)
+    for table in tables:
+        for row in re.findall(r"<tr>(.*?)</tr>", table, re.DOTALL):
+            cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+            if len(cells) != 4:
+                continue
+
+            def _num(cell: str):
+                txt = _html.unescape(re.sub(r"<[^>]+>", "", cell)).strip().replace("+", "")
+                if txt in ("—", "-", "", "n/a", "N/A"):
+                    return None
+                try:
+                    return float(txt)
+                except ValueError:
+                    return None
+
+            period = _html.unescape(re.sub(r"<[^>]+>", "", cells[0])).strip()
+            fund, bench, alpha = _num(cells[1]), _num(cells[2]), _num(cells[3])
+            if None in (fund, bench, alpha):
+                continue
+            if abs(alpha - (fund - bench)) > 0.1:
+                violations.append({
+                    "code": "perf_recompute",
+                    "msg": (
+                        f"{period}: displayed alpha {alpha} != fund-bench "
+                        f"{fund - bench:.2f} (diff {abs(alpha - (fund - bench)):.2f})"
+                    ),
+                })
+    return violations
+
+
 def check_funds_in_workbook(
     html_text: str,
     wb_index: dict[str, dict[str, Any]],
@@ -295,6 +334,7 @@ def validate_html(
         check_sections(html_text)
         + check_version_and_disclosure(html_text, version)
         + check_cfs_consistency(html_text)
+        + check_perf_consistency(html_text)
         + check_funds_in_workbook(html_text, wb_index)
         + check_alpha_warning(html_text, wb_index)
         + check_retail_eligibility(html_text, wb_index)

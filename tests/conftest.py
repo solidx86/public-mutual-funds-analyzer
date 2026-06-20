@@ -140,11 +140,14 @@ def fundmaster_4fund(tmp_path):
          c72=-5.0, c73=20)               # drawdown / days_from_ath for momentum
 
     # Equity fund 2 — middle alpha
+    # 5Y bench is 7.5 (not 8.0) so the stored alpha 2.5 == fund(10) - bench(7.5):
+    # bench is never used in CFS scoring, so this keeps every score unchanged
+    # while satisfying the MFR value-add relation the perf-consistency check enforces.
     _row(ws, 5, "Public Balanced A", "PBA", "No", "Equity", 3, "Qualified", 3.0,
          c15=18.0, c16=14.0, c17=4.0,
          c18=16.0, c19=12.0, c20=4.0,
          c21=12.0, c22=9.0,  c23=3.0,
-         c24=10.0, c25=8.0,  c26=2.5,
+         c24=10.0, c25=7.5,  c26=2.5,
          c27=9.0,  c28=7.5,  c29=1.5,
          c35=75.0, c36=10.0,
          c72=-5.0, c73=30)

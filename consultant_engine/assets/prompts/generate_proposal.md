@@ -19,6 +19,10 @@ fees, VF figures, return percentages, pie-chart values — are locked. Do not al
 recompute any number or numeric slot. If you encounter a `data-slot` element, leave its content
 exactly as provided. Only write text for the `<!--slot:KEY-->` comment markers.
 
+**Engine-rendered facts.** The performance tables, the fund metadata rows (Type / Shariah / Lipper /
+VF), and the macro table's Event and Date cells are now rendered deterministically by the engine.
+They are facts, not prose — never author, transcribe, or alter them.
+
 ---
 
 ## Slot Mechanics
@@ -57,7 +61,7 @@ headings, CSS classes, or layout elements. The structure of the document is lock
 | Slot key | What to write |
 |---|---|
 | `macro.month_year` | Month-year of the macro snapshot, e.g. "June 2026" |
-| `macro.events_rows` | One `<tr>` per macro event with columns: Date, Event, Impact on Portfolio. Cite dated sources. 4–6 rows recommended. |
+| `macro.impact.N` | The engine pre-renders each macro row's Event and Date cells. Fill each row's `<!--slot:macro.impact.N-->` with one sentence on that event's implication for THIS portfolio's funds. Do not invent events or dates. |
 | `macro.themes` | 2–3 sentence narrative tying macro context to the portfolio's sector and geographic tilts. Connect BNM OPR status, ringgit trend, sector themes, and megatrends to specific fund choices. |
 
 ### Risk profile slots (Section 3)
@@ -76,11 +80,7 @@ For each fund abbreviated as `PIX` (the fund's abbreviation code), fill these pr
 
 | Slot key | What to write |
 |---|---|
-| `meta.PIX.type` | Fund type label, e.g. "Equity — Growth" |
-| `meta.PIX.shariah` | "Shariah" or "Conventional" |
-| `meta.PIX.lipper` | Lipper class label, e.g. "MY Equity" |
 | `alpha_warning.PIX` | Leave empty string if fund is Qualified. If fund is Disqualified: a plain-English warning explaining the fund did not meet the weighted alpha threshold and why it is still included (e.g., "Disqualified: weighted alpha ≤ 0%. Included as diversifier — monitor alpha recovery over the next 6 months.") |
-| `perf.PIX.rows` | One `<tr>` per available performance period (YTD, 1Y, 3Y, 5Y, 10Y) containing the period label and three `<td>` cells with Fund %, Benchmark %, and Alpha % values. Values are already provided in the context data — transcribe them exactly into the HTML rows. |
 | `fees.PIX.phs_date` | Date the PHS was last published, e.g. "Jan 2026". Sourced from the PHS PDF metadata. |
 | `why.PIX` | "Why we chose it" paragraph (see guidance below) |
 | `watch.PIX` | One or more `<li>` elements for the "What to Watch" list (see guidance below) |

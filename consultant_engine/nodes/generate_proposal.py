@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 
 import consultant_engine
@@ -45,6 +46,66 @@ _FOUNDATION_END_MARKER = "<!--FOUNDATION_END-->"
 
 # ─── prose slot replacement ──────────────────────────────────────────────────
 _PROSE_SLOT_RE = re.compile(r"<!--slot:([^>]+)-->")
+
+
+# ─── Deterministic (Python-owned) fact rendering ──────────────────────────────
+# These cells are facts the determinism thesis reserves for Python, never the
+# LLM: per-fund performance rows, fund metadata, and macro Event/Date cells.
+
+_PERIOD_LABELS = [("ytd", "YTD"), ("1y", "1Y"), ("3y", "3Y"), ("5y", "5Y"), ("10y", "10Y")]
+
+
+def _fmt_pct(v) -> str:
+    return "&mdash;" if v is None else f"{v:g}"
+
+
+def _build_perf_rows(returns: dict) -> str:
+    """Deterministic <tr> rows for the per-fund performance table.
+
+    Rows are Python-owned: Alpha is shown as stored, and the validator
+    re-checks Alpha == Fund - Bench.
+    """
+    rows = []
+    returns = returns or {}
+    for key, label in _PERIOD_LABELS:
+        period = returns.get(key) or {}
+        fund = period.get("fund")
+        bench = period.get("bench")
+        alpha = period.get("alpha")
+        if fund is None and bench is None and alpha is None:
+            continue  # period absent entirely — omit the row
+        if alpha is None:
+            alpha_cell = "<td>&mdash;</td>"
+        else:
+            cls = "alpha-pos" if alpha >= 0 else "alpha-neg"
+            sign = "+" if alpha >= 0 else ""
+            alpha_cell = f'<td class="{cls}">{sign}{alpha:g}</td>'
+        rows.append(
+            f"<tr><td>{label}</td><td>{_fmt_pct(fund)}</td>"
+            f"<td>{_fmt_pct(bench)}</td>{alpha_cell}</tr>"
+        )
+    return "\n".join(rows)
+
+
+def _fmt_macro_date(raw: str) -> str:
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").strftime("%d %b %Y")
+    except (ValueError, TypeError):
+        return raw if raw else "&mdash;"   # non-ISO like "Q2 2026" passes through
+
+
+def _build_macro_rows(events: list) -> str:
+    """Deterministic macro <tr> rows: Event + Date are Python-owned facts;
+    each row's Implication stays a prose slot the LLM fills."""
+    rows = []
+    for i, ev in enumerate(events or []):
+        claim = ev.get("claim", "")
+        date = _fmt_macro_date(ev.get("date", ""))
+        rows.append(
+            f"<tr><td>{claim}</td><td>{date}</td>"
+            f"<td><!--slot:macro.impact.{i}--></td></tr>"
+        )
+    return "\n".join(rows)
 
 
 # ─── Foundation handling ──────────────────────────────────────────────────────
@@ -104,6 +165,14 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
         composite = alpha_n = returnfit_n = efficiency_n = momentum_n = 0
         alpha_w = returnfit_w = efficiency_w = momentum_w = 0
 
+    # Python-owned facts (C2b): rendered inline, never authored by the LLM.
+    fund_type = fund.get("fund_type") or "&mdash;"
+    shariah = "Shariah" if fund.get("shariah") else "Conventional"
+    lipper = fund.get("lipper_class") or "&mdash;"
+    vf = f"{fund['vf']:g}" if fund.get("vf") is not None else "&mdash;"
+
+    perf_rows = _build_perf_rows(fund.get("returns", {}))
+
     return f"""\
 <div class="fund-card">
   <div class="fund-card-header equity">
@@ -111,17 +180,17 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
     <span class="alloc">{alloc}%</span>
   </div>
   <div class="fund-meta">
-    <span><strong>Type:</strong> <!--slot:meta.{abbr}.type--></span>
+    <span><strong>Type:</strong> {fund_type}</span>
     <span><strong>RL:</strong> {rl}</span>
-    <span><strong>VF:</strong> —</span>
-    <span><strong>Shariah:</strong> <!--slot:meta.{abbr}.shariah--></span>
+    <span><strong>VF:</strong> {vf}</span>
+    <span><strong>Shariah:</strong> {shariah}</span>
     <span><strong>AUM:</strong> RM —M</span>
-    <span><strong>Lipper:</strong> <!--slot:meta.{abbr}.lipper--></span>
+    <span><strong>Lipper:</strong> {lipper}</span>
   </div>
   <div class="fund-card-body">
     {"<div class=\"alpha-warning\"><!--slot:alpha_warning." + abbr + "--></div>" if disqualified else ""}
     <div class="cfs-bar">
-      <div class="cfs-title">COMPOSITE FUND SCORE: {composite} / 100</div>
+      <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">{composite}</span> / 100</div>
       <div class="cfs-row">
         <div class="cfs-row-label">
           <span>Alpha (Manager Skill)</span>
@@ -155,7 +224,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
     <div class="table-wrap">
       <table class="perf-table">
         <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
-        <tbody><!--slot:perf.{abbr}.rows--></tbody>
+        <tbody>{perf_rows}</tbody>
       </table>
     </div>
     <h4>Cost &amp; Alpha</h4>
@@ -351,11 +420,13 @@ def generate_proposal(state: ConsultantState) -> dict:
     fund_cards_html = _build_fund_cards_html(portfolio, cfs_scores, eligible_funds, e_target)
     fee_rows_html = _build_fee_table_rows(portfolio)
     portfolio_summary_rows = _build_portfolio_summary_rows(portfolio, cfs_scores, eligible_funds)
+    macro_rows_html = _build_macro_rows(state.get("macro_context", {}).get("events", []))
 
     # Substitute dynamic sections at their prose-slot markers BEFORE fill_slots
     skeleton = skeleton.replace("<!--slot:fund_cards-->", fund_cards_html)
     skeleton = skeleton.replace("<!--slot:fee_table.fund_rows-->", fee_rows_html)
     skeleton = skeleton.replace("<!--slot:portfolio_summary.fund_rows-->", portfolio_summary_rows)
+    skeleton = skeleton.replace("<!--slot:macro.events_rows-->", macro_rows_html)
 
     # 4. Compute portfolio metrics
     portfolio_metrics = _compute_portfolio_metrics(portfolio, cfs_scores, eligible_funds)
