@@ -24,8 +24,10 @@ The screener skill bundle has a `references/` directory (templates, framework do
 The consulting layer is the `consultant_engine/` LangGraph package — a headless CLI, not a Claude Code skill. Invoke it from the repo root:
 
 ```bash
-python -m consultant_engine --profile <p.json> --fundmaster <wb.xlsx> [-o <dir>] [--no-review] [--resume <thread_id>]
+python -m consultant_engine --profile <p.json> [--fundmaster <wb.xlsx>] [-o <dir>] [--no-review] [--resume <thread_id>]
 ```
+
+`--fundmaster` is **optional**: omit it to use the newest `PublicMutual_FundMaster_*.xlsx` under `output/fundmasters/` (else `output/examples/fundmasters/`). Ready-to-run sample profiles — one per risk level, all `experience: "new"` — live in `data/profiles/`. Run `python -m consultant_engine --help` for the full flag/profile-field reference.
 
 **HITL review gate** — by default the engine pauses after drafting, writes `data/review/<thread_id>.json` + a preview `.html`, and exits. Run `--resume <thread_id>` to continue after consultant review. Pass `--no-review` to auto-approve (evals, CI, batch runs).
 
