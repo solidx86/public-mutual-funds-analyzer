@@ -32,3 +32,16 @@ def test_penalties_halve_on_negative_long_alpha():
     base = raw_alpha_penalised(fund, penalize=False)
     pen = raw_alpha_penalised(fund, penalize=True)
     assert pen == base / 2          # 3Y<0 halves once
+
+
+def test_returnfit_anchors():
+    from consultant_engine.cfs import returnfit_score
+    assert returnfit_score(1.5) == 100
+    assert returnfit_score(1.0) == 80
+    assert returnfit_score(0.75) == 50
+    assert returnfit_score(0.0) == 0
+
+
+def test_returnfit_interpolates():
+    from consultant_engine.cfs import returnfit_score
+    assert 80 < returnfit_score(1.25) < 100      # between 1.0 and 1.5

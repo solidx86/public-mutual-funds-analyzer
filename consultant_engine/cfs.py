@@ -46,3 +46,15 @@ def raw_alpha_penalised(fund, penalize=True) -> float:
         if (fund["returns"].get("3y", {}).get("alpha") or 0) < 0: raw /= 2
         if (fund["returns"].get("5y", {}).get("alpha") or 0) < 0: raw /= 2
     return raw
+
+
+_ANCHORS = [(0.0, 0), (0.25, 5), (0.5, 20), (0.75, 50), (1.0, 80), (1.5, 100)]
+
+
+def returnfit_score(ratio: float) -> float:
+    if ratio <= 0: return 0.0
+    if ratio >= 1.5: return 100.0
+    for (x0, y0), (x1, y1) in zip(_ANCHORS, _ANCHORS[1:]):
+        if x0 <= ratio <= x1:
+            return round(y0 + (y1 - y0) * (ratio - x0) / (x1 - x0), 1)
+    return 0.0
