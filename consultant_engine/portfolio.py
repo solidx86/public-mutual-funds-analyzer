@@ -91,6 +91,103 @@ def build(
     return holdings
 
 
+def exposure_gap_pick(
+    portfolio: list[Holding],
+    candidates: list[dict],
+    gaps: list[str],
+    profile: str,
+) -> list[Holding]:
+    """Swap ONE exposure-gap fund into the lowest-alpha core slot.
+
+    Returns the portfolio unchanged (same object) when:
+      - any holding has role == "satellite"
+      - gaps is empty
+      - no candidate has 3Y alpha > 0
+
+    Otherwise substitutes the lowest-alpha_n core holding with the
+    best-qualifying candidate (highest 3Y alpha > 0), capped at 15%,
+    redistributing any freed share to surviving core holdings proportionally.
+    Always returns a list of the same length as the input portfolio.
+    """
+    # No-op: satellite present
+    if any(h.get("role") == "satellite" for h in portfolio):
+        return portfolio
+
+    # No-op: no gaps
+    if not gaps:
+        return portfolio
+
+    # Gate candidates: 3Y alpha > 0, pick highest
+    qualified = [
+        c for c in candidates
+        if c.get("returns", {}).get("3y", {}).get("alpha", 0) > 0
+    ]
+    if not qualified:
+        return portfolio
+
+    picked = max(qualified, key=lambda c: c["returns"]["3y"]["alpha"])
+
+    # Find core holdings; pick the one with lowest alpha_n
+    core_holdings = [h for h in portfolio if h.get("role") == "core"]
+    if not core_holdings:
+        return portfolio
+
+    replaced = min(core_holdings, key=lambda h: h.get("alpha_n", 0))
+    replaced_pct = replaced["allocation_pct"]
+
+    # Cap the new holding at 15%
+    new_pct = min(15.0, replaced_pct)
+    freed = replaced_pct - new_pct  # >= 0
+
+    # Surviving core holdings (not the one being replaced)
+    surviving_core = [h for h in portfolio if h.get("role") == "core" and h is not replaced]
+
+    # Build new portfolio (new list; don't mutate input)
+    new_portfolio: list[Holding] = []
+    gap_holding: Holding = {"abbr": picked["abbr"], "role": "exposure_gap", "allocation_pct": new_pct}
+
+    # Compute redistribution of freed share among surviving cores, proportional
+    surviving_total = sum(h["allocation_pct"] for h in surviving_core)
+    adjustments: dict[int, float] = {}
+    if freed > 0 and surviving_core:
+        if surviving_total == 0:
+            # Equal redistribution fallback
+            per_core = freed / len(surviving_core)
+            for h in surviving_core:
+                adjustments[id(h)] = h["allocation_pct"] + per_core
+        else:
+            for h in surviving_core:
+                adjustments[id(h)] = round(
+                    h["allocation_pct"] + freed * h["allocation_pct"] / surviving_total, 1
+                )
+
+    # Assemble new list preserving original order, replacing the removed core
+    replaced_inserted = False
+    for h in portfolio:
+        if h is replaced:
+            new_portfolio.append(gap_holding)
+            replaced_inserted = True
+        elif h.get("role") == "core" and id(h) in adjustments:
+            new_portfolio.append({
+                **h,
+                "allocation_pct": adjustments[id(h)],
+            })
+        else:
+            new_portfolio.append(dict(h))
+
+    # Fix rounding residual on the largest holding so sum is exactly 100.0
+    total = sum(h["allocation_pct"] for h in new_portfolio)
+    residual = round(100.0 - total, 1)
+    if residual != 0.0:
+        largest_idx = max(range(len(new_portfolio)), key=lambda i: new_portfolio[i]["allocation_pct"])
+        new_portfolio[largest_idx] = {
+            **new_portfolio[largest_idx],
+            "allocation_pct": round(new_portfolio[largest_idx]["allocation_pct"] + residual, 1),
+        }
+
+    return new_portfolio
+
+
 def dedup_overlap(picks: list[dict]) -> list[dict]:
     """Remove picks with overlapping top-5 holdings.
 

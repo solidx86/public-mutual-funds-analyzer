@@ -81,3 +81,49 @@ def test_overlap_preserves_non_overlapping_and_order():
     kept = dedup_overlap(picks)
     abbrs = [p["abbr"] for p in kept]
     assert abbrs == ["A", "C"]
+
+
+# ---------------------------------------------------------------------------
+# exposure_gap_pick tests
+# ---------------------------------------------------------------------------
+from consultant_engine.portfolio import exposure_gap_pick
+
+CAND = [{"abbr": "PUSEQ", "returns": {"3y": {"alpha": 1.5}}, "fund_type": "Equity"}]
+CORE = [{"abbr": "PIX", "role": "core", "allocation_pct": 45, "alpha_n": 70},
+        {"abbr": "PLO", "role": "core", "allocation_pct": 35, "alpha_n": 30},
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
+
+
+def test_gap_pick_substitutes_lowest_alpha_core_capped_15():
+    out = exposure_gap_pick(CORE, candidates=CAND, gaps=["US equity"], profile="Moderate")
+    abbrs = {h["abbr"] for h in out}
+    assert "PUSEQ" in abbrs and "PLO" not in abbrs           # replaced the lower-alpha core slot
+    assert len(out) == 4 and round(sum(h["allocation_pct"] for h in out)) == 100
+    assert next(h for h in out if h["abbr"] == "PUSEQ")["allocation_pct"] <= 15
+
+
+def test_no_gap_returns_portfolio_unchanged():
+    assert exposure_gap_pick(CORE, CAND, gaps=[], profile="Moderate") == CORE
+
+
+def test_skip_when_satellite_present():
+    with_sat = CORE + [{"abbr": "STAR", "role": "satellite", "allocation_pct": 8}]
+    assert exposure_gap_pick(with_sat, CAND, gaps=["US equity"], profile="Moderate") == with_sat
+
+
+def test_exposure_gap_role_and_negative_alpha_rejected():
+    """Substituted holding has role 'exposure_gap'; negative-alpha candidate → no-op."""
+    out = exposure_gap_pick(CORE, candidates=CAND, gaps=["US equity"], profile="Moderate")
+    gap_holding = next(h for h in out if h["abbr"] == "PUSEQ")
+    assert gap_holding["role"] == "exposure_gap"
+
+    # Candidate with negative 3Y alpha must be rejected → portfolio unchanged
+    bad_cand = [{"abbr": "PBAD", "returns": {"3y": {"alpha": -0.5}}, "fund_type": "Equity"}]
+    assert exposure_gap_pick(CORE, bad_cand, gaps=["US equity"], profile="Moderate") == CORE
+
+
+def test_exact_100_sum_after_redistribution():
+    """After substitution the allocation_pct sum is exactly 100.0 (not just rounded)."""
+    out = exposure_gap_pick(CORE, candidates=CAND, gaps=["US equity"], profile="Moderate")
+    assert sum(h["allocation_pct"] for h in out) == 100.0
