@@ -57,6 +57,7 @@ _PERIOD_LABELS = [("ytd", "YTD"), ("1y", "1Y"), ("3y", "3Y"), ("5y", "5Y"), ("10
 
 
 def _fmt_pct(v) -> str:
+    """Format a percentage cell: an em-dash for None, else the compact ``%g`` form."""
     return "&mdash;" if v is None else f"{v:g}"
 
 
@@ -89,6 +90,7 @@ def _build_perf_rows(returns: dict) -> str:
 
 
 def _fmt_macro_date(raw: str) -> str:
+    """Format an ISO macro date as '%d %b %Y'; pass non-ISO strings (e.g. 'Q2 2026') through."""
     try:
         return datetime.strptime(raw, "%Y-%m-%d").strftime("%d %b %Y")
     except (ValueError, TypeError):

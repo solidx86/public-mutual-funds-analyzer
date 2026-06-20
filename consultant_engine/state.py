@@ -1,3 +1,11 @@
+"""Shared graph state types.
+
+ConsultantState is the typed dict threaded through every pipeline node; ClientProfile
+and Fund describe the nested shapes (the client's risk profile and a per-fund record
+produced by load_funds). Each node reads a subset of these keys and returns a partial
+dict that LangGraph merges back into the running state.
+"""
+
 from typing import TypedDict, Literal, Optional
 
 class ClientProfile(TypedDict):
@@ -20,7 +28,7 @@ class Fund(TypedDict, total=False):
     alpha_efficiency: dict                 # {"ytd","1y","3y","5y","10y"}
     assets: dict             # {"dom_equity","for_equity","fi","mm","deposits","other"}
     geo: dict                # %/country, exact FundMaster headers: {"USA","Taiwan","Korea","Japan","France","Germany","China","Singapore","Netherlands","Indonesia","Australia","Geo Other"}
-    top5: list
+    top5_holdings: list
     volatility_factor: float
     lipper_class: str
     benchmark: str

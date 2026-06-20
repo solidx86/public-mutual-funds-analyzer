@@ -1,3 +1,18 @@
+"""LangGraph assembly for the consultant engine.
+
+Wires the pipeline nodes into a directed graph and compiles it against a
+checkpointer (SQLite in the CLI). Flow:
+
+    load_profile -> load_funds -> filter_universe -> score_cfs -> macro_context
+    -> build_portfolio -> review_gate -> generate_proposal -> validate
+       -> (emit | repair -> validate | fail)
+
+The review gate pauses for human edits via LangGraph ``interrupt``; the
+validate/repair loop self-corrects the draft up to MAX_REPAIR times before
+failing loudly rather than emitting a broken proposal. ``build_graph`` is the
+entry point used by the CLI.
+"""
+
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import interrupt
 from consultant_engine.state import ConsultantState
@@ -21,6 +36,19 @@ MAX_REVIEW_ROUNDS = 3
 
 
 def _review(state: ConsultantState) -> dict:
+    """Review-gate node: pause for consultant edits, then validate and apply them.
+
+    With ``no_review`` set, returns immediately (auto-approve for evals/CI/batch).
+    Otherwise writes the review artifact, pauses via ``interrupt``, and applies the
+    resumed decision. Each edit that reintroduces a violation re-pauses, bounded by
+    MAX_REVIEW_ROUNDS.
+
+    Returns:
+        {} to approve as-is, or {"portfolio": ...} with the corrected allocation.
+
+    Raises:
+        RuntimeError: edits still violated invariants after MAX_REVIEW_ROUNDS.
+    """
     if state.get("no_review"):
         return {}                       # auto-approve path (evals / CI / batch)
 
@@ -49,6 +77,7 @@ def _review(state: ConsultantState) -> dict:
 
 
 def _after_validate(state: ConsultantState) -> str:
+    """Route after validation: 'emit' if clean, else 'repair' until MAX_REPAIR, then 'fail'."""
     if not state.get("violations"):
         return "emit"
     if state.get("repair_iterations", 0) >= MAX_REPAIR:
@@ -57,10 +86,20 @@ def _after_validate(state: ConsultantState) -> str:
 
 
 def _fail_loudly(state: ConsultantState) -> dict:
+    """Terminal node: raise when validation never converged (never emit a broken proposal)."""
     raise RuntimeError(f"validation did not converge: {state.get('violations')}")
 
 
 def build_graph(checkpointer):
+    """Assemble and compile the consultant pipeline graph.
+
+    Args:
+        checkpointer: A LangGraph checkpointer (e.g. SqliteSaver) that persists
+            state so the review-gate interrupt can pause and later resume.
+
+    Returns:
+        The compiled graph, ready for ``.invoke``.
+    """
     g = StateGraph(ConsultantState)
     g.add_node("load_profile", load_profile.load_profile)
     g.add_node("load_funds", load_funds.load_funds)

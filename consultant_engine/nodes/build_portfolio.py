@@ -38,28 +38,28 @@ def build_portfolio(state: ConsultantState) -> dict:
     scores: list[dict] = state["cfs_scores"]
 
     # --- dedup core candidates BEFORE build picks top-2 ---
-    # Attach each candidate's top5 from the fund dict so dedup_overlap can check
-    # holding overlap between candidates.
+    # Attach each candidate's top-5 holdings from the fund dict so dedup_overlap
+    # can check holding overlap between candidates.
     core_cands = [
-        {**s, "top5": funds_by_abbr.get(s["abbr"], {}).get("top5", [])}
+        {**s, "top5_holdings": funds_by_abbr.get(s["abbr"], {}).get("top5_holdings", [])}
         for s in scores
         if s["abbr"] not in STRUCTURAL
     ]
     deduped = dedup_overlap(core_cands)
 
     # --- build the base 4-fund portfolio ---
-    port = build(deduped, funds_by_abbr, profile, shariah)
+    portfolio_funds = build(deduped, profile, shariah)
 
     # --- satellite substitution (claims the single discretionary slot) ---
-    port = alpha_outlier(port, scores, funds_by_abbr, profile, shariah)
+    portfolio_funds = alpha_outlier(portfolio_funds, scores, funds_by_abbr, profile, shariah)
 
     # --- exposure-gap pick (no-ops when satellite present or no gaps) ---
     gaps: list[str] = (state.get("macro_context") or {}).get("exposure_gaps", [])
     # Candidates come from filtered_funds — already Shariah- and risk-ceiling-
     # compliant — so a gap pick can never leak a non-Shariah / over-RL fund (I2).
     # exposure_gap_pick reads fund["returns"][...]["alpha"], present on every fund.
-    port = exposure_gap_pick(
-        port,
+    portfolio_funds = exposure_gap_pick(
+        portfolio_funds,
         candidates=state["filtered_funds"],
         gaps=gaps,
         profile=profile,
@@ -71,28 +71,28 @@ def build_portfolio(state: ConsultantState) -> dict:
     # by risk/shariah rules, but they are always valid structural positions)
     universe: set[str] = (
         {f["abbr"] for f in state["eligible_funds"]}
-        | {h["abbr"] for h in port}
+        | {h["abbr"] for h in portfolio_funds}
     )
     rl_by_abbr: dict[str, int] = {
         f["abbr"]: f.get("risk_level")
         for f in state["eligible_funds"]
     }
     # Also include structural funds that may have come from funds_by_abbr
-    for h in port:
+    for h in portfolio_funds:
         abbr = h["abbr"]
         if abbr not in rl_by_abbr and abbr in funds_by_abbr:
             rl_by_abbr[abbr] = funds_by_abbr[abbr].get("risk_level")
 
-    violations = check_invariants(port, profile, universe, rl_by_abbr)
+    violations = check_invariants(portfolio_funds, profile, universe, rl_by_abbr)
     if violations:
         raise RuntimeError(
             f"build_portfolio invariant violations (build-time bug): {violations}"
         )
 
     return {
-        "portfolio": port,
+        "portfolio": portfolio_funds,
         "proposed_allocation": {
             "profile": profile,
-            "holdings": port,
+            "holdings": portfolio_funds,
         },
     }

@@ -7,6 +7,11 @@ _REPAIR_PROMPT = Path(__file__).resolve().parent.parent / "assets" / "prompts" /
 
 
 def repair(state: ConsultantState) -> dict:
+    """repair node: ask the LLM to fix the listed violations in the current draft.
+
+    Reads state["violations"] and state["proposal_html"]; returns the rewritten
+    {"proposal_html": ...} and an incremented {"repair_iterations": ...}.
+    """
     prompt_template = _REPAIR_PROMPT.read_text()
     violations = state.get("violations", [])
     html = state.get("proposal_html", "")

@@ -1,7 +1,7 @@
 """
 portfolio.py — experience-blind 4-fund portfolio builder.
 
-build(scores, funds, profile, shariah) -> list[Holding]
+build(scores, profile, shariah) -> list[Holding]
 
 Every client gets the same structure:
   - 2 core funds (top-2 by CFS composite, excluding structurals)
@@ -33,7 +33,6 @@ Holding = dict[str, Any]
 
 def build(
     scores: list[dict],
-    funds: dict[str, dict],
     profile: str,
     shariah: bool | None,
 ) -> list[Holding]:
@@ -41,7 +40,6 @@ def build(
 
     Args:
         scores:  List of CFSScore dicts sorted descending by composite.
-        funds:   Dict abbr -> Fund.
         profile: One of the TEMPLATE keys.
         shariah: True -> use PIMMF-A; False/None -> use PeCDF-A.
 
@@ -259,14 +257,14 @@ def alpha_outlier(
         if shariah is False and fund_shariah is not False:
             continue
 
-        # Gate C: overlap with each held core's top5 must be < 3
-        candidate_top5 = set(fund.get("top5") or [])
+        # Gate C: overlap with each held core's top-5 holdings must be < 3
+        candidate_top5 = set(fund.get("top5_holdings") or [])
         overlap_blocked = False
         for core_h in held_cores:
             core_fund = funds.get(core_h["abbr"])
             if core_fund is None:
                 continue
-            core_top5 = set(core_fund.get("top5") or [])
+            core_top5 = set(core_fund.get("top5_holdings") or [])
             if len(candidate_top5 & core_top5) >= 3:
                 overlap_blocked = True
                 break
@@ -309,8 +307,8 @@ def dedup_overlap(picks: list[dict]) -> list[dict]:
     preserving the original order of survivors.
 
     Args:
-        picks: List of pick dicts, each with "abbr", "alpha_n", "top5" keys.
-               Missing or empty top5 is treated as no overlap.
+        picks: List of pick dicts, each with "abbr", "alpha_n", "top5_holdings" keys.
+               Missing or empty top5_holdings is treated as no overlap.
 
     Returns:
         Filtered list of picks (same type and order, minus removed ones).
@@ -323,9 +321,9 @@ def dedup_overlap(picks: list[dict]) -> list[dict]:
             pick_i = picks[i]
             pick_j = picks[j]
 
-            # Get top5, defaulting to empty list
-            top5_i = set(pick_i.get("top5", []))
-            top5_j = set(pick_j.get("top5", []))
+            # Get top-5 holdings, defaulting to empty list
+            top5_i = set(pick_i.get("top5_holdings", []))
+            top5_j = set(pick_j.get("top5_holdings", []))
 
             # Count overlap
             overlap_count = len(top5_i & top5_j)

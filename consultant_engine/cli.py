@@ -1,3 +1,11 @@
+"""Command-line entry point for the consultant engine.
+
+Parses arguments, opens the SQLite checkpointer, builds the graph, and invokes it
+— either starting a fresh run from a profile + FundMaster or resuming a paused run
+with ``--resume``. See ``python -m consultant_engine --help`` for the full flag and
+profile-field reference.
+"""
+
 import argparse, json, re, sqlite3, sys
 from pathlib import Path
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -46,6 +54,7 @@ def _latest_fundmaster(search_dirs=None) -> str:
 
 
 def _thread_id(args) -> str:
+    """Checkpoint thread id: the --resume value, else the profile filename stem."""
     if args.resume:
         return args.resume
     stem = Path(args.profile).stem
@@ -94,6 +103,7 @@ It names the review JSON and is the value you pass to --resume.
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Construct the argparse parser (grouped flags, rich help text, --version)."""
     ap = argparse.ArgumentParser(
         prog="consultant_engine",
         description=_DESCRIPTION,
@@ -143,6 +153,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    """Run the CLI: parse args, build the graph, invoke it, and report the outcome.
+
+    Starts a fresh run (profile + FundMaster) or resumes a paused one. Prints the
+    review-gate instructions when the run pauses, else the output proposal path.
+
+    Returns:
+        Process exit code (0 on success / clean pause).
+    """
     ap = _build_parser()
     args = ap.parse_args(argv)
     if not args.resume and not args.profile:

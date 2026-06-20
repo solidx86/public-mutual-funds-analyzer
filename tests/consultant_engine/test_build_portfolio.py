@@ -4,11 +4,7 @@ from consultant_engine.portfolio import build, dedup_overlap
 def test_structural_always_present_and_sums_100():
     scores = [{"abbr": f"E{i}", "composite": 90 - i, "derived_class": "Equity-equivalent",
                "alpha_n": 50} for i in range(6)]
-    funds = {f"E{i}": {"abbr": f"E{i}", "fund_type": "Equity", "risk_level": 3,
-                       "top5": [], "shariah": False} for i in range(6)}
-    funds["PeEMAS"] = {"abbr": "PeEMAS", "fund_type": "Gold", "risk_level": 3, "top5": []}
-    funds["PeCDF-A"] = {"abbr": "PeCDF-A", "fund_type": "Money Market", "risk_level": 1, "top5": []}
-    port = build(scores, funds, "Moderate", shariah=None)
+    port = build(scores, "Moderate", shariah=None)
     roles = {h["role"] for h in port}
     assert "structural:gold" in roles and "structural:money_market" in roles
     assert len(port) == 4                                      # gold + MM + 2 core, always
@@ -19,11 +15,7 @@ def test_core_picks_are_top_two_by_composite_cfs_proportional():
     """Top-2 by composite are picked as core; higher composite gets >= allocation."""
     scores = [{"abbr": f"E{i}", "composite": 90 - i, "derived_class": "Equity-equivalent",
                "alpha_n": 50} for i in range(6)]
-    funds = {f"E{i}": {"abbr": f"E{i}", "fund_type": "Equity", "risk_level": 3,
-                       "top5": [], "shariah": False} for i in range(6)}
-    funds["PeEMAS"] = {"abbr": "PeEMAS", "fund_type": "Gold", "risk_level": 3, "top5": []}
-    funds["PeCDF-A"] = {"abbr": "PeCDF-A", "fund_type": "Money Market", "risk_level": 1, "top5": []}
-    port = build(scores, funds, "Moderate", shariah=None)
+    port = build(scores, "Moderate", shariah=None)
 
     core_holdings = [h for h in port if h["role"] == "core"]
     assert len(core_holdings) == 2
@@ -44,12 +36,8 @@ def test_shariah_true_uses_pimmf_a_mm_and_gold_is_peemas():
     """shariah=True → MM abbr is PIMMF-A; gold is still PeEMAS; four pct sum to 100.0."""
     scores = [{"abbr": f"E{i}", "composite": 80 - i * 2, "derived_class": "Equity-equivalent",
                "alpha_n": 40} for i in range(4)]
-    funds = {f"E{i}": {"abbr": f"E{i}", "fund_type": "Equity", "risk_level": 3,
-                       "top5": [], "shariah": True} for i in range(4)}
-    funds["PeEMAS"] = {"abbr": "PeEMAS", "fund_type": "Gold", "risk_level": 3, "top5": []}
-    funds["PIMMF-A"] = {"abbr": "PIMMF-A", "fund_type": "Money Market", "risk_level": 1, "top5": []}
 
-    port = build(scores, funds, "Aggressive", shariah=True)
+    port = build(scores, "Aggressive", shariah=True)
 
     mm_holding = next(h for h in port if h["role"] == "structural:money_market")
     gold_holding = next(h for h in port if h["role"] == "structural:gold")
@@ -64,8 +52,8 @@ def test_shariah_true_uses_pimmf_a_mm_and_gold_is_peemas():
 def test_overlap_drops_lower_alpha():
     """If two picks share >=3 of top-5 holdings, drop the lower-alpha one."""
     picks = [
-        {"abbr": "A", "alpha_n": 80, "top5": ["x", "y", "z", "p", "q"]},
-        {"abbr": "B", "alpha_n": 60, "top5": ["x", "y", "z", "m", "n"]},
+        {"abbr": "A", "alpha_n": 80, "top5_holdings": ["x", "y", "z", "p", "q"]},
+        {"abbr": "B", "alpha_n": 60, "top5_holdings": ["x", "y", "z", "m", "n"]},
     ]  # shares x,y,z (3 items)
     kept = dedup_overlap(picks)
     assert [p["abbr"] for p in kept] == ["A"]
@@ -74,9 +62,9 @@ def test_overlap_drops_lower_alpha():
 def test_overlap_preserves_non_overlapping_and_order():
     """Three picks: overlapping pair drops lower-alpha, non-overlapping third kept in order."""
     picks = [
-        {"abbr": "A", "alpha_n": 80, "top5": ["x", "y", "z", "p", "q"]},
-        {"abbr": "B", "alpha_n": 60, "top5": ["x", "y", "z", "m", "n"]},  # overlaps A, lower alpha
-        {"abbr": "C", "alpha_n": 70, "top5": ["a", "b", "c", "d", "e"]},  # no overlap
+        {"abbr": "A", "alpha_n": 80, "top5_holdings": ["x", "y", "z", "p", "q"]},
+        {"abbr": "B", "alpha_n": 60, "top5_holdings": ["x", "y", "z", "m", "n"]},  # overlaps A, lower alpha
+        {"abbr": "C", "alpha_n": 70, "top5_holdings": ["a", "b", "c", "d", "e"]},  # no overlap
     ]
     kept = dedup_overlap(picks)
     abbrs = [p["abbr"] for p in kept]
@@ -88,7 +76,7 @@ def test_build_carries_alpha_n_on_cores_only():
         {"abbr": "HIA", "composite": 90.0, "alpha_n": 95},
         {"abbr": "LOA", "composite": 80.0, "alpha_n": 40},
     ]
-    port = build(scores, {}, "Moderate", shariah=False)
+    port = build(scores, "Moderate", shariah=False)
     cores = [h for h in port if h["role"] == "core"]
     structurals = [h for h in port if h["role"].startswith("structural")]
     assert {h["abbr"]: h["alpha_n"] for h in cores} == {"HIA": 95, "LOA": 40}
@@ -108,7 +96,7 @@ def test_build_then_exposure_gap_replaces_true_lowest_alpha_core():
         {"abbr": "HIA", "composite": 90.0, "alpha_n": 95},
         {"abbr": "LOA", "composite": 80.0, "alpha_n": 40},
     ]
-    port = build(scores, {}, "Moderate", shariah=False)
+    port = build(scores, "Moderate", shariah=False)
     candidate = {"abbr": "GAP", "returns": {"3y": {"alpha": 1.0}}}
     out = exposure_gap_pick(port, candidates=[candidate], gaps=["china"], profile="Moderate")
     abbrs = [h["abbr"] for h in out]
@@ -170,7 +158,7 @@ def test_outlier_substitutes_lowest_alpha_core():
                  {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
     scores = [{"abbr": "STAR", "composite": 99, "alpha_n": 95, "derived_class": "Equity-equivalent"}]
     funds = {"STAR": {"abbr": "STAR", "status": "Qualified", "shariah": False,
-                      "risk_level": 5, "top5": [], "returns": {"3y": {"alpha": 9.0}, "5y": {"alpha": 7.0}}}}
+                      "risk_level": 5, "top5_holdings": [], "returns": {"3y": {"alpha": 9.0}, "5y": {"alpha": 7.0}}}}
     out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
     abbrs = {h["abbr"] for h in out}
     assert "STAR" in abbrs and "CORE_LO" not in abbrs        # took the lowest-alpha core's slot
@@ -190,7 +178,7 @@ def test_outlier_gate_a2_fails_below_80():
                  {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
     scores = [{"abbr": "WEAK", "composite": 99, "alpha_n": 60, "derived_class": "Equity-equivalent"}]
     funds = {"WEAK": {"abbr": "WEAK", "status": "Qualified", "shariah": False,
-                      "risk_level": 4, "top5": [], "returns": {"3y": {"alpha": 8.0}}}}
+                      "risk_level": 4, "top5_holdings": [], "returns": {"3y": {"alpha": 8.0}}}}
     out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
     # portfolio unchanged — gate A2 blocked
     assert out is portfolio
@@ -204,7 +192,7 @@ def test_outlier_gate_a_fails_non_positive_3y_alpha():
                  {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
     scores = [{"abbr": "FLAT", "composite": 99, "alpha_n": 90, "derived_class": "Equity-equivalent"}]
     funds = {"FLAT": {"abbr": "FLAT", "status": "Qualified", "shariah": False,
-                      "risk_level": 4, "top5": [], "returns": {"3y": {"alpha": 0.0}}}}
+                      "risk_level": 4, "top5_holdings": [], "returns": {"3y": {"alpha": 0.0}}}}
     out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
     # portfolio unchanged — gate A blocked (3Y alpha = 0 is not > 0)
     assert out is portfolio

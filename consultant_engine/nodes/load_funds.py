@@ -1,3 +1,11 @@
+"""load_funds node: read the FundMaster workbook into per-fund records.
+
+Parses the 'Master' sheet of a screened FundMaster .xlsx into the Fund shape used
+downstream, dropping rows that are not retail-eligible (B-series and wholesale
+classes). This is the pipeline's bridge from the screener's Excel output to the
+consultant engine's in-memory state.
+"""
+
 import openpyxl
 from consultant_engine.state import ConsultantState
 
@@ -6,6 +14,12 @@ WHOLESALE = {"PBCPF", "PWSIF", "PIWSIF", "PeWS20F"}
 
 
 def _excluded(name: str, abbr: str) -> bool:
+    """True if a fund row is not retail-eligible and should be skipped.
+
+    Drops the "PB "-named B-series share classes (duplicate the A-series holdings),
+    any "-B" abbreviation, and the named WHOLESALE funds. Missing name/abbr is
+    treated as excluded.
+    """
     if name is None or abbr is None:
         return True
     return name.startswith("PB ") or abbr.endswith("-B") or abbr in WHOLESALE
@@ -27,6 +41,13 @@ def _read_cols(ws, row, start_col, keys) -> dict:
 
 
 def load_funds(state: ConsultantState) -> dict:
+    """load_funds node: parse the FundMaster 'Master' sheet into Fund records.
+
+    Reads state["fundmaster_path"], iterates the data rows until the abbr column is
+    empty, skips retail-ineligible rows (see _excluded), and builds the typed Fund
+    dict for each survivor. Returns {"eligible_funds": [...]} — the retail superset
+    before Shariah / risk-ceiling filtering.
+    """
     path = state["fundmaster_path"]
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = wb["Master"]
@@ -88,9 +109,9 @@ def load_funds(state: ConsultantState) -> dict:
         # compare holding names, not characters.
         top5_raw = ws.cell(row, 64).value
         if top5_raw is None or top5_raw == "":
-            top5 = []
+            top5_holdings = []
         else:
-            top5 = [h.strip() for h in str(top5_raw).split("|") if h.strip()]
+            top5_holdings = [h.strip() for h in str(top5_raw).split("|") if h.strip()]
 
         volatility_factor = _f(ws.cell(row, 65).value)
         lipper_class = _s(ws.cell(row, 67).value)
@@ -112,7 +133,7 @@ def load_funds(state: ConsultantState) -> dict:
             "alpha_efficiency": alpha_efficiency,
             "assets": assets,
             "geo": geo,
-            "top5": top5,
+            "top5_holdings": top5_holdings,
             "volatility_factor": volatility_factor,
             "lipper_class": lipper_class,
             "benchmark": benchmark,

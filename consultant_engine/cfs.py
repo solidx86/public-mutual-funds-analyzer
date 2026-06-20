@@ -1,3 +1,18 @@
+"""CFS (Consultant Fund Score) — the deterministic per-fund scoring engine.
+
+Composes four normalised dimensions into one composite used to rank funds within
+their asset class:
+
+  - Alpha_N      benchmark-relative excess return, percentile-ranked in-class
+  - ReturnFit_N  how well the fund's blended return tracks the client's target
+  - Efficiency_N alpha per unit of tracking risk, percentile-ranked in-class
+  - Momentum_N   drawdown depth + recovery speed (absolute, never ranked)
+
+Period weights (WEIGHTS) favour the 3Y/5Y record; profile weights (BASE, tuned by
+the client's return target) decide how much each dimension counts. ``score_all``
+is the public entry point; everything else is a building block.
+"""
+
 import functools
 
 
@@ -36,6 +51,16 @@ WEIGHTS = {"3y": 0.4, "5y": 0.3, "1y": 0.2, "ytd": 0.1}
 
 
 def weighted_blend(periods: dict) -> float:
+    """Weighted average of per-period values using WEIGHTS, skipping missing ones.
+
+    Args:
+        periods: Map of period key ("ytd"/"1y"/"3y"/"5y") to value or None. Keys
+            outside WEIGHTS and None values are dropped before averaging.
+
+    Returns:
+        The blend with weights re-normalised over the available periods, or 0.0
+        when no period has a value.
+    """
     avail = {k: v for k, v in periods.items() if v is not None and k in WEIGHTS}
     if not avail: return 0.0
     total_w = sum(WEIGHTS[k] for k in avail)
@@ -43,6 +68,17 @@ def weighted_blend(periods: dict) -> float:
 
 
 def raw_alpha_penalised(fund, penalize=True) -> float:
+    """Blended weighted alpha, optionally halved for each negative long-horizon leg.
+
+    Args:
+        fund: Fund record; alphas read from fund["returns"][period]["alpha"].
+        penalize: When True, divide the blend by 2 for a negative 3Y alpha and
+            again by 2 for a negative 5Y alpha (compounding to /4 if both). A
+            missing alpha is not a penalty — only a genuine negative one is.
+
+    Returns:
+        The (optionally penalised) weighted-alpha blend.
+    """
     alpha_periods = {k: fund["returns"].get(k, {}).get("alpha") for k in WEIGHTS}
     raw = weighted_blend(alpha_periods)
     if penalize:
@@ -60,6 +96,18 @@ _ANCHORS = [(0.0, 0), (0.25, 5), (0.5, 20), (0.75, 50), (1.0, 80), (1.5, 100)]
 
 
 def returnfit_score(ratio: float) -> float:
+    """Map a return/target ratio to a 0–100 fit score via the piecewise _ANCHORS curve.
+
+    The curve rewards approaching the client's target return: 0 at/below ratio 0,
+    rising through the anchor points to 100 once the fund comfortably exceeds
+    target (ratio >= 1.5). Linearly interpolated between anchors.
+
+    Args:
+        ratio: Fund blended return divided by the client's target return.
+
+    Returns:
+        Fit score in [0.0, 100.0].
+    """
     if ratio <= 0: return 0.0
     if ratio >= 1.5: return 100.0
     for (x0, y0), (x1, y1) in zip(_ANCHORS, _ANCHORS[1:]):
@@ -80,12 +128,14 @@ def efficiency_raw(fund) -> float:
 
 
 def _dd_base(dd):
+    """Base momentum points (10–80) from drawdown depth: a shallower draw scores higher."""
     for hi, score in [(-5,80),(-10,70),(-15,60),(-25,40),(-40,20)]:
         if dd >= hi: return score
     return 10
 
 
 def _recovery(days):
+    """Recovery adjustment from days-since-ATH: fast recovery rewarded, stale penalised."""
     if days is None: return 0
     if days < 30: return 15
     if days <= 90: return 10
@@ -95,6 +145,15 @@ def _recovery(days):
 
 
 def momentum_score(drawdown, days) -> float:
+    """Momentum dimension: drawdown-depth base plus recovery adjustment, clamped 0–100.
+
+    Args:
+        drawdown: Peak-to-trough drawdown %, negative (None → treated as -50.0).
+        days: Days since all-time high (None → no recovery adjustment).
+
+    Returns:
+        Momentum score in [0.0, 100.0].
+    """
     dd = drawdown if drawdown is not None else -50.0
     return max(0.0, min(100.0, _dd_base(dd) + _recovery(days)))
 
@@ -109,6 +168,20 @@ MID = {"Conservative": 3.5, "Moderate": 5.0, "Moderately Aggressive": 7.0, "Aggr
 
 
 def profile_weights(profile, target_annual_return_pct) -> dict:
+    """Per-profile dimension weights, tilted by how far the target stretches the profile.
+
+    Starts from BASE[profile], then shifts weight between alpha and returnfit: a
+    target above the profile midpoint (MID) moves weight toward returnfit (chasing
+    the stretch), a target below moves it toward alpha. Each weight is clamped to
+    [5, 50] and the set is renormalised to sum to ~100.
+
+    Args:
+        profile: One of the BASE keys.
+        target_annual_return_pct: Client's target annual return, in % p.a.
+
+    Returns:
+        Map of dimension name -> weight (percent).
+    """
     w = dict(BASE[profile])
     mid = MID[profile]
     stretch = (target_annual_return_pct - mid) / mid

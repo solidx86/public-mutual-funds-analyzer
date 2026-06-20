@@ -1,3 +1,10 @@
+"""Macro context model + fixture loader.
+
+Defines the validated MacroContext (dated events + exposure_gaps) consumed by the
+macro_context node and the proposal narrative, plus ``load_fixture`` for the
+bundled default when no live contract is supplied.
+"""
+
 import json
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict
@@ -20,5 +27,6 @@ class MacroContext(BaseModel):
 
 
 def load_fixture() -> MacroContext:
+    """Load the bundled default macro context from assets/macro_fixture.json."""
     p = Path(__file__).resolve().parent / "assets" / "macro_fixture.json"
     return MacroContext.model_validate(json.loads(p.read_text()))
