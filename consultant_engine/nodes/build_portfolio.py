@@ -1,7 +1,9 @@
 """build_portfolio node — composes the 4-fund portfolio with invariant gate.
 
-Pipeline position: after score_cfs.
-Inputs:  state["eligible_funds"], state["client_profile"], state["cfs_scores"],
+Pipeline position: after macro_context (which runs after score_cfs).
+Inputs:  state["eligible_funds"]  (universe/RL superset),
+         state["filtered_funds"]  (Shariah + RL-ceiling compliant; gap candidates),
+         state["client_profile"], state["cfs_scores"],
          state.get("macro_context")  (optional; exposure_gaps read from it)
 Outputs: state["portfolio"], state["proposed_allocation"]
 """
@@ -53,11 +55,12 @@ def build_portfolio(state: ConsultantState) -> dict:
 
     # --- exposure-gap pick (no-ops when satellite present or no gaps) ---
     gaps: list[str] = (state.get("macro_context") or {}).get("exposure_gaps", [])
-    # Pass eligible_funds as candidates; exposure_gap_pick reads fund["returns"][...]["alpha"]
-    # which is present on every fund loaded by load_funds.
+    # Candidates come from filtered_funds — already Shariah- and risk-ceiling-
+    # compliant — so a gap pick can never leak a non-Shariah / over-RL fund (I2).
+    # exposure_gap_pick reads fund["returns"][...]["alpha"], present on every fund.
     port = exposure_gap_pick(
         port,
-        candidates=state["eligible_funds"],
+        candidates=state["filtered_funds"],
         gaps=gaps,
         profile=profile,
     )

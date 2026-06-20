@@ -79,10 +79,13 @@ def build_graph(checkpointer):
     g.add_edge("load_profile", "load_funds")
     g.add_edge("load_funds", "filter_universe")
     g.add_edge("filter_universe", "score_cfs")
-    g.add_edge("score_cfs", "build_portfolio")
+    # macro_context runs BEFORE build_portfolio so a contract's exposure_gaps reach
+    # the gap-substitution branch (I2). The review gate still pauses after the final
+    # allocation (build), and generate_proposal still has macro_context available.
+    g.add_edge("score_cfs", "macro_context")
+    g.add_edge("macro_context", "build_portfolio")
     g.add_edge("build_portfolio", "review_gate")
-    g.add_edge("review_gate", "macro_context")
-    g.add_edge("macro_context", "generate_proposal")
+    g.add_edge("review_gate", "generate_proposal")
     g.add_edge("generate_proposal", "validate")
     g.add_conditional_edges(
         "validate",

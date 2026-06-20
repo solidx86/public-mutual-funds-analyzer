@@ -35,7 +35,7 @@ def _pipeline(fundmaster_4fund):
     s = {"client_profile": {"risk_level": "Moderate", "shariah": False},
          "fundmaster_path": fundmaster_4fund, "macro_context": {"source": "fixture"}}
     for step in (load_profile, load_funds, filter_universe, score_cfs,
-                 build_portfolio, macro_context, generate_proposal):
+                 macro_context, build_portfolio, generate_proposal):
         s.update(step(s))
     return s
 

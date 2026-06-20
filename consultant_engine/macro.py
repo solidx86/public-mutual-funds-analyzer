@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class MacroEvent(BaseModel):
@@ -11,7 +11,12 @@ class MacroEvent(BaseModel):
 
 
 class MacroContext(BaseModel):
+    # extra="ignore" lets a live contract carry a routing-only "source" key without
+    # tripping validation (it is not a model field).
+    model_config = ConfigDict(extra="ignore")
+
     events: list[MacroEvent] = []
+    exposure_gaps: list[str] = []
 
 
 def load_fixture() -> MacroContext:

@@ -4,6 +4,20 @@ import pytest
 from langgraph.types import Command
 
 
+def test_macro_runs_before_build_portfolio(fundmaster_4fund):
+    """I2: macro_context must run BEFORE build_portfolio so exposure_gaps from the
+    macro contract actually reach the gap-substitution branch (which was dead when
+    build ran first)."""
+    app = build_graph(MemorySaver())
+    edges = {(e.source, e.target) for e in app.get_graph().edges}
+
+    assert ("score_cfs", "macro_context") in edges
+    assert ("macro_context", "build_portfolio") in edges
+    # The old order must be gone — build no longer feeds macro_context.
+    assert ("build_portfolio", "macro_context") not in edges
+    assert ("score_cfs", "build_portfolio") not in edges
+
+
 def test_graph_runs_end_to_end_with_stubs(fundmaster_4fund, tmp_path):
     # Use fundmaster_4fund (not tiny_fundmaster): the real build_portfolio node
     # requires ≥2 equity funds + PeEMAS + PeCDF-A to pass invariants.
