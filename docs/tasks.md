@@ -7,9 +7,16 @@ Status legend: `TODO` · `IN PROGRESS` · `DONE` · `WONTFIX`
 
 ## ENH-1 — Harden the LLM-reasoned consultant layer against hallucination / drift
 
-**Status:** TODO
+**Status:** PARTIALLY DONE (Track 0, 2026-06-20) — the deterministic CFS / allocation / exposure engine shipped in `consultant_engine`; deterministic PHS **fee** extraction is the open remainder.
 **Raised:** 2026-06-14
-**Area:** `fund-consultant-skill/`
+**Area:** `consultant_engine/` (was `fund-consultant-skill/`, now retired)
+
+> **Delivered by Track 0:** CFS scoring + normalization + allocation roll-ups + asset/geo pie
+> percentages are now Python (`consultant_engine/cfs.py`, `portfolio.py`, `exposure.py`); the LLM
+> consumes computed numbers into a locked slotted skeleton and the validate→repair loop guards
+> transcription (CFS, performance, exposure, portfolio-summary). **Still open:** the PHS sales /
+> management / trustee **fee** numbers remain LLM/em-dash (the highest-consequence transcription
+> risk) — that's the remaining half of this ENH, pairing naturally with ENH-2's structured store.
 
 ### Problem
 The fund-consultant skill is **entirely LLM-executed** — it ships no `scripts/`, only
@@ -241,7 +248,7 @@ proposal re-searches cold.**
 
 ## ENH-5 — Phase 1 of the AI Development Skill Plan: harden this repo as the public RAG/eval capstone (MASTER TRACKING)
 
-**Status:** IN PROGRESS — Phase-1 scope locked (this entry); Track 0 scoping is the next action
+**Status:** IN PROGRESS — Track 0 **SHIPPED** (the headless `consultant_engine`, PR #2; 2026-06-20, 209 tests green); Track A (evals) is the next action
 **Raised:** 2026-06-19
 **Area:** whole repo (consultant + screener + new eval / retrieval layers)
 **Source plan:** `~/Documents/Claude/Projects/Job/ai-development-skill-plan.md` (external, not in repo).
@@ -266,13 +273,21 @@ Everything numeric/tabular is structured lookup, owned by the deterministic pipe
 | Macro context | Deferred → ENH-4 |
 | Fund commentary | Dropped (sat in the "correctly NOT cited" tier; fuzzy ground truth) |
 
-### Track 0 — LangGraph quick win (DO FIRST, ~20 hrs)
-- Slice: rebuild the consultant's **generate → validate → repair loop** as a LangGraph graph —
-  conditional edges (e-Series Shortlist vs Starter Portfolio; new vs experienced investor) +
-  a validate→repair cycle. NOT the screener pipeline (linear ETL — poor LangGraph showcase).
-- The validate node wraps the EXISTING `tests/test_proposal_validation.py` — no dependency on Track A.
-- Deliverable: runnable LangGraph artifact + a "primitives ↔ framework" mapping note (hand-rolled /
-  MCP designs → planner-executor, fan-out/fan-in, handoffs).
+### Track 0 — LangGraph quick win (✅ DELIVERED 2026-06-20)
+- **Shipped** as the headless `consultant_engine/` package (PR #2). Spec:
+  `docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md`; code-review +
+  remediation: `docs/superpowers/notes/track0-code-review-findings.md`.
+- Slice: rebuild the consultant's **generate → validate → repair loop** as a LangGraph graph.
+  *Refined during brainstorming away from the original sketch:* the e-Series-Shortlist-vs-Starter
+  `mode` branch was **retired** (one universal 4-fund build), and new-vs-experienced became
+  **presentation-only** — so the only conditionals are the experience branch at `generate_proposal`
+  and the validate⇄repair loop. The HITL consultant-review `interrupt()` gate (exit-and-resume) was
+  added on the main path.
+- The validate node shares one rule module (`consultant_engine/rules/validation.py`) with
+  `tests/test_proposal_validation.py` — no dependency on Track A.
+- Deliverables shipped: runnable LangGraph artifact + the "primitives ↔ framework" mapping note
+  (`docs/superpowers/notes/primitives-to-langgraph.md`). Determinism boundary fully closed
+  (Python owns every number; the LLM only writes prose).
 
 ### Track A — Evals (the measuring instrument; precedes / overlaps Track B)
 - Stand up Promptfoo/Braintrust + Ragas (Phase-0 toolchain residual).

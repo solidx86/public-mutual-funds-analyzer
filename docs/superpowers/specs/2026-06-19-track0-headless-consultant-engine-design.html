@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Track 0 — Headless Consultant Engine (design)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Track 0 — Headless Consultant Engine (Design)</title>
 <style>
 :root{--bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
 --line:#2d3a47;--accent:#4ea1ff;--good:#56d364;--warn:#ffb454;--kw:#d2a8ff;}
@@ -70,10 +70,11 @@ border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin
 </tbody></table>
 <p>Because numbers are correct-by-construction in state, the loop&#x27;s job is to catch the LLM mis-transcribing them into HTML, breaking section order/template, or violating a disclosure rule — not to make numbers correct.</p>
 <h2>4. Graph topology</h2>
+<blockquote><strong>Post-implementation note (2026-06-20).</strong> The shipped graph runs <code>macro_context</code> <strong>before</strong> <code>build_portfolio</code> (so a macro contract&#x27;s <code>exposure_gaps</code> reach the gap-substitution branch — remediation <strong>I2</strong>), and the validate→repair loop gained three more guards (<code>check_perf_consistency</code>, <code>check_exposure_consistency</code>, <code>check_summary_consistency</code> — see §8). The node order and diagram below are updated to match the implementation; full rationale in <code>docs/superpowers/notes/track0-code-review-findings.md</code>.</blockquote>
 <p>One linear path — no <code>mode</code> branch, no e-Series universe restriction. Every client runs the same build.</p>
-<p><strong>Compute nodes (Python):</strong> <code>load_profile</code> → <code>load_funds</code> (+ Step 1b) → <code>filter_universe</code> → <code>score_cfs</code> → <code>build_portfolio</code></p>
-<p><strong>Human-in-the-loop (main path):</strong> after <code>build_portfolio</code>, the graph <code>interrupt()</code>s for consultant review of the proposed allocation — *every* proposal pauses here (unless <code>--no-review</code>). The interaction is <strong>exit-and-resume</strong>: the engine writes the review artifact (§7) + a read-only HTML preview and exits; state persists in the SQLite checkpointer (keyed by <code>thread_id</code>); a <code>--resume &lt;thread_id&gt;</code> invocation continues. On resume, any human-edited allocation is <strong>re-validated against the deterministic invariants</strong> before <code>macro_context</code>; a violating edit re-pauses (review ON) or fails loudly (<code>--no-review</code>).</p>
-<p><strong>Macro:</strong> <code>macro_context</code> — validates/normalizes the contract-bound macro input.</p>
+<p><strong>Compute nodes (Python):</strong> <code>load_profile</code> → <code>load_funds</code> (+ Step 1b) → <code>filter_universe</code> → <code>score_cfs</code> → <code>macro_context</code> → <code>build_portfolio</code></p>
+<p><strong>Human-in-the-loop (main path):</strong> after <code>build_portfolio</code>, the graph <code>interrupt()</code>s for consultant review of the proposed allocation — *every* proposal pauses here (unless <code>--no-review</code>). The interaction is <strong>exit-and-resume</strong>: the engine writes the review artifact (§7) + a read-only HTML preview and exits; state persists in the SQLite checkpointer (keyed by <code>thread_id</code>); a <code>--resume &lt;thread_id&gt;</code> invocation continues. On resume, any human-edited allocation is <strong>re-validated against the deterministic invariants</strong> before <code>generate_proposal</code>; a violating edit re-pauses (review ON, bounded loop-until-clean) or fails loudly (<code>--no-review</code>).</p>
+<p><strong>Macro:</strong> <code>macro_context</code> — validates/normalizes the contract-bound macro input (runs before <code>build_portfolio</code> so declared <code>exposure_gaps</code> can drive the gap-substitution branch).</p>
 <p><strong>Generation (LLM):</strong> <code>generate_proposal</code> — structured state + locked slotted skeleton → full HTML.</p>
 <p><strong>Loop:</strong> <code>validate</code> → (violations? <code>repair</code> → <code>validate</code>) → <code>emit</code>.</p>
 <p><strong>Conditional edges (only two remain):</strong></p>
@@ -81,9 +82,9 @@ border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin
 <li>at <code>generate_proposal</code>: <strong>new vs experienced</strong> investor (<code>client_profile[&quot;experience&quot;]</code>, normalized at <code>load_profile</code>) → jargon layering + the conditional Foundation Intro block. <strong>Presentation-only</strong> — the deterministic build is experience-blind (decision 9).</li>
 <li>after <code>validate</code>: → <code>repair</code> if violations and <code>repair_iterations &lt; MAX</code>; else → <code>emit</code>. At cap with unresolved violations: <strong>fail loudly</strong> (non-zero exit + violation list); never silently emit a broken proposal.</li>
 </ul>
-<pre><code>load_profile → load_funds → filter_universe → score_cfs → build_portfolio
-   → [interrupt: consultant review] ──(resume: re-validate edits)──&gt; macro_context
-   → generate_proposal → validate ⇄ repair → emit
+<pre><code>load_profile → load_funds → filter_universe → score_cfs → macro_context → build_portfolio
+   → [interrupt: consultant review] ──(resume: re-validate edits, loop until clean)──&gt; generate_proposal
+   → validate ⇄ repair → emit
                               │
           (fail loudly at MAX iters) ─┘</code></pre>
 <h2>5. State schema (LangGraph state)</h2>
@@ -151,7 +152,7 @@ border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin
 </ul>
 <h2>8. Validate→repair loop</h2>
 <ul>
-<li><code>validate</code> recomputes from the structured ground truth in state and cross-checks the rendered HTML — the seven checks in <code>tests/test_proposal_validation.py</code>, run programmatically: section skeleton/order, CFS composite == weighted recompute (now: HTML slot values vs state numbers), recommended funds exist in source workbook, alpha-warning iff disqualified, retail-eligibility, version stamp + AI disclosure. Emits a <code>violations[]</code> list.</li>
+<li><code>validate</code> recomputes from the structured ground truth in state and cross-checks the rendered HTML — the checks in <code>consultant_engine/rules/validation.py</code> (shared with <code>tests/test_proposal_validation.py</code>), run programmatically: section skeleton/order, CFS composite == weighted recompute, <strong>per-fund performance internal-consistency (Alpha == Fund − Bench), portfolio-exposure legends sum to 100 (asset-class + geo pies), portfolio-summary CFS == fund-card composite</strong> (the last three added in remediation C2/I-new-1/M-new to close the determinism boundary on perf, exposure, and summary numbers), recommended funds exist in source workbook, alpha-warning iff disqualified, retail-eligibility, version stamp + AI disclosure. Emits a <code>violations[]</code> list.</li>
 <li><code>repair</code> receives <code>violations[]</code> + the current HTML and fixes <strong>only</strong> those, re-emitting HTML.</li>
 <li><code>MAX</code> repair iterations = <strong>3</strong> (revisit during planning). At cap with unresolved violations → fail loudly.</li>
 </ul>

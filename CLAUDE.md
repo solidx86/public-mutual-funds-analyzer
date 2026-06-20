@@ -53,7 +53,7 @@ pip install -r requirements.txt pytest && pytest
 ```
 
 - `tests/test_pipeline.py` runs pipeline steps 3–4 offline from the tracked JSONs in a temp workspace — it never touches the repo's tracked outputs.
-- `tests/test_proposal_validation.py` is the eval layer for generated proposals (locked-template conformance, CFS recomputation, disclosure rules, retail eligibility) cross-checked against the FundMaster workbook each proposal names. The `KNOWN_*` pin sets at the top must stay empty — if a regenerated proposal trips one, fix the proposal, don't pin it.
+- `tests/test_proposal_validation.py` is the eval layer for generated proposals (locked-template conformance; CFS / performance / exposure / portfolio-summary recomputation; disclosure rules; retail eligibility) cross-checked against the FundMaster workbook each proposal names. The `KNOWN_*` pin sets at the top must stay empty — if a regenerated proposal trips one, fix the proposal, don't pin it.
 - CI (`.github/workflows/ci.yml`) runs the same `pytest` on every push to main; keep it green.
 
 ## Outputs & versioning

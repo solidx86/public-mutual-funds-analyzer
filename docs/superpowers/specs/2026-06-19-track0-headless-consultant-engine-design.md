@@ -48,14 +48,21 @@ Because numbers are correct-by-construction in state, the loop's job is to catch
 
 ## 4. Graph topology
 
+> **Post-implementation note (2026-06-20).** The shipped graph runs `macro_context` **before**
+> `build_portfolio` (so a macro contract's `exposure_gaps` reach the gap-substitution branch —
+> remediation **I2**), and the validate→repair loop gained three more guards
+> (`check_perf_consistency`, `check_exposure_consistency`, `check_summary_consistency` — see §8).
+> The node order and diagram below are updated to match the implementation; full rationale in
+> `docs/superpowers/notes/track0-code-review-findings.md`.
+
 One linear path — no `mode` branch, no e-Series universe restriction. Every client runs the same build.
 
 **Compute nodes (Python):**
-`load_profile` → `load_funds` (+ Step 1b) → `filter_universe` → `score_cfs` → `build_portfolio`
+`load_profile` → `load_funds` (+ Step 1b) → `filter_universe` → `score_cfs` → `macro_context` → `build_portfolio`
 
-**Human-in-the-loop (main path):** after `build_portfolio`, the graph `interrupt()`s for consultant review of the proposed allocation — *every* proposal pauses here (unless `--no-review`). The interaction is **exit-and-resume**: the engine writes the review artifact (§7) + a read-only HTML preview and exits; state persists in the SQLite checkpointer (keyed by `thread_id`); a `--resume <thread_id>` invocation continues. On resume, any human-edited allocation is **re-validated against the deterministic invariants** before `macro_context`; a violating edit re-pauses (review ON) or fails loudly (`--no-review`).
+**Human-in-the-loop (main path):** after `build_portfolio`, the graph `interrupt()`s for consultant review of the proposed allocation — *every* proposal pauses here (unless `--no-review`). The interaction is **exit-and-resume**: the engine writes the review artifact (§7) + a read-only HTML preview and exits; state persists in the SQLite checkpointer (keyed by `thread_id`); a `--resume <thread_id>` invocation continues. On resume, any human-edited allocation is **re-validated against the deterministic invariants** before `generate_proposal`; a violating edit re-pauses (review ON, bounded loop-until-clean) or fails loudly (`--no-review`).
 
-**Macro:** `macro_context` — validates/normalizes the contract-bound macro input.
+**Macro:** `macro_context` — validates/normalizes the contract-bound macro input (runs before `build_portfolio` so declared `exposure_gaps` can drive the gap-substitution branch).
 
 **Generation (LLM):** `generate_proposal` — structured state + locked slotted skeleton → full HTML.
 
@@ -66,9 +73,9 @@ One linear path — no `mode` branch, no e-Series universe restriction. Every cl
 - after `validate`: → `repair` if violations and `repair_iterations < MAX`; else → `emit`. At cap with unresolved violations: **fail loudly** (non-zero exit + violation list); never silently emit a broken proposal.
 
 ```
-load_profile → load_funds → filter_universe → score_cfs → build_portfolio
-   → [interrupt: consultant review] ──(resume: re-validate edits)──> macro_context
-   → generate_proposal → validate ⇄ repair → emit
+load_profile → load_funds → filter_universe → score_cfs → macro_context → build_portfolio
+   → [interrupt: consultant review] ──(resume: re-validate edits, loop until clean)──> generate_proposal
+   → validate ⇄ repair → emit
                               │
           (fail loudly at MAX iters) ─┘
 ```
@@ -146,7 +153,7 @@ At `interrupt()` the engine writes `data/review/<thread_id>.json` (editable) plu
 
 ## 8. Validate→repair loop
 
-- `validate` recomputes from the structured ground truth in state and cross-checks the rendered HTML — the seven checks in `tests/test_proposal_validation.py`, run programmatically: section skeleton/order, CFS composite == weighted recompute (now: HTML slot values vs state numbers), recommended funds exist in source workbook, alpha-warning iff disqualified, retail-eligibility, version stamp + AI disclosure. Emits a `violations[]` list.
+- `validate` recomputes from the structured ground truth in state and cross-checks the rendered HTML — the checks in `consultant_engine/rules/validation.py` (shared with `tests/test_proposal_validation.py`), run programmatically: section skeleton/order, CFS composite == weighted recompute, **per-fund performance internal-consistency (Alpha == Fund − Bench), portfolio-exposure legends sum to 100 (asset-class + geo pies), portfolio-summary CFS == fund-card composite** (the last three added in remediation C2/I-new-1/M-new to close the determinism boundary on perf, exposure, and summary numbers), recommended funds exist in source workbook, alpha-warning iff disqualified, retail-eligibility, version stamp + AI disclosure. Emits a `violations[]` list.
 - `repair` receives `violations[]` + the current HTML and fixes **only** those, re-emitting HTML.
 - `MAX` repair iterations = **3** (revisit during planning). At cap with unresolved violations → fail loudly.
 
