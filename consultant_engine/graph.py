@@ -14,6 +14,7 @@ from consultant_engine.nodes import (
     repair,
     emit,
 )
+from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact
 
 MAX_REPAIR = 3
 
@@ -21,7 +22,9 @@ MAX_REPAIR = 3
 def _review(state: ConsultantState) -> dict:
     if state.get("no_review"):
         return {}                       # auto-approve path (evals / CI / batch)
-    decision = interrupt(state.get("proposed_allocation", {}))  # pauses; resumed value returned here
+    artifact = build_proposed_allocation(state)
+    write_artifact("data/review", state["thread_id"], artifact)
+    decision = interrupt(artifact)      # pauses; resumed value returned here
     return {"resume_payload": decision} if decision else {}
 
 
