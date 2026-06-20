@@ -1,5 +1,5 @@
 import json
-from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact
+from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact, apply_resume
 
 
 def _make_state(**overrides):
@@ -106,3 +106,42 @@ def test_write_artifact_creates_directory(tmp_path):
     p = write_artifact(nested, "t1", art)
     assert p.exists()
     assert p.name == "t1.json"
+
+
+# ---------------------------------------------------------------------------
+# Task 2.2 — apply_resume tests (write FIRST, run RED before implementing)
+# ---------------------------------------------------------------------------
+
+def test_overcap_edit_is_rejected():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [{"abbr": "PIX", "alpha_n": 90}, {"abbr": "PeDiv", "alpha_n": 80}],
+             "_universe": {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}}
+    payload = {"allocation": [
+        {"abbrev": "PIX", "allocation_pct": 60},        # over the cap
+        {"abbrev": "PeDiv", "allocation_pct": 20},
+        {"abbrev": "PeEMAS", "allocation_pct": 10},
+        {"abbrev": "PeCDF-A", "allocation_pct": 10}]}
+    out = apply_resume(state, payload)
+    assert out["violations"]                              # re-validation caught the cap breach
+
+
+def test_clean_edit_accepted():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [{"abbr": "PIX", "alpha_n": 90}, {"abbr": "PeDiv", "alpha_n": 80}],
+             "_universe": {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}}
+    payload = {"allocation": [
+        {"abbrev": "PIX", "allocation_pct": 40},
+        {"abbrev": "PeDiv", "allocation_pct": 40},
+        {"abbrev": "PeEMAS", "allocation_pct": 10},
+        {"abbrev": "PeCDF-A", "allocation_pct": 10}]}
+    out = apply_resume(state, payload)
+    assert out.get("violations", []) == []
+    assert {h["abbr"] for h in out["portfolio"]} == {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}
+
+
+def test_bare_approve_returns_empty():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [],
+             "_universe": set()}
+    out = apply_resume(state, {"decision": "approve"})
+    assert out == {}

@@ -14,7 +14,7 @@ from consultant_engine.nodes import (
     repair,
     emit,
 )
-from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact
+from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact, apply_resume
 
 MAX_REPAIR = 3
 
@@ -25,7 +25,16 @@ def _review(state: ConsultantState) -> dict:
     artifact = build_proposed_allocation(state)
     write_artifact("data/review", state["thread_id"], artifact)
     decision = interrupt(artifact)      # pauses; resumed value returned here
-    return {"resume_payload": decision} if decision else {}
+    result = apply_resume(state, decision)
+    if result.get("violations"):
+        if state.get("no_review"):
+            raise RuntimeError(f"resume edit failed re-validation: {result['violations']}")
+        # review ON: re-pause with a violations-annotated artifact
+        artifact2 = build_proposed_allocation(state)
+        artifact2["review"]["violations"] = result["violations"]
+        write_artifact("data/review", state["thread_id"], artifact2)
+        interrupt(artifact2)
+    return result          # {} (approve-as-is) or {"portfolio": ...}
 
 
 def _after_validate(state: ConsultantState) -> str:
