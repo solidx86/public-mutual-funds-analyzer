@@ -1,4 +1,4 @@
-from consultant_engine.portfolio import build
+from consultant_engine.portfolio import build, dedup_overlap
 
 
 def test_structural_always_present_and_sums_100():
@@ -59,3 +59,25 @@ def test_shariah_true_uses_pimmf_a_mm_and_gold_is_peemas():
 
     assert len(port) == 4
     assert sum(h["allocation_pct"] for h in port) == 100.0
+
+
+def test_overlap_drops_lower_alpha():
+    """If two picks share >=3 of top-5 holdings, drop the lower-alpha one."""
+    picks = [
+        {"abbr": "A", "alpha_n": 80, "top5": ["x", "y", "z", "p", "q"]},
+        {"abbr": "B", "alpha_n": 60, "top5": ["x", "y", "z", "m", "n"]},
+    ]  # shares x,y,z (3 items)
+    kept = dedup_overlap(picks)
+    assert [p["abbr"] for p in kept] == ["A"]
+
+
+def test_overlap_preserves_non_overlapping_and_order():
+    """Three picks: overlapping pair drops lower-alpha, non-overlapping third kept in order."""
+    picks = [
+        {"abbr": "A", "alpha_n": 80, "top5": ["x", "y", "z", "p", "q"]},
+        {"abbr": "B", "alpha_n": 60, "top5": ["x", "y", "z", "m", "n"]},  # overlaps A, lower alpha
+        {"abbr": "C", "alpha_n": 70, "top5": ["a", "b", "c", "d", "e"]},  # no overlap
+    ]
+    kept = dedup_overlap(picks)
+    abbrs = [p["abbr"] for p in kept]
+    assert abbrs == ["A", "C"]

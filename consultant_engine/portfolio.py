@@ -89,3 +89,46 @@ def build(
         )
 
     return holdings
+
+
+def dedup_overlap(picks: list[dict]) -> list[dict]:
+    """Remove picks with overlapping top-5 holdings.
+
+    If two picks share ≥3 of their top-5 holdings, mark the one with the lower
+    alpha_n for removal. Return the input list with removed picks filtered out,
+    preserving the original order of survivors.
+
+    Args:
+        picks: List of pick dicts, each with "abbr", "alpha_n", "top5" keys.
+               Missing or empty top5 is treated as no overlap.
+
+    Returns:
+        Filtered list of picks (same type and order, minus removed ones).
+    """
+    to_remove = set()
+
+    # Check all pairs
+    for i in range(len(picks)):
+        for j in range(i + 1, len(picks)):
+            pick_i = picks[i]
+            pick_j = picks[j]
+
+            # Get top5, defaulting to empty list
+            top5_i = set(pick_i.get("top5", []))
+            top5_j = set(pick_j.get("top5", []))
+
+            # Count overlap
+            overlap_count = len(top5_i & top5_j)
+
+            if overlap_count >= 3:
+                # Mark the one with lower alpha_n for removal
+                alpha_i = pick_i.get("alpha_n", 0)
+                alpha_j = pick_j.get("alpha_n", 0)
+
+                if alpha_i < alpha_j:
+                    to_remove.add(i)
+                else:
+                    to_remove.add(j)
+
+    # Return filtered list preserving order
+    return [picks[idx] for idx in range(len(picks)) if idx not in to_remove]
