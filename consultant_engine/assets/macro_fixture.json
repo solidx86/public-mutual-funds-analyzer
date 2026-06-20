@@ -1,0 +1,5 @@
+{"events": [
+  {"date": "2026-06-01", "theme": "rates", "claim": "BNM held the OPR at 3.00% at its May meeting", "source_url": "https://www.bnm.gov.my/-/monetary-policy-statement"},
+  {"date": "2026-05-20", "theme": "ringgit", "claim": "MYR strengthened ~3% against USD year-to-date on improved trade balance", "source_url": "https://www.bnm.gov.my/exchange-rates"},
+  {"date": "2026-06-10", "theme": "ai_tech", "claim": "Global AI/semiconductor demand continued to drive US and Asia tech equity outperformance", "source_url": "https://example.com/ai-tech-2026"}
+]}
