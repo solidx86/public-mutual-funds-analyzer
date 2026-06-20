@@ -27,9 +27,34 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 >   substitute the genuinely lowest-alpha core instead of the list-first one. Integration
 >   test builds a real portfolio and asserts the true lowest-alpha core is the one
 >   replaced (fails pre-fix). Suite **178 passed**.
-> - **Still pending:** **I2** (exposure-gap dead in live graph + Shariah leak — has a
->   design call), **I3** (2nd-round HITL fix dropped), **I4 + minors**. Re-run the
->   whole-implementation review next (the findings doc targeted it after C1–C3 + I1).
+> - **2026-06-20 — whole-implementation review re-run** (after C1–C3 + I1). Verdict:
+>   the four remediations are genuinely real (not green-theater). Surfaced **I-new-1**
+>   (exposure geo legend + pies were still an unguarded LLM-authored numeric surface —
+>   same class as C2, which M5 under-scoped) and re-confirmed I2/I3/I4 + minors.
+> - **2026-06-20 — I3 + I4 + M1 RESOLVED** (commit `060b0ab`). `graph._review` is now a
+>   bounded loop-until-clean (`MAX_REVIEW_ROUNDS=3`): each violating resumed edit re-pauses
+>   and the next resume value is re-validated; fails loudly after the cap. Removed the
+>   unreachable `--no-review` raise (I4) and the dead duplicate `read_resume_payload` /
+>   `review_gate` stubs (M1). Re-pause→fix→resume test (fails pre-fix). Suite **180 passed**.
+> - **2026-06-20 — I2 RESOLVED** (commit `68df110`, user chose "make it live"). Graph
+>   reordered to `score_cfs → macro_context → build_portfolio → review_gate → generate_proposal`
+>   so a contract's `exposure_gaps` reach `exposure_gap_pick`; `MacroContext` gained an
+>   `exposure_gaps` field; gap candidates now drawn from `filtered_funds` (closes the Shariah
+>   leak — there is no Shariah invariant). Topology + liveness + Shariah-safety tests
+>   (all fail pre-fix). Suite **183 passed**.
+> - **2026-06-20 — I-new-1 + M5 RESOLVED** (commit `a466c38`, user chose "compute it for
+>   real"). New `consultant_engine/exposure.py` computes portfolio-weighted asset-class +
+>   geographic look-through (recovered Step 7b/7c: Malaysia = dom-equity proxy, 12 geo cols,
+>   <2% merged into Other, normalized to 100) and renders the conic-gradient pies + geo legend
+>   deterministically; the 5 asset `data-slot` pcts are Python-filled. New
+>   `check_exposure_consistency` (each block's legend sums to 100 ± 2, code `exposure_sum`)
+>   wired into `validate_html`. Prompt's 3 exposure prose-slot rows struck. All 3 curated
+>   examples pass the new guard (KNOWN_* stay empty). Suite **208 passed**.
+> - **Determinism boundary is now FULLY CLOSED** — every number in the proposal is Python-owned
+>   and guarded (CFS, perf, exposure) or structurally Python-rendered (meta, macro facts,
+>   portfolio-summary). **Still open (Minor only):** M2 (unreachable `e_target` default),
+>   M3 (non-transitive CFS comparator), M4 (`or 0` in cfs.py), M-new (portfolio-summary CFS
+>   rows Python-owned but not recompute-guarded — defense-in-depth).
 
 ---
 
@@ -71,17 +96,17 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 - **What:** both use `min(core_holdings, key=lambda h: h.get("alpha_n", 0))`, but `build()` core holdings are `{abbr,role,allocation_pct}` with **no `alpha_n`** → all resolve to 0 → `min` returns list-first, not lowest-alpha. Decision 10's "lower-alpha core" not wired end-to-end (unit tests pass because they hand-build holdings *with* `alpha_n`).
 - **Fix:** carry `alpha_n` onto core holdings in `build()` (available on the score dict), or look it up from `cfs_scores` at substitution time.
 
-### I2 — exposure-gap is dead in the live graph + Shariah leak
+### I2 — exposure-gap is dead in the live graph + Shariah leak  ✓ RESOLVED 2026-06-20 (`68df110`)
 - **Where:** `consultant_engine/nodes/build_portfolio.py` (~L55-63).
 - **What:** (a) `candidates=state["eligible_funds"]` is the *pre*-filter universe → a Shariah-noncompliant / over-RL fund could be injected; the gate catches RL but **not Shariah** (no Shariah invariant). (b) `build_portfolio` reads `macro_context["exposure_gaps"]` *before* the `macro_context` node runs (graph order build → interrupt → macro_context, §4) → in the live graph `gaps` is always `[]`, branch is dead.
 - **Fix (design call, see below):** draw candidates from `filtered_funds` (or re-apply Shariah/RL to gap candidates); EITHER reconcile topology so macro gaps reach `build_portfolio`, OR explicitly document exposure-gap as **inert in Track 0** (macro fixture has no gaps anyway).
 
-### I3 — second-round HITL fix is silently dropped
+### I3 — second-round HITL fix is silently dropped  ✓ RESOLVED 2026-06-20 (`060b0ab`)
 - **Where:** `consultant_engine/graph.py` `_review` (~L33-37).
 - **What:** on a violating resumed edit (review ON), `_review` writes a violations-annotated artifact and calls `interrupt(artifact2)` but **ignores its resume value**, returning the stale violating `result`. A consultant who fixes their allocation and resumes again has the fix discarded; `apply_resume` never re-runs. No test covers this.
 - **Fix:** loop interrupt/`apply_resume` until clean (or document a single-correction limit).
 
-### I4 — dead `--no-review` branch in the review-ON block
+### I4 — dead `--no-review` branch in the review-ON block  ✓ RESOLVED 2026-06-20 (`060b0ab`)
 - **Where:** `graph.py` `_review` (~L30-31).
 - **What:** `_review` early-returns at ~L23 when `no_review` is set, so the `if state.get("no_review"): raise …` at ~L30 (post-`interrupt`) is unreachable — spec's "violating edit fails loudly (--no-review)" can't occur as written.
 - **Fix:** remove the dead check, or restructure so `--no-review` resumes genuinely fail loudly.
@@ -103,9 +128,11 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 - [x] **C1 + C2 together** ✓ `938a981` — `_build_core_fund_card` emits the `cfs-score` span; performance rows, fund meta (Type/Shariah/Lipper/VF), and macro Event+Date cells are deterministic Python renders (macro Implication stays per-row prose `macro.impact.N`); new `check_perf_consistency` (Alpha == Fund − Bench) wired into `validate_html`; prompt updated to stop instructing the now-Python-owned slots. Six adversarial tests, fail-before/pass-after proven; suite 167 → 173.
 - [x] **C3** ✓ `1908152` — `load_funds` splits col 64 on `|` into a `list[str]`; adversarial dedup test (zero name-overlap, heavy char-overlap → both survive).
 - [x] **I1** ✓ `39d8852` — `build()` threads `alpha_n` onto core holdings; integration test proves the true lowest-alpha core is substituted.
-- [ ] **I2** — Shariah/RL-filter the exposure-gap candidates; **decide:** make exposure-gap live (reconcile macro-before-build ordering) vs explicitly inert + documented for Track 0. *(Lean: inert + documented; live in a follow-up ENH.)*
-- [ ] **I3** — loop the re-pause/apply_resume cycle (or document single-correction limit) + a full re-pause→fix→resume test.
-- [ ] **I4 + minors** — fix or explicitly mark Track-0-inert.
+- [x] **I2** ✓ `68df110` — made LIVE (user's call): macro reordered before build_portfolio; `exposure_gaps` added to the contract; gap candidates from `filtered_funds` (Shariah leak closed).
+- [x] **I3** ✓ `060b0ab` — bounded loop-until-clean (`MAX_REVIEW_ROUNDS=3`) + re-pause→fix→resume test; fails loudly after the cap.
+- [x] **I4 + M1** ✓ `060b0ab` — removed the dead `--no-review` branch + duplicate `read_resume_payload`/`review_gate` stubs.
+- [x] **I-new-1 + M5** ✓ `a466c38` — Portfolio Exposure computed for real in Python (`exposure.py`) + `check_exposure_consistency` guard.
+- [ ] **M2 / M3 / M4 / M-new** — remaining Minors (unreachable `e_target` default; non-transitive CFS comparator; `or 0` in cfs.py; portfolio-summary CFS rows unguarded).
 
 **Guardrail for the round:** every fix lands with an adversarial test that would have caught the bug — the lesson is that empty/list fixtures + a vacuous check gave 167 green while the determinism boundary was half-real.
 
