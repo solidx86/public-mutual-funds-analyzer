@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/solidx86/public-mutual-funds-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/solidx86/public-mutual-funds-analyzer/actions/workflows/ci.yml)
 
-A two-stage fund screening and advisory system in active monthly use by a licensed unit trust consultant in Malaysia. Stage one is a Python pipeline that parses Public Mutual's Monthly Fund Report PDFs with coordinate-based extraction, scrapes live NAV data from publicmutual.com.my, and scores all ~171 funds with a weighted-alpha model into a 73-column Excel "FundMaster" workbook. Stage two is an AI consulting layer — a versioned Claude Code skill — that reads the workbook plus a client's risk profile and generates a polished, compliance-aware HTML portfolio proposal. The interesting part is the seam between the two: deterministic, tested data engineering feeding a prompt-driven generation layer that is itself version-stamped, template-locked, and regression-checked.
+A two-stage fund screening and advisory system in active monthly use by a licensed unit trust consultant in Malaysia. Stage one is a Python pipeline that parses Public Mutual's Monthly Fund Report PDFs with coordinate-based extraction, scrapes live NAV data from publicmutual.com.my, and scores all ~171 funds with a weighted-alpha model into a 73-column Excel "FundMaster" workbook. Stage two is an AI consulting layer — a headless LangGraph package (`consultant_engine`) — that reads the workbook plus a client's risk profile and generates a polished, compliance-aware HTML portfolio proposal, with a human-in-the-loop review gate. The interesting part is the seam between the two: deterministic, tested data engineering feeding a prompt-driven generation layer that is itself version-stamped, template-locked, and regression-checked.
 
 ## Architecture
 
@@ -21,8 +21,8 @@ flowchart LR
         CSV --> BX[build_xlsx.py<br/>73-col workbook]
         BX --> FM[FundMaster .xlsx]
     end
-    subgraph CL["Consulting layer (Claude skill)"]
-        FM --> SK[fund-consultant skill<br/>Composite Fund Score]
+    subgraph CL["Consulting layer (consultant_engine)"]
+        FM --> SK[consultant_engine<br/>Composite Fund Score]
         RP[Client risk profile] --> SK
         SK --> PR[HTML proposal]
     end
@@ -34,7 +34,7 @@ flowchart LR
 - **Warm/cold web scraping** with CSRF handling and a persisted fund-code map: full NAV-history pull (~2 min) only on first run, ~30s monthly delta updates thereafter.
 - A **weighted-alpha qualification model** (YTD 5% / 1Y 15% / 3Y 40% / 5Y 25% / 10Y 15%, with proportional redistribution when a fund lacks history) — replacing an earlier binary beat-rate gate so alpha *quality* drives qualification.
 - **73-column Excel generation** (openpyxl) with conditional formatting and a formula-driven summary dashboard; month, version, and titles auto-derived from source data and skill frontmatter.
-- The consulting layer is a **versioned Claude Code skill** (26 documented releases, currently v1.26) implementing a four-dimensional **Composite Fund Score** — Alpha, Return Fit, Efficiency, Momentum — with profile-adaptive weights, locked HTML templates, a shared design-system CSS, and CSS-only conic-gradient pie charts. Every proposal is automatically stamped with the skill version and an AI-generation disclaimer.
+- The consulting layer is a **headless LangGraph package** (`consultant_engine`, currently v0.1.0) implementing a four-dimensional **Composite Fund Score** — Alpha, Return Fit, Efficiency, Momentum — with profile-adaptive weights, locked HTML templates, a shared design-system CSS, and CSS-only conic-gradient pie charts. Every proposal is automatically stamped with the engine version and an AI-generation disclaimer. A human-in-the-loop review gate pauses execution for consultant approval before finalising each proposal.
 - **Eval-style regression tests for the LLM layer**: a deterministic proposal validator checks generated HTML against the locked template, recomputes scoring invariants, and enforces disclosure rules (e.g. an alpha warning must appear if and only if a recommended fund failed screening).
 - **Edge-case engineering** earned in production: abbreviation normalization (`P SmallCap` vs `PSMALLCAP`), Shariah multi-line equity-split parsing, and a mandatory per-fund fee lookup from Product Highlight Sheets introduced after a real fee-inheritance bug.
 - **Reproducible by design**: cached intermediate JSONs are tracked in git, so a fresh clone regenerates the full workbook offline — that's also how CI runs the pipeline end-to-end with zero network access.
@@ -55,7 +55,7 @@ flowchart LR
 
 ## Stack at a glance
 
-Python (pdfplumber · openpyxl · requests) · Claude Code skills · HTML/CSS (no-JS charts) · Excel/Google Sheets · pytest + GitHub Actions
+Python (pdfplumber · openpyxl · requests · LangGraph) · Claude Code skills · HTML/CSS (no-JS charts) · Excel/Google Sheets · pytest + GitHub Actions
 
 ## Running it
 
@@ -69,7 +69,14 @@ python3 fund-screener-skill/scripts/build_sheet_data.py   # merge + score → da
 python3 fund-screener-skill/scripts/build_xlsx.py         # → output/fundmasters/*.xlsx
 ```
 
-Proposals are generated interactively through the `fund-consultant` skill in Claude Code — see [`fund-consultant-skill/SKILL.md`](fund-consultant-skill/SKILL.md). Full pipeline semantics and troubleshooting live in [`fund-screener-skill/SKILL.md`](fund-screener-skill/SKILL.md).
+Proposals are generated by the headless `consultant_engine` package with a consultant-review HITL gate:
+
+```bash
+python -m consultant_engine --profile <p.json> --fundmaster <wb.xlsx>
+# → pauses for review; run --resume <thread_id> to finalise, or --no-review to auto-approve
+```
+
+Full pipeline semantics and troubleshooting live in [`fund-screener-skill/SKILL.md`](fund-screener-skill/SKILL.md).
 
 Tests run offline from the tracked cached data:
 
@@ -102,7 +109,7 @@ This public repo ships the **engineering** — the screening pipeline, both skil
 
 | Public (tracked here) | Private (mounted) |
 |---|---|
-| Pipeline, skills, tests, `output/examples/` | `unit-trust/`, `private-retirement-scheme/` — copyrighted source PDFs |
+| Pipeline, `fund-screener-skill/`, `consultant_engine/`, tests, `output/examples/` | `unit-trust/`, `private-retirement-scheme/` — copyrighted source PDFs |
 | Cached `data/cache/*.json` (`mfr_results`, `ath_results`, `fund_code_map`) | `output/fund_proposals/` — real client proposals (client PII) |
 | `data/reference/` (risk levels, EPF list) | `output/fundmasters/` — live FundMaster workbooks |
 
@@ -123,9 +130,8 @@ ln -s "$Q/private-retirement-scheme" "$P/private-retirement-scheme"
 ln -s "$Q/client-proposals"                "$P/output/fund_proposals"
 ln -s "$Q/fundmasters"                     "$P/output/fundmasters"
 
-# 3. Make the skills available to Claude Code
+# 3. Make the screener skill available to Claude Code
 ln -s "$P/fund-screener-skill"   ~/.claude/skills/fund-screener
-ln -s "$P/fund-consultant-skill" ~/.claude/skills/fund-consultant
 ```
 
 ## License & reuse

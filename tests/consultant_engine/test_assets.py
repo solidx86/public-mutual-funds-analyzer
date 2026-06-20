@@ -42,8 +42,8 @@ DISCLAIMER_HEADINGS = [
 
 def test_design_system_css_exists():
     assert CSS_PATH.exists(), f"Missing: {CSS_PATH}"
-    # consultant_engine/assets/design_system.css is now the canonical design system
-    # (the fund-consultant-skill bundle it was copied from has been retired).
+    # consultant_engine/assets/design_system.css is the canonical design system
+    # (migrated from the retired fund-consultant skill bundle).
 
 
 # ── Skeleton exists ────────────────────────────────────────────────────────────

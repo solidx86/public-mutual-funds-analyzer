@@ -9,16 +9,27 @@ A two-stage system for a Public Mutual unit trust consultant (Malaysia):
 1. **Screening pipeline** — ingests Public Mutual Monthly Fund Report (MFR) PDFs + scrapes ATH NAV from publicmutual.com.my, produces a formatted Excel "FundMaster" workbook.
 2. **Consulting layer** — reads the latest FundMaster workbook + a client's risk profile, generates an HTML client proposal.
 
-Both stages are driven by skills. The skills' `SKILL.md` files are the source of truth for procedure — read them before doing pipeline or proposal work, and don't duplicate their content here.
+The screener stage is driven by a skill; the consultant stage is a headless Python package.
 
 ## Where the logic lives
 
 | Skill | Trigger phrases | Path |
 |---|---|---|
 | `fund-screener` | "screen the new MFR", "run the fund screener", "new MFR is out" | `fund-screener-skill/SKILL.md` |
-| `fund-consultant` | "recommend funds for a moderate investor", "build a portfolio for…" | `fund-consultant-skill/SKILL.md` |
 
-Each skill bundle has a `references/` directory (templates, framework docs, design system CSS) and, for the screener, a `scripts/` directory with the pipeline.
+The screener skill bundle has a `references/` directory (templates, framework docs, design system CSS) and a `scripts/` directory with the pipeline.
+
+### Consultant engine
+
+The consulting layer is the `consultant_engine/` LangGraph package — a headless CLI, not a Claude Code skill. Invoke it from the repo root:
+
+```bash
+python -m consultant_engine --profile <p.json> --fundmaster <wb.xlsx> [-o <dir>] [--no-review] [--resume <thread_id>]
+```
+
+**HITL review gate** — by default the engine pauses after drafting, writes `data/review/<thread_id>.json` + a preview `.html`, and exits. Run `--resume <thread_id>` to continue after consultant review. Pass `--no-review` to auto-approve (evals, CI, batch runs).
+
+**Offline mode** — set `CONSULTANT_ENGINE_FAKE_LLM=1` to stub all LLM calls for fast local testing.
 
 ## Pipeline at a glance
 
@@ -50,7 +61,9 @@ pip install -r requirements.txt pytest && pytest
 - `output/fundmasters/PublicMutual_FundMaster_<MonYYYY>_v<skill-version>.xlsx` — screener output
 - `output/fund_proposals/FundProposal_<RiskProfile>_<MonYYYY>[_<ClientName>]_v<skill-version>.html` — consultant output
 
-The `<skill-version>` is parsed from the `version:` field in the corresponding `SKILL.md` frontmatter and stamped automatically into output filenames and footers. Bump the skill's frontmatter version when changing the skill (semver: minor for backward-compatible, major for breaking).
+For the **screener**, `<skill-version>` is parsed from the `version:` field in `fund-screener-skill/SKILL.md` frontmatter. Bump the skill's frontmatter version when changing the skill (semver: minor for backward-compatible, major for breaking).
+
+For the **consultant**, the version comes from `consultant_engine.__version__` (currently `0.1.0`). The stamp label in filenames and footers is the literal `fund-consultant v<ver>` — kept as-is for proposal-validator continuity. Bump `consultant_engine/__init__.py` when changing the engine (same semver convention).
 
 The live `output/fundmasters/` and `output/fund_proposals/` dirs are **gitignored** — real (possibly client-named) runs stay local and are never committed.
 
@@ -58,7 +71,7 @@ The live `output/fundmasters/` and `output/fund_proposals/` dirs are **gitignore
 
 Copyrighted source PDFs (`unit-trust/`, `private-retirement-scheme/`) and real outputs (`output/fund_proposals/`, `output/fundmasters/`) are **not** in this public repo — they are gitignored symlinks mounting the private repo `public-mutual-funds-analyzer-private` (see README → *Public / private split*). Only `output/examples/` is public.
 
-**After** `fund-consultant` writes a proposal, or `fund-screener` writes a FundMaster workbook, run `scripts/sync-private.sh` to commit + push the new/updated file to the private repo. The script resolves the private repo through the symlink mount (no hardcoded path) and no-ops on a public-only clone.
+**After** `consultant_engine` writes a proposal, or `fund-screener` writes a FundMaster workbook, run `scripts/sync-private.sh` to commit + push the new/updated file to the private repo. The script resolves the private repo through the symlink mount (no hardcoded path) and no-ops on a public-only clone.
 
 ## Repo conventions worth knowing
 
