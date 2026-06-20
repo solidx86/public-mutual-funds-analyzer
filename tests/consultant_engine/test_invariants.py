@@ -81,6 +81,43 @@ def test_rl_ceiling_satellite_exception():
     assert "rl_ceiling" not in codes
 
 
+def test_rl_ceiling_structural_gold_exempt():
+    """A structural:gold holding above the profile RL ceiling must NOT fire rl_ceiling.
+
+    Gold (PeEMAS) is always included regardless of profile risk level — it is a
+    structural hedge, not a risk-scaled pick.  Conservative ceiling = 2; PeEMAS RL 3
+    must be exempt.
+    """
+    port = [
+        {"abbr": "LOWA", "role": "core", "allocation_pct": 40},
+        {"abbr": "LOWB", "role": "core", "allocation_pct": 40},
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10},
+    ]
+    universe = {"LOWA", "LOWB", "PeEMAS", "PeCDF-A"}
+    rl = {"LOWA": 2, "LOWB": 2, "PeEMAS": 3, "PeCDF-A": 1}
+    # Conservative ceiling is 2; PeEMAS is RL 3 — must NOT produce rl_ceiling violation
+    v = check_invariants(port, "Conservative", universe, rl_by_abbr=rl)
+    codes = [x["code"] for x in v]
+    assert "rl_ceiling" not in codes
+
+
+def test_rl_ceiling_structural_money_market_exempt():
+    """A structural:money_market holding above the profile RL ceiling must NOT fire rl_ceiling."""
+    port = [
+        {"abbr": "LOWA", "role": "core", "allocation_pct": 40},
+        {"abbr": "LOWB", "role": "core", "allocation_pct": 40},
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10},
+    ]
+    universe = {"LOWA", "LOWB", "PeEMAS", "PeCDF-A"}
+    # Hypothetical: MM fund assigned RL 3 while Conservative ceiling is 2
+    rl = {"LOWA": 2, "LOWB": 2, "PeEMAS": 2, "PeCDF-A": 3}
+    v = check_invariants(port, "Conservative", universe, rl_by_abbr=rl)
+    codes = [x["code"] for x in v]
+    assert "rl_ceiling" not in codes
+
+
 def test_sum_violation():
     """Portfolio summing to ≠ 100 fires the sum check."""
     bad_sum = [

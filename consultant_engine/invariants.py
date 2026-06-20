@@ -88,11 +88,14 @@ def check_invariants(
                 ),
             })
 
-    # 4. RL ceiling (satellite role is exempt)
+    # 4. RL ceiling (satellite and structural roles are exempt)
+    # Gold and money-market are always-included structural hedges, so they must
+    # not trip the ceiling even when their RL exceeds the profile ceiling.
+    _rl_exempt_roles = {"satellite", "structural:gold", "structural:money_market"}
     ceiling = CEILING[profile]
     for h in portfolio:
         abbr = h["abbr"]
-        if h["role"] == "satellite":
+        if h["role"] in _rl_exempt_roles:
             continue
         rl = rl_by_abbr.get(abbr)
         if rl is None:
