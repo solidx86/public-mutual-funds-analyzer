@@ -130,9 +130,9 @@ def test_fill_slots_raises_on_unfilled_numeric_slot():
 
 def test_fill_slots_does_not_raise_for_prose_slots():
     """<!--slot:key--> prose markers are NOT filled here — no ValueError for them."""
-    skel = '<!--slot:exec_summary.profile--><b data-slot="cover.e_target">0</b>'
+    skel = '<!--slot:exec_summary.profile--><b data-slot="cover.target_annual_return_pct">0</b>'
     # Must not raise — prose slots are LLM territory
-    out = fill_slots(skel, {"cover.e_target": "8.0"})
+    out = fill_slots(skel, {"cover.target_annual_return_pct": "8.0"})
     assert ">8.0<" in out
     # Prose slot comment is left intact
     assert "<!--slot:exec_summary.profile-->" in out
@@ -156,12 +156,12 @@ def test_fill_slots_raises_on_leftover_double_brace_placeholder():
 def test_fill_slots_multiple_slots():
     """Multiple data-slot elements are all replaced correctly."""
     skel = (
-        '<span data-slot="cover.e_target">0</span>'
+        '<span data-slot="cover.target_annual_return_pct">0</span>'
         '<span data-slot="cover.funds_selected_n">0</span>'
         '<span data-slot="cover.funds_screened_m">0</span>'
     )
     out = fill_slots(skel, {
-        "cover.e_target": "8.0",
+        "cover.target_annual_return_pct": "8.0",
         "cover.funds_selected_n": "5",
         "cover.funds_screened_m": "120",
     })

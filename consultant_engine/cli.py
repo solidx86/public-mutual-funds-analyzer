@@ -85,7 +85,7 @@ profile JSON fields (see data/profiles/*.json for full examples):
   shariah             true | false | null   (null = no Shariah preference)
   experience          "new" | "experienced"  (tunes how much is explained)
   upfront_capital_rm  initial investable amount, in RM
-  e_target            target expected annual return, in % p.a. (e.g. 5.0)
+  target_annual_return_pct            target expected annual return, in % p.a. (e.g. 5.0)
   goals               free-text client objective (optional)
 
 thread_id: derived from the profile filename stem (moderate.json -> "moderate").

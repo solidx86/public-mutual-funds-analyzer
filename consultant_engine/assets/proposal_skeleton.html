@@ -39,7 +39,7 @@
       </div>
       <div>
         <div class="cover-meta-label">Return Target</div>
-        <div class="cover-meta-value"><span data-slot="cover.e_target"></span>% p.a.</div>
+        <div class="cover-meta-value"><span data-slot="cover.target_annual_return_pct"></span>% p.a.</div>
       </div>
       <div>
         <div class="cover-meta-label">Shariah Preference</div>
@@ -118,7 +118,7 @@
       <ul>
         <li><strong>Profile:</strong> <!--slot:exec_summary.profile--></li>
         <li><strong>Composition:</strong> <!--slot:exec_summary.composition--></li>
-        <li><strong>Weighted CFS:</strong> <span data-slot="portfolio.cfs_composite"></span> / 100 &middot; <strong>3Y Alpha:</strong> <span data-slot="portfolio.alpha_3y"></span>% p.a. &middot; <strong>Portfolio VF:</strong> <span data-slot="portfolio.vf"></span> (<!--slot:portfolio.volatility_class-->)</li>
+        <li><strong>Weighted CFS:</strong> <span data-slot="portfolio.cfs_composite"></span> / 100 &middot; <strong>3Y Alpha:</strong> <span data-slot="portfolio.alpha_3y"></span>% p.a. &middot; <strong>Portfolio VF:</strong> <span data-slot="portfolio.volatility_factor"></span> (<!--slot:portfolio.volatility_class-->)</li>
         <li><strong>Thesis:</strong> <!--slot:exec_summary.thesis--></li>
       </ul>
     </div>
@@ -167,7 +167,7 @@
     <table>
       <tbody>
         <tr><td style="width:30%;"><strong>Profile</strong></td><td><!--slot:profile.name_description--></td></tr>
-        <tr><td><strong>Return Target</strong></td><td><span data-slot="profile.e_target"></span>% p.a. (<!--slot:profile.target_note-->)</td></tr>
+        <tr><td><strong>Return Target</strong></td><td><span data-slot="profile.target_annual_return_pct"></span>% p.a. (<!--slot:profile.target_note-->)</td></tr>
         <tr><td><strong>Shariah Preference</strong></td><td><!--slot:profile.shariah--></td></tr>
         <tr><td><strong>Experience Level</strong></td><td><!--slot:profile.experience_level--></td></tr>
         <tr><td><strong>Risk Level Ceiling</strong></td><td>RL <!--slot:profile.rl_ceiling--> (per profile rule)</td></tr>
@@ -222,9 +222,9 @@
             <td>PORTFOLIO</td>
             <td></td>
             <td>100%</td>
-            <td><span data-slot="portfolio.wtd_cfs"></span></td>
-            <td><span data-slot="portfolio.wtd_alpha"></span></td>
-            <td><span data-slot="portfolio.wtd_rl"></span></td>
+            <td><span data-slot="portfolio.weighted_cfs"></span></td>
+            <td><span data-slot="portfolio.weighted_alpha"></span></td>
+            <td><span data-slot="portfolio.weighted_risk_level"></span></td>
           </tr>
         </tbody>
       </table>
@@ -233,7 +233,7 @@
     <p style="font-size:12px; color:var(--text-mid); margin-top:8px;">
       Weighted Portfolio CFS: <strong><span data-slot="portfolio.cfs_composite"></span> / 100</strong> &middot;
       Weighted Portfolio Alpha (3Y): <strong><span data-slot="portfolio.alpha_3y"></span>%</strong> &middot;
-      Weighted Portfolio VF: <strong><span data-slot="portfolio.vf"></span> (<!--slot:portfolio.volatility_class-->)</strong>
+      Weighted Portfolio VF: <strong><span data-slot="portfolio.volatility_factor"></span> (<!--slot:portfolio.volatility_class-->)</strong>
     </p>
   </div>
 

@@ -7,7 +7,7 @@ def _make_state(**overrides):
         "thread_id": "t1",
         "client_profile": {
             "risk_level": "Moderate",
-            "e_target": 5.0,
+            "target_annual_return_pct": 5.0,
             "shariah": False,
             "experience": "experienced",
             "upfront_capital_rm": 50000,
@@ -26,7 +26,7 @@ def test_artifact_has_three_blocks(tmp_path):
     assert set(art) >= {"context", "constraints", "allocation", "review"}
     assert art["constraints"]["allocations_sum_to_pct"] == 100
     p = write_artifact(tmp_path, "t1", art)
-    assert json.loads(p.read_text())["allocation"][0]["abbrev"] == "PIX"
+    assert json.loads(p.read_text())["allocation"][0]["abbr"] == "PIX"
 
 
 def test_constraints_derive_from_invariants_for_moderate(tmp_path):
@@ -38,7 +38,7 @@ def test_constraints_derive_from_invariants_for_moderate(tmp_path):
 
 
 def test_html_preview_is_written_and_contains_abbrev(tmp_path):
-    """write_artifact must also write a .html file containing the abbrev."""
+    """write_artifact must also write a .html file containing the abbr."""
     state = _make_state()
     art = build_proposed_allocation(state)
     json_path = write_artifact(tmp_path, "t1", art)
@@ -49,7 +49,7 @@ def test_html_preview_is_written_and_contains_abbrev(tmp_path):
 
 
 def test_allocation_entry_fields(tmp_path):
-    """Each allocation entry must have abbrev, role, allocation_pct, cfs, rank, risk_level, eligible."""
+    """Each allocation entry must have abbr, role, allocation_pct, cfs, rank, risk_level, eligible."""
     state = _make_state(
         portfolio=[{"abbr": "PIX", "role": "core", "allocation_pct": 40}],
         cfs_scores=[{"abbr": "PIX", "composite": 88, "alpha_n": 90}],
@@ -57,7 +57,7 @@ def test_allocation_entry_fields(tmp_path):
     )
     art = build_proposed_allocation(state)
     entry = art["allocation"][0]
-    assert entry["abbrev"] == "PIX"
+    assert entry["abbr"] == "PIX"
     assert entry["role"] == "core"
     assert entry["allocation_pct"] == 40
     assert entry["cfs"] == 88
@@ -77,7 +77,7 @@ def test_cfs_and_rank_none_when_not_in_scores(tmp_path):
         filtered_funds=[{"abbr": "PIX", "risk_level": 3}],
     )
     art = build_proposed_allocation(state)
-    gold_entry = next(e for e in art["allocation"] if e["abbrev"] == "PGOLD")
+    gold_entry = next(e for e in art["allocation"] if e["abbr"] == "PGOLD")
     assert gold_entry["cfs"] is None
     assert gold_entry["rank"] is None
     assert gold_entry["eligible"] is False
@@ -117,10 +117,10 @@ def test_overcap_edit_is_rejected():
              "cfs_scores": [{"abbr": "PIX", "alpha_n": 90}, {"abbr": "PeDiv", "alpha_n": 80}],
              "_universe": {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}}
     payload = {"allocation": [
-        {"abbrev": "PIX", "allocation_pct": 60},        # over the cap
-        {"abbrev": "PeDiv", "allocation_pct": 20},
-        {"abbrev": "PeEMAS", "allocation_pct": 10},
-        {"abbrev": "PeCDF-A", "allocation_pct": 10}]}
+        {"abbr": "PIX", "allocation_pct": 60},        # over the cap
+        {"abbr": "PeDiv", "allocation_pct": 20},
+        {"abbr": "PeEMAS", "allocation_pct": 10},
+        {"abbr": "PeCDF-A", "allocation_pct": 10}]}
     out = apply_resume(state, payload)
     assert out["violations"]                              # re-validation caught the cap breach
 
@@ -130,10 +130,10 @@ def test_clean_edit_accepted():
              "cfs_scores": [{"abbr": "PIX", "alpha_n": 90}, {"abbr": "PeDiv", "alpha_n": 80}],
              "_universe": {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}}
     payload = {"allocation": [
-        {"abbrev": "PIX", "allocation_pct": 40},
-        {"abbrev": "PeDiv", "allocation_pct": 40},
-        {"abbrev": "PeEMAS", "allocation_pct": 10},
-        {"abbrev": "PeCDF-A", "allocation_pct": 10}]}
+        {"abbr": "PIX", "allocation_pct": 40},
+        {"abbr": "PeDiv", "allocation_pct": 40},
+        {"abbr": "PeEMAS", "allocation_pct": 10},
+        {"abbr": "PeCDF-A", "allocation_pct": 10}]}
     out = apply_resume(state, payload)
     assert out.get("violations", []) == []
     assert {h["abbr"] for h in out["portfolio"]} == {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}

@@ -58,7 +58,7 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 > - **Determinism boundary is now FULLY CLOSED** — every number in the proposal is Python-owned
 >   and guarded (CFS, perf, exposure, summary) or structurally Python-rendered (meta, macro facts).
 > - **2026-06-20 — all Minors RESOLVED.** M2: `generate_proposal` reads
->   `client["e_target"]` directly (fail-loud) — the unreachable `8.0` default is gone. M3: the
+>   `client["target_annual_return_pct"]` directly (fail-loud) — the unreachable `8.0` default is gone. M3: the
 >   2.0-gap CFS comparator is documented as intentionally non-transitive + deterministic via stable
 >   sort over fixed FundMaster row order (a total order would mean dropping the spec's gap semantics —
 >   a scoring change, not a cleanup, so behaviour is unchanged). M4: `or 0` in `cfs.py` replaced with a
@@ -129,7 +129,7 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 ## Minor — nice to have
 
 - **M1** — duplicate `read_resume_payload` (`review_gate.py` ~L180-182 dead, shadowed by ~L260-269). Delete the stub.
-- **M2** — unreachable `e_target=8.0` fallback (`generate_proposal.py` ~L264,349); `load_profile` always sets `e_target`. Harmonize/drop.
+- **M2** — unreachable `target_annual_return_pct=8.0` fallback (`generate_proposal.py` ~L264,349); `load_profile` always sets `target_annual_return_pct`. Harmonize/drop.
 - **M3** — non-transitive sort comparator (`cfs.py` ~L211-220); the 2.0-gap tiebreaker isn't a total order. Low impact at small N; add a comment or total-order key.
 - **M4** — `derived_class`/`raw_alpha_penalised` use `or 0` (`cfs.py` ~L13-14,49). Harmless now (only `0.0` falsy, comparisons `<0`) but the exact pattern the plan warns against. Prefer explicit `is not None`.
 - **M5** — Cost-&-Alpha mini-grid and exposure pies hardcoded `—` (`generate_proposal.py` ~L162-168,288-293); Fee/Exposure spec'd Python-owned (§3) but ship as em-dashes. OK as a documented Track-0 gap.
@@ -145,7 +145,7 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 - [x] **I3** ✓ `060b0ab` — bounded loop-until-clean (`MAX_REVIEW_ROUNDS=3`) + re-pause→fix→resume test; fails loudly after the cap.
 - [x] **I4 + M1** ✓ `060b0ab` — removed the dead `--no-review` branch + duplicate `read_resume_payload`/`review_gate` stubs.
 - [x] **I-new-1 + M5** ✓ `a466c38` — Portfolio Exposure computed for real in Python (`exposure.py`) + `check_exposure_consistency` guard.
-- [x] **M2 / M3 / M4 / M-new** ✓ — `e_target` direct read (fail-loud); CFS comparator non-transitivity documented (behaviour unchanged); `or 0` → `_num()` explicit-None helper; new `check_summary_consistency` cross-check guard (`summary_mismatch`) + adversarial test.
+- [x] **M2 / M3 / M4 / M-new** ✓ — `target_annual_return_pct` direct read (fail-loud); CFS comparator non-transitivity documented (behaviour unchanged); `or 0` → `_num()` explicit-None helper; new `check_summary_consistency` cross-check guard (`summary_mismatch`) + adversarial test.
 
 **Guardrail for the round:** every fix lands with an adversarial test that would have caught the bug — the lesson is that empty/list fixtures + a vacuous check gave 167 green while the determinism boundary was half-real.
 

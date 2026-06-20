@@ -22,7 +22,7 @@ def _state():
             "risk_level": "Moderate",
             "experience": "experienced",
             "shariah": False,
-            "e_target": 5.0,
+            "target_annual_return_pct": 5.0,
             "upfront_capital_rm": 50000,
         },
         "fundmaster_path": "output/fundmasters/PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx",
@@ -142,12 +142,12 @@ class TestGenerateProposalFakeLLM:
         assert "PeCDF-A" in html      # money-market fund present
         assert "Public e-EMAS" in html
 
-    def test_cover_e_target_slot_filled(self, monkeypatch):
-        """cover.e_target numeric slot must be filled with the client's e_target."""
+    def test_cover_target_annual_return_pct_slot_filled(self, monkeypatch):
+        """cover.target_annual_return_pct numeric slot must be filled with the client's target_annual_return_pct."""
         monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
         out = generate_proposal(_state())
         html = out["proposal_html"]
-        # Should show 5.0 (the e_target from state)
+        # Should show 5.0 (the target_annual_return_pct from state)
         assert "5.0" in html or "5%" in html
 
     def test_html_is_valid_document(self, monkeypatch):

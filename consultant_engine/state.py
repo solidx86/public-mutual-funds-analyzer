@@ -5,7 +5,7 @@ class ClientProfile(TypedDict):
     shariah: Optional[bool]  # True | False | None (no preference)
     experience: Literal["new", "experienced"]
     upfront_capital_rm: float
-    e_target: float          # percent p.a., e.g. 5.0
+    target_annual_return_pct: float          # percent p.a., e.g. 5.0
     goals: Optional[str]
 
 class Fund(TypedDict, total=False):
@@ -17,11 +17,11 @@ class Fund(TypedDict, total=False):
     status: str              # "Qualified" | "Disqualified"
     weighted_alpha: float
     returns: dict            # {"ytd":{"fund","bench","alpha"}, "1y":..., "3y":..., "5y":..., "10y":...}
-    ae: dict                 # {"ytd","1y","3y","5y","10y"}
+    alpha_efficiency: dict                 # {"ytd","1y","3y","5y","10y"}
     assets: dict             # {"dom_equity","for_equity","fi","mm","deposits","other"}
     geo: dict                # %/country, exact FundMaster headers: {"USA","Taiwan","Korea","Japan","France","Germany","China","Singapore","Netherlands","Indonesia","Australia","Geo Other"}
     top5: list
-    vf: float
+    volatility_factor: float
     lipper_class: str
     benchmark: str
     drawdown: Optional[float]

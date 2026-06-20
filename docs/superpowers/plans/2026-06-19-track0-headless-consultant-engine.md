@@ -133,7 +133,7 @@ def test_state_is_constructable_with_partial_keys():
 def test_client_profile_keys():
     p: ClientProfile = {
         "risk_level": "Moderate", "shariah": False, "experience": "experienced",
-        "upfront_capital_rm": 50000.0, "e_target": 5.0, "goals": None,
+        "upfront_capital_rm": 50000.0, "target_annual_return_pct": 5.0, "goals": None,
     }
     assert p["risk_level"] == "Moderate"
 ```
@@ -154,7 +154,7 @@ class ClientProfile(TypedDict):
     shariah: Optional[bool]  # True | False | None (no preference)
     experience: Literal["new", "experienced"]
     upfront_capital_rm: float
-    e_target: float          # percent p.a., e.g. 5.0
+    target_annual_return_pct: float          # percent p.a., e.g. 5.0
     goals: Optional[str]
 
 class Fund(TypedDict, total=False):
@@ -428,7 +428,7 @@ def test_cli_runs_with_no_review(tmp_path):
     prof = tmp_path / "p.json"
     prof.write_text(json.dumps({
         "risk_level": "Moderate", "shariah": False, "experience": "experienced",
-        "upfront_capital_rm": 50000, "e_target": 5.0
+        "upfront_capital_rm": 50000, "target_annual_return_pct": 5.0
     }))
     r = subprocess.run(
         [sys.executable, "-m", "consultant_engine",
@@ -525,7 +525,7 @@ Goal: real Python for every compute node, unit-TDD'd against the formulas in `fu
 
 ### Task 1.1: `load_profile` node
 
-Parses the client-profile dict, **normalizes `experience` in-place** (defaults to `"experienced"` when absent — `client_profile` is the single owner of the tier; there is no separate `experience_tier` channel), defaults `e_target` from the profile midpoint when absent, attaches a mismatch note when `e_target` exceeds the profile ceiling.
+Parses the client-profile dict, **normalizes `experience` in-place** (defaults to `"experienced"` when absent — `client_profile` is the single owner of the tier; there is no separate `experience_tier` channel), defaults `target_annual_return_pct` from the profile midpoint when absent, attaches a mismatch note when `target_annual_return_pct` exceeds the profile ceiling.
 
 **Files:** `consultant_engine/nodes/load_profile.py`, `tests/consultant_engine/test_load_profile.py`
 
@@ -540,7 +540,7 @@ def test_experience_normalized_and_default_target():
         "risk_level": "Moderate", "experience": "new", "shariah": None,
         "upfront_capital_rm": 5000}})
     assert out["client_profile"]["experience"] == "new"      # profile is the sole owner of the tier
-    assert out["client_profile"]["e_target"] == 5.0          # midpoint default
+    assert out["client_profile"]["target_annual_return_pct"] == 5.0          # midpoint default
 
 def test_experience_defaults_to_experienced_when_absent():
     out = load_profile({"client_profile": {
@@ -550,7 +550,7 @@ def test_experience_defaults_to_experienced_when_absent():
 def test_target_mismatch_note():
     out = load_profile({"client_profile": {
         "risk_level": "Conservative", "experience": "experienced",
-        "shariah": None, "upfront_capital_rm": 100000, "e_target": 9.0}})
+        "shariah": None, "upfront_capital_rm": 100000, "target_annual_return_pct": 9.0}})
     assert "exceeds" in out["client_profile"]["target_note"].lower()
 ```
 - [ ] **Step 2: Run red.**
@@ -567,10 +567,10 @@ def load_profile(state: ConsultantState) -> dict:
     p = dict(state["client_profile"])
     rl = p["risk_level"]
     p.setdefault("experience", "experienced")   # normalize the tier into the profile (single owner)
-    p.setdefault("e_target", MIDPOINT[rl])
+    p.setdefault("target_annual_return_pct", MIDPOINT[rl])
     note = ""
-    if p["e_target"] > CEILING[rl]:
-        note = (f"Target {p['e_target']}% p.a. exceeds the realistic ceiling "
+    if p["target_annual_return_pct"] > CEILING[rl]:
+        note = (f"Target {p['target_annual_return_pct']}% p.a. exceeds the realistic ceiling "
                 f"for a {rl} profile ({CEILING[rl]}%).")
     p["target_note"] = note
     return {"client_profile": p}
@@ -856,9 +856,9 @@ BASE = {
 }
 MID = {"Conservative":3.5,"Moderate":5.0,"Moderately Aggressive":7.0,"Aggressive":9.0}
 
-def profile_weights(profile, e_target) -> dict:
+def profile_weights(profile, target_annual_return_pct) -> dict:
     w = dict(BASE[profile]); mid = MID[profile]
-    stretch = (e_target - mid) / mid
+    stretch = (target_annual_return_pct - mid) / mid
     if stretch > 0:
         shift = min(10.0, 10.0 * stretch); w["alpha"] -= shift; w["returnfit"] += shift
     elif stretch < 0:
@@ -892,7 +892,7 @@ def test_score_all_ranks_higher_alpha_first():
     assert scores[0]["abbr"] == "HIGH"
     assert 0 <= scores[0]["composite"] <= 100
 ```
-- [ ] **Step 2–4: red → implement → green.** `score_all(funds, profile, e_target)`: group by `derived_class`; per class compute raw alpha/returnfit-ratio/efficiency, then percentile-normalize within class; momentum absolute; `composite = Σ w·dim/100` using `profile_weights`; sort with tiebreaker. `score_cfs` node: `return {"cfs_scores": score_all(state["filtered_funds"], state["client_profile"]["risk_level"], state["client_profile"]["e_target"])}`.
+- [ ] **Step 2–4: red → implement → green.** `score_all(funds, profile, target_annual_return_pct)`: group by `derived_class`; per class compute raw alpha/returnfit-ratio/efficiency, then percentile-normalize within class; momentum absolute; `composite = Σ w·dim/100` using `profile_weights`; sort with tiebreaker. `score_cfs` node: `return {"cfs_scores": score_all(state["filtered_funds"], state["client_profile"]["risk_level"], state["client_profile"]["target_annual_return_pct"])}`.
 - [ ] **Step 5: Commit** `feat(engine): CFS score_all + tiebreaker + bear exception`
 
 ### Task 1.11: `invariants` module
@@ -1067,7 +1067,7 @@ import json
 from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact
 
 def test_artifact_has_three_blocks(tmp_path):
-    state = {"thread_id": "t1", "client_profile": {"risk_level": "Moderate", "e_target": 5.0,
+    state = {"thread_id": "t1", "client_profile": {"risk_level": "Moderate", "target_annual_return_pct": 5.0,
              "shariah": False, "experience": "experienced", "upfront_capital_rm": 50000},
              "fundmaster_path": "fm.xlsx",
              "portfolio": [{"abbr": "PIX", "role": "core", "allocation_pct": 40}],

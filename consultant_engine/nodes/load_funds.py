@@ -11,6 +11,21 @@ def _excluded(name: str, abbr: str) -> bool:
     return name.startswith("PB ") or abbr.endswith("-B") or abbr in WHOLESALE
 
 
+def _f(value):
+    """Excel cell → float, preserving None (a missing value is not 0.0)."""
+    return float(value) if value is not None else None
+
+
+def _s(value):
+    """Excel cell → stripped str, preserving None."""
+    return str(value).strip() if value is not None else None
+
+
+def _read_cols(ws, row, start_col, keys) -> dict:
+    """Read len(keys) consecutive cells from start_col into {key: float-or-None}."""
+    return {key: _f(ws.cell(row, start_col + i).value) for i, key in enumerate(keys)}
+
+
 def load_funds(state: ConsultantState) -> dict:
     path = state["fundmaster_path"]
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -24,7 +39,7 @@ def load_funds(state: ConsultantState) -> dict:
 
     # Period names in order, starting at col 15; 5 periods × 3 cols each
     PERIOD_NAMES = ["ytd", "1y", "3y", "5y", "10y"]
-    AE_KEYS = ["ytd", "1y", "3y", "5y", "10y"]
+    ALPHA_EFFICIENCY_KEYS = ["ytd", "1y", "3y", "5y", "10y"]
     ASSET_KEYS = ["dom_equity", "for_equity", "fi", "mm", "deposits", "other"]
 
     eligible_funds = []
@@ -51,42 +66,22 @@ def load_funds(state: ConsultantState) -> dict:
         risk_level_raw = ws.cell(row, 6).value
         risk_level = int(risk_level_raw) if risk_level_raw is not None else None
 
-        status_val = ws.cell(row, 10).value
-        status = str(status_val).strip() if status_val is not None else None
+        status = _s(ws.cell(row, 10).value)
+        weighted_alpha = _f(ws.cell(row, 14).value)
 
-        walpha_raw = ws.cell(row, 14).value
-        weighted_alpha = float(walpha_raw) if walpha_raw is not None else None
-
-        # Returns: cols 15–29, 5 periods × 3 cols each
+        # Returns: cols 15–29, 5 periods × 3 cols each (fund/bench/alpha)
         returns = {}
         for i, period in enumerate(PERIOD_NAMES):
             base_col = 15 + i * 3
-            fund_r = ws.cell(row, base_col).value
-            bench_r = ws.cell(row, base_col + 1).value
-            alpha_r = ws.cell(row, base_col + 2).value
             returns[period] = {
-                "fund": float(fund_r) if fund_r is not None else None,
-                "bench": float(bench_r) if bench_r is not None else None,
-                "alpha": float(alpha_r) if alpha_r is not None else None,
+                "fund": _f(ws.cell(row, base_col).value),
+                "bench": _f(ws.cell(row, base_col + 1).value),
+                "alpha": _f(ws.cell(row, base_col + 2).value),
             }
 
-        # AE: cols 30–34
-        ae = {}
-        for i, key in enumerate(AE_KEYS):
-            val = ws.cell(row, 30 + i).value
-            ae[key] = float(val) if val is not None else None
-
-        # Assets: cols 35–40
-        assets = {}
-        for i, key in enumerate(ASSET_KEYS):
-            val = ws.cell(row, 35 + i).value
-            assets[key] = float(val) if val is not None else None
-
-        # Geo: cols 41–52, keyed by row-3 headers
-        geo = {}
-        for i, header in enumerate(geo_headers):
-            val = ws.cell(row, 41 + i).value
-            geo[header] = float(val) if val is not None else None
+        alpha_efficiency = _read_cols(ws, row, 30, ALPHA_EFFICIENCY_KEYS)  # cols 30–34
+        assets = _read_cols(ws, row, 35, ASSET_KEYS)                       # cols 35–40
+        geo = _read_cols(ws, row, 41, geo_headers)                         # cols 41–52, headers from row 3
 
         # Top-5 holdings — col 64 is a " | "-delimited string in the real workbook
         # (build_sheet_data.py joins with ' | '). Split to a list so overlap checks
@@ -97,18 +92,10 @@ def load_funds(state: ConsultantState) -> dict:
         else:
             top5 = [h.strip() for h in str(top5_raw).split("|") if h.strip()]
 
-        vf_raw = ws.cell(row, 65).value
-        vf = float(vf_raw) if vf_raw is not None else None
-
-        lipper_class_raw = ws.cell(row, 67).value
-        lipper_class = str(lipper_class_raw).strip() if lipper_class_raw is not None else None
-
-        benchmark_raw = ws.cell(row, 68).value
-        benchmark = str(benchmark_raw).strip() if benchmark_raw is not None else None
-
-        # Explicit None checks — 0.0 is a valid drawdown
-        drawdown_raw = ws.cell(row, 72).value
-        drawdown = float(drawdown_raw) if drawdown_raw is not None else None
+        volatility_factor = _f(ws.cell(row, 65).value)
+        lipper_class = _s(ws.cell(row, 67).value)
+        benchmark = _s(ws.cell(row, 68).value)
+        drawdown = _f(ws.cell(row, 72).value)  # 0.0 is a valid drawdown — preserved by _f
 
         days_raw = ws.cell(row, 73).value
         days_from_ath = int(days_raw) if days_raw is not None else None
@@ -122,11 +109,11 @@ def load_funds(state: ConsultantState) -> dict:
             "status": status,
             "weighted_alpha": weighted_alpha,
             "returns": returns,
-            "ae": ae,
+            "alpha_efficiency": alpha_efficiency,
             "assets": assets,
             "geo": geo,
             "top5": top5,
-            "vf": vf,
+            "volatility_factor": volatility_factor,
             "lipper_class": lipper_class,
             "benchmark": benchmark,
             "drawdown": drawdown,

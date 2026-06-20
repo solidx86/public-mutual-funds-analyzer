@@ -52,14 +52,14 @@ def test_returnfit_interpolates():
 
 def test_efficiency_prefers_3y_then_1y():
     from consultant_engine.cfs import efficiency_raw
-    assert efficiency_raw({"ae": {"3y": 1.2, "1y": 0.5}}) == 1.2
-    assert efficiency_raw({"ae": {"3y": None, "1y": 0.5}}) == 0.5
+    assert efficiency_raw({"alpha_efficiency": {"3y": 1.2, "1y": 0.5}}) == 1.2
+    assert efficiency_raw({"alpha_efficiency": {"3y": None, "1y": 0.5}}) == 0.5
 
 
 def test_efficiency_preserves_zero_3y():
     from consultant_engine.cfs import efficiency_raw
     # 0.0 is a valid Alpha Efficiency value — it must NOT fall through to 1Y
-    assert efficiency_raw({"ae": {"3y": 0.0, "1y": 0.5}}) == 0.0
+    assert efficiency_raw({"alpha_efficiency": {"3y": 0.0, "1y": 0.5}}) == 0.0
 
 
 def test_momentum_at_ath_fast_recovery():
@@ -105,7 +105,7 @@ def _f(abbr, a3, ret3, ae3, dd):
             "1y": {"alpha": a3, "fund": ret3},
             "ytd": {"alpha": a3, "fund": ret3},
         },
-        "ae": {"3y": ae3},
+        "alpha_efficiency": {"3y": ae3},
         "drawdown": dd,
         "days_from_ath": 20,
     }
@@ -122,11 +122,11 @@ def test_score_all_returnfit_is_absolute_not_percentile():
     """
     ReturnFit_N must use the absolute piecewise curve, not percentile.
 
-    Fund EXACT has Wtd_Return == e_target (ratio 1.0) → returnfit_score(1.0) == 80.
+    Fund EXACT has Wtd_Return == target_annual_return_pct (ratio 1.0) → returnfit_score(1.0) == 80.
     Fund ABOVE has a higher return. In a percentile world EXACT would score below 100;
     on the absolute curve it must be exactly 80 regardless of class rank.
     """
-    exact = _f("EXACT", 5.0, 5.0, 1.0, -3.0)   # ret3=5.0 == e_target=5.0 → ratio 1.0
+    exact = _f("EXACT", 5.0, 5.0, 1.0, -3.0)   # ret3=5.0 == target_annual_return_pct=5.0 → ratio 1.0
     above = _f("ABOVE", 7.0, 10.0, 1.5, -3.0)   # higher return, would be top of class
     scores = score_all([exact, above], "Moderate", 5.0)
     score_exact = next(s for s in scores if s["abbr"] == "EXACT")

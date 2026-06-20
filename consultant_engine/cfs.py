@@ -11,29 +11,20 @@ def _num(value) -> float:
 
 
 def derived_class(fund) -> str:
-    """
-    Determine derived asset class from asset allocation.
-
-    Equity-equivalent if dom_equity + for_equity >= 60
-    Defensive if fi + mm + deposits >= 60
-    Otherwise Balanced
-    """
-    a = fund["assets"]
-    eq = _num(a.get("dom_equity")) + _num(a.get("for_equity"))
-    deff = _num(a.get("fi")) + _num(a.get("mm")) + _num(a.get("deposits"))
+    """Asset class from allocation: Equity-equivalent or Defensive when either
+    bucket is ≥60%, otherwise Balanced."""
+    assets = fund["assets"]
+    eq = _num(assets.get("dom_equity")) + _num(assets.get("for_equity"))
+    defensive_assets_total = _num(assets.get("fi")) + _num(assets.get("mm")) + _num(assets.get("deposits"))
     if eq >= 60:
         return "Equity-equivalent"
-    if deff >= 60:
+    if defensive_assets_total >= 60:
         return "Defensive"
     return "Balanced"
 
 
 def percentile_rank(value, population) -> float:
-    """
-    Calculate percentile rank of a value in a population.
-
-    Top value returns 100, bottom returns 0, ties share the rank.
-    """
+    """Percentile rank of value within population (top→100, bottom→0, ties shared)."""
     pop = sorted(population)
     if len(pop) <= 1:
         return 100.0
@@ -78,15 +69,11 @@ def returnfit_score(ratio: float) -> float:
 
 
 def efficiency_raw(fund) -> float:
-    """
-    Efficiency_raw = 3Y Alpha Efficiency with fallback to 1Y AE, else 0.
-
-    Prefer 3Y AE over 1Y AE. Uses explicit None checks to preserve 0.0 as a valid value.
-    """
-    ae = fund.get("ae", {})
-    v = ae.get("3y")
+    """3Y Alpha Efficiency, falling back to 1Y then 0.0 (None-safe: 0.0 stays valid)."""
+    alpha_efficiency = fund.get("alpha_efficiency", {})
+    v = alpha_efficiency.get("3y")
     if v is None:
-        v = ae.get("1y")
+        v = alpha_efficiency.get("1y")
     if v is None:
         v = 0.0
     return v
@@ -121,10 +108,10 @@ BASE = {
 MID = {"Conservative": 3.5, "Moderate": 5.0, "Moderately Aggressive": 7.0, "Aggressive": 9.0}
 
 
-def profile_weights(profile, e_target) -> dict:
+def profile_weights(profile, target_annual_return_pct) -> dict:
     w = dict(BASE[profile])
     mid = MID[profile]
-    stretch = (e_target - mid) / mid
+    stretch = (target_annual_return_pct - mid) / mid
     if stretch > 0:
         shift = min(10.0, 10.0 * stretch)
         w["alpha"] -= shift
@@ -138,7 +125,7 @@ def profile_weights(profile, e_target) -> dict:
     return {k: round(v * 100 / total, 2) for k, v in w.items()}
 
 
-def score_all(funds: list, profile: str, e_target: float) -> list:
+def score_all(funds: list, profile: str, target_annual_return_pct: float) -> list:
     """
     Compose per-fund CFS dimensions into a final score.
 
@@ -153,72 +140,72 @@ def score_all(funds: list, profile: str, e_target: float) -> list:
     6. Sort descending: within 2.0 composite gap → tiebreak by alpha_n desc,
        then efficiency_n desc; else by composite desc.
     """
-    w = profile_weights(profile, e_target)
+    w = profile_weights(profile, target_annual_return_pct)
 
     # --- pre-compute raw dimension values per fund ---
     raw = {}
     for fund in funds:
         abbr = fund["abbr"]
-        cls = derived_class(fund)
+        asset_class = derived_class(fund)
         alpha_raw = raw_alpha_penalised(fund)
         eff_raw = efficiency_raw(fund)
-        wtd_ret = weighted_blend(
+        weighted_return = weighted_blend(
             {p: fund["returns"].get(p, {}).get("fund") for p in WEIGHTS}
         )
-        mom = momentum_score(fund.get("drawdown"), fund.get("days_from_ath"))
+        momentum_raw = momentum_score(fund.get("drawdown"), fund.get("days_from_ath"))
         raw[abbr] = {
             "fund": fund,
-            "cls": cls,
+            "asset_class": asset_class,
             "alpha_raw": alpha_raw,
             "eff_raw": eff_raw,
-            "wtd_ret": wtd_ret,
-            "mom": mom,
+            "weighted_return": weighted_return,
+            "momentum_raw": momentum_raw,
         }
 
     # --- group by derived class ---
     classes: dict[str, list[str]] = {}
     for abbr, r in raw.items():
-        classes.setdefault(r["cls"], []).append(abbr)
+        classes.setdefault(r["asset_class"], []).append(abbr)
 
     # --- compute normalised dimensions per class then build result dicts ---
     scores: list[dict] = []
-    for cls, abbrs in classes.items():
+    for asset_class, abbrs in classes.items():
         alpha_pop = [raw[a]["alpha_raw"] for a in abbrs]
         eff_pop = [raw[a]["eff_raw"] for a in abbrs]
-        wtd_ret_pop = [raw[a]["wtd_ret"] for a in abbrs]
+        weighted_return_pop = [raw[a]["weighted_return"] for a in abbrs]
 
-        bear_exception = all(r < 0 for r in wtd_ret_pop)
+        bear_exception = all(r < 0 for r in weighted_return_pop)
 
         for abbr in abbrs:
             r = raw[abbr]
             alpha_n = round(percentile_rank(r["alpha_raw"], alpha_pop), 2)
-            eff_n = round(percentile_rank(r["eff_raw"], eff_pop), 2)
+            efficiency_norm = round(percentile_rank(r["eff_raw"], eff_pop), 2)
 
             if bear_exception:
-                rf_n = round(percentile_rank(r["wtd_ret"], wtd_ret_pop), 2)
+                returnfit_norm = round(percentile_rank(r["weighted_return"], weighted_return_pop), 2)
             else:
-                ratio = r["wtd_ret"] / e_target if e_target else 0.0
-                rf_n = round(returnfit_score(ratio), 2)
+                ratio = r["weighted_return"] / target_annual_return_pct if target_annual_return_pct else 0.0
+                returnfit_norm = round(returnfit_score(ratio), 2)
 
-            mom_n = round(r["mom"], 2)
+            momentum_norm = round(r["momentum_raw"], 2)
 
             composite = round(
                 (w["alpha"] * alpha_n
-                 + w["returnfit"] * rf_n
-                 + w["efficiency"] * eff_n
-                 + w["momentum"] * mom_n) / 100,
+                 + w["returnfit"] * returnfit_norm
+                 + w["efficiency"] * efficiency_norm
+                 + w["momentum"] * momentum_norm) / 100,
                 2,
             )
 
             scores.append({
                 "abbr": abbr,
                 "alpha_n": alpha_n,
-                "returnfit_n": rf_n,
-                "efficiency_n": eff_n,
-                "momentum_n": mom_n,
+                "returnfit_n": returnfit_norm,
+                "efficiency_n": efficiency_norm,
+                "momentum_n": momentum_norm,
                 "composite": composite,
                 "weights": w,
-                "derived_class": cls,
+                "derived_class": asset_class,
             })
 
     # --- sort: composite desc, with an intentional 2.0-gap tiebreaker band ---

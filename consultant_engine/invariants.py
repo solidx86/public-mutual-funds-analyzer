@@ -97,14 +97,14 @@ def check_invariants(
         abbr = h["abbr"]
         if h["role"] in _rl_exempt_roles:
             continue
-        rl = rl_by_abbr.get(abbr)
-        if rl is None:
+        fund_risk_level = rl_by_abbr.get(abbr)
+        if fund_risk_level is None:
             continue  # missing from lookup — universe check guards membership
-        if rl > ceiling:
+        if fund_risk_level > ceiling:
             violations.append({
                 "code": "rl_ceiling",
                 "msg": (
-                    f"{abbr} has risk level {rl} which exceeds the {profile} "
+                    f"{abbr} has risk level {fund_risk_level} which exceeds the {profile} "
                     f"ceiling of {ceiling}"
                 ),
             })

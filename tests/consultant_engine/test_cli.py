@@ -52,7 +52,7 @@ def test_cli_runs_with_no_review(tmp_path, fundmaster_4fund):
     prof = tmp_path / "p.json"
     prof.write_text(json.dumps({
         "risk_level": "Moderate", "shariah": False, "experience": "experienced",
-        "upfront_capital_rm": 50000, "e_target": 5.0
+        "upfront_capital_rm": 50000, "target_annual_return_pct": 5.0
     }))
     r = subprocess.run(
         [sys.executable, "-m", "consultant_engine",

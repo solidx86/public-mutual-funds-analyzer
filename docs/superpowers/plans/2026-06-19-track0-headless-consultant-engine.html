@@ -142,7 +142,7 @@ def test_state_is_constructable_with_partial_keys():
 def test_client_profile_keys():
     p: ClientProfile = {
         &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: False, &quot;experience&quot;: &quot;experienced&quot;,
-        &quot;upfront_capital_rm&quot;: 50000.0, &quot;e_target&quot;: 5.0, &quot;goals&quot;: None,
+        &quot;upfront_capital_rm&quot;: 50000.0, &quot;target_annual_return_pct&quot;: 5.0, &quot;goals&quot;: None,
     }
     assert p[&quot;risk_level&quot;] == &quot;Moderate&quot;</code></pre>
 <ul>
@@ -160,7 +160,7 @@ class ClientProfile(TypedDict):
     shariah: Optional[bool]  # True | False | None (no preference)
     experience: Literal[&quot;new&quot;, &quot;experienced&quot;]
     upfront_capital_rm: float
-    e_target: float          # percent p.a., e.g. 5.0
+    target_annual_return_pct: float          # percent p.a., e.g. 5.0
     goals: Optional[str]
 
 class Fund(TypedDict, total=False):
@@ -409,7 +409,7 @@ def test_cli_runs_with_no_review(tmp_path):
     prof = tmp_path / &quot;p.json&quot;
     prof.write_text(json.dumps({
         &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: False, &quot;experience&quot;: &quot;experienced&quot;,
-        &quot;upfront_capital_rm&quot;: 50000, &quot;e_target&quot;: 5.0
+        &quot;upfront_capital_rm&quot;: 50000, &quot;target_annual_return_pct&quot;: 5.0
     }))
     r = subprocess.run(
         [sys.executable, &quot;-m&quot;, &quot;consultant_engine&quot;,
@@ -495,7 +495,7 @@ git commit -m &quot;feat(engine): CLI entry with invoke + resume wiring&quot;</c
 <h2 class="phase">Phase L1 — Deterministic compute (full parity)</h2>
 <p>Goal: real Python for every compute node, unit-TDD&#x27;d against the formulas in <code>fund-consultant-skill/SKILL.md</code>. The LLM nodes stay stubbed. <strong>e-Series / shortlist is OUT</strong> (spec decision 6) — one linear build for all clients.</p>
 <h3>Task 1.1: <code>load_profile</code> node</h3>
-<p>Parses the client-profile dict, <strong>normalizes <code>experience</code> in-place</strong> (defaults to <code>&quot;experienced&quot;</code> when absent — <code>client_profile</code> is the single owner of the tier; there is no separate <code>experience_tier</code> channel), defaults <code>e_target</code> from the profile midpoint when absent, attaches a mismatch note when <code>e_target</code> exceeds the profile ceiling.</p>
+<p>Parses the client-profile dict, <strong>normalizes <code>experience</code> in-place</strong> (defaults to <code>&quot;experienced&quot;</code> when absent — <code>client_profile</code> is the single owner of the tier; there is no separate <code>experience_tier</code> channel), defaults <code>target_annual_return_pct</code> from the profile midpoint when absent, attaches a mismatch note when <code>target_annual_return_pct</code> exceeds the profile ceiling.</p>
 <p><strong>Files:</strong> <code>consultant_engine/nodes/load_profile.py</code>, <code>tests/consultant_engine/test_load_profile.py</code></p>
 <p>Reference (SKILL.md Step 0): midpoints Conservative 3.5, Moderate 5, Moderately Aggressive 7, Aggressive 9; ceilings 4/6/8/10; &gt;10% always &quot;unrealistic&quot;.</p>
 <ul>
@@ -508,7 +508,7 @@ def test_experience_normalized_and_default_target():
         &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;experience&quot;: &quot;new&quot;, &quot;shariah&quot;: None,
         &quot;upfront_capital_rm&quot;: 5000}})
     assert out[&quot;client_profile&quot;][&quot;experience&quot;] == &quot;new&quot;      # profile is the sole owner of the tier
-    assert out[&quot;client_profile&quot;][&quot;e_target&quot;] == 5.0          # midpoint default
+    assert out[&quot;client_profile&quot;][&quot;target_annual_return_pct&quot;] == 5.0          # midpoint default
 
 def test_experience_defaults_to_experienced_when_absent():
     out = load_profile({&quot;client_profile&quot;: {
@@ -518,7 +518,7 @@ def test_experience_defaults_to_experienced_when_absent():
 def test_target_mismatch_note():
     out = load_profile({&quot;client_profile&quot;: {
         &quot;risk_level&quot;: &quot;Conservative&quot;, &quot;experience&quot;: &quot;experienced&quot;,
-        &quot;shariah&quot;: None, &quot;upfront_capital_rm&quot;: 100000, &quot;e_target&quot;: 9.0}})
+        &quot;shariah&quot;: None, &quot;upfront_capital_rm&quot;: 100000, &quot;target_annual_return_pct&quot;: 9.0}})
     assert &quot;exceeds&quot; in out[&quot;client_profile&quot;][&quot;target_note&quot;].lower()</code></pre>
 <ul>
 <li class="task"><strong>Step 2: Run red.</strong></li>
@@ -535,10 +535,10 @@ def load_profile(state: ConsultantState) -&gt; dict:
     p = dict(state[&quot;client_profile&quot;])
     rl = p[&quot;risk_level&quot;]
     p.setdefault(&quot;experience&quot;, &quot;experienced&quot;)   # normalize the tier into the profile (single owner)
-    p.setdefault(&quot;e_target&quot;, MIDPOINT[rl])
+    p.setdefault(&quot;target_annual_return_pct&quot;, MIDPOINT[rl])
     note = &quot;&quot;
-    if p[&quot;e_target&quot;] &gt; CEILING[rl]:
-        note = (f&quot;Target {p[&#x27;e_target&#x27;]}% p.a. exceeds the realistic ceiling &quot;
+    if p[&quot;target_annual_return_pct&quot;] &gt; CEILING[rl]:
+        note = (f&quot;Target {p[&#x27;target_annual_return_pct&#x27;]}% p.a. exceeds the realistic ceiling &quot;
                 f&quot;for a {rl} profile ({CEILING[rl]}%).&quot;)
     p[&quot;target_note&quot;] = note
     return {&quot;client_profile&quot;: p}</code></pre>
@@ -808,9 +808,9 @@ def test_stretch_above_shifts_alpha_to_returnfit():
 }
 MID = {&quot;Conservative&quot;:3.5,&quot;Moderate&quot;:5.0,&quot;Moderately Aggressive&quot;:7.0,&quot;Aggressive&quot;:9.0}
 
-def profile_weights(profile, e_target) -&gt; dict:
+def profile_weights(profile, target_annual_return_pct) -&gt; dict:
     w = dict(BASE[profile]); mid = MID[profile]
-    stretch = (e_target - mid) / mid
+    stretch = (target_annual_return_pct - mid) / mid
     if stretch &gt; 0:
         shift = min(10.0, 10.0 * stretch); w[&quot;alpha&quot;] -= shift; w[&quot;returnfit&quot;] += shift
     elif stretch &lt; 0:
@@ -842,7 +842,7 @@ def test_score_all_ranks_higher_alpha_first():
     assert scores[0][&quot;abbr&quot;] == &quot;HIGH&quot;
     assert 0 &lt;= scores[0][&quot;composite&quot;] &lt;= 100</code></pre>
 <ul>
-<li class="task"><strong>Step 2–4: red → implement → green.</strong> <code>score_all(funds, profile, e_target)</code>: group by <code>derived_class</code>; per class compute raw alpha/returnfit-ratio/efficiency, then percentile-normalize within class; momentum absolute; <code>composite = Σ w·dim/100</code> using <code>profile_weights</code>; sort with tiebreaker. <code>score_cfs</code> node: <code>return {&quot;cfs_scores&quot;: score_all(state[&quot;filtered_funds&quot;], state[&quot;client_profile&quot;][&quot;risk_level&quot;], state[&quot;client_profile&quot;][&quot;e_target&quot;])}</code>.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> <code>score_all(funds, profile, target_annual_return_pct)</code>: group by <code>derived_class</code>; per class compute raw alpha/returnfit-ratio/efficiency, then percentile-normalize within class; momentum absolute; <code>composite = Σ w·dim/100</code> using <code>profile_weights</code>; sort with tiebreaker. <code>score_cfs</code> node: <code>return {&quot;cfs_scores&quot;: score_all(state[&quot;filtered_funds&quot;], state[&quot;client_profile&quot;][&quot;risk_level&quot;], state[&quot;client_profile&quot;][&quot;target_annual_return_pct&quot;])}</code>.</li>
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS score_all + tiebreaker + bear exception</code></li>
 </ul>
 <h3>Task 1.11: <code>invariants</code> module</h3>
@@ -998,7 +998,7 @@ def test_aggressive_skips_outlier():
 from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact
 
 def test_artifact_has_three_blocks(tmp_path):
-    state = {&quot;thread_id&quot;: &quot;t1&quot;, &quot;client_profile&quot;: {&quot;risk_level&quot;: &quot;Moderate&quot;, &quot;e_target&quot;: 5.0,
+    state = {&quot;thread_id&quot;: &quot;t1&quot;, &quot;client_profile&quot;: {&quot;risk_level&quot;: &quot;Moderate&quot;, &quot;target_annual_return_pct&quot;: 5.0,
              &quot;shariah&quot;: False, &quot;experience&quot;: &quot;experienced&quot;, &quot;upfront_capital_rm&quot;: 50000},
              &quot;fundmaster_path&quot;: &quot;fm.xlsx&quot;,
              &quot;portfolio&quot;: [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 40}],

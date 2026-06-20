@@ -62,7 +62,7 @@ def build_proposed_allocation(state: dict[str, Any]) -> dict:
     for holding in state.get("portfolio") or []:
         abbr = holding["abbr"]
         entry: dict[str, Any] = {
-            "abbrev": abbr,
+            "abbr": abbr,
             "role": holding["role"],
             "allocation_pct": holding["allocation_pct"],
             "cfs": cfs_by_abbr.get(abbr),          # None if not scored
@@ -119,7 +119,7 @@ def _build_html(artifact: dict) -> str:
     for e in artifact.get("allocation", []):
         rows += (
             f"<tr>"
-            f"<td>{e['abbrev']}</td>"
+            f"<td>{e['abbr']}</td>"
             f"<td>{e['role']}</td>"
             f"<td>{e['allocation_pct']}</td>"
             f"<td>{e['cfs'] if e['cfs'] is not None else '—'}</td>"
@@ -210,12 +210,12 @@ def apply_resume(state: dict[str, Any], resume_payload: dict[str, Any]) -> dict[
     if "allocation" not in resume_payload:
         return {}
 
-    # Step 2: extract only abbrev + allocation_pct from payload; derive the rest
+    # Step 2: extract only abbr + allocation_pct from payload; derive the rest
     allocation_entries = resume_payload["allocation"]
     holdings = [
         {
-            "abbr": e["abbrev"],
-            "role": _role_for(e["abbrev"]),
+            "abbr": e["abbr"],
+            "role": _role_for(e["abbr"]),
             "allocation_pct": e["allocation_pct"],
         }
         for e in allocation_entries

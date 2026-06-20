@@ -7,12 +7,12 @@ CEILING = {"Conservative": 4.0, "Moderate": 6.0,
 
 def load_profile(state: ConsultantState) -> dict:
     p = dict(state["client_profile"])
-    rl = p["risk_level"]
+    profile_risk_level = p["risk_level"]
     p.setdefault("experience", "experienced")   # normalize the tier into the profile (single owner)
-    p.setdefault("e_target", MIDPOINT[rl])
+    p.setdefault("target_annual_return_pct", MIDPOINT[profile_risk_level])
     note = ""
-    if p["e_target"] > CEILING[rl]:
-        note = (f"Target {p['e_target']}% p.a. exceeds the realistic ceiling "
-                f"for a {rl} profile ({CEILING[rl]}%).")
+    if p["target_annual_return_pct"] > CEILING[profile_risk_level]:
+        note = (f"Target {p['target_annual_return_pct']}% p.a. exceeds the realistic ceiling "
+                f"for a {profile_risk_level} profile ({CEILING[profile_risk_level]}%).")
     p["target_note"] = note
     return {"client_profile": p}

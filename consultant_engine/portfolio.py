@@ -49,7 +49,7 @@ def build(
         List of 4 Holding dicts: {"abbr", "role", "allocation_pct"}.
         Core holdings additionally carry "alpha_n" (structurals omit it).
     """
-    mm_abbr = MM_ABBR_SHARIAH if shariah is True else MM_ABBR_CONVENTIONAL
+    selected_money_market_abbr = MM_ABBR_SHARIAH if shariah is True else MM_ABBR_CONVENTIONAL
 
     # Pick top-2 core funds (exclude structural abbrs so they don't double-count)
     core_scores = [s for s in scores if s["abbr"] not in STRUCTURAL_ABBRS][:2]
@@ -73,7 +73,7 @@ def build(
     for s, raw in zip(core_scores, core_raws):
         raw_weights.append((s["abbr"], "core", raw, s["alpha_n"]))
     raw_weights.append((GOLD_ABBR, "structural:gold", gold_raw, None))
-    raw_weights.append((mm_abbr, "structural:money_market", mm_raw, None))
+    raw_weights.append((selected_money_market_abbr, "structural:money_market", mm_raw, None))
 
     # Normalize to 100.0
     total_raw = sum(w[2] for w in raw_weights)
@@ -93,6 +93,22 @@ def build(
         )
 
     return holdings
+
+
+def _redistribute_freed_share(surviving_core: list[Holding], freed: float) -> dict[int, float]:
+    """New allocation_pct (keyed by id()) for each surviving core holding after the
+    freed share is spread proportionally to current weight — or equally when the
+    survivors sum to zero. Empty dict when there is nothing to redistribute."""
+    if freed <= 0 or not surviving_core:
+        return {}
+    surviving_total = sum(h["allocation_pct"] for h in surviving_core)
+    if surviving_total == 0:
+        per_core = freed / len(surviving_core)
+        return {id(h): h["allocation_pct"] + per_core for h in surviving_core}
+    return {
+        id(h): round(h["allocation_pct"] + freed * h["allocation_pct"] / surviving_total, 1)
+        for h in surviving_core
+    }
 
 
 def exposure_gap_pick(
@@ -150,20 +166,7 @@ def exposure_gap_pick(
     new_portfolio: list[Holding] = []
     gap_holding: Holding = {"abbr": picked["abbr"], "role": "exposure_gap", "allocation_pct": new_pct}
 
-    # Compute redistribution of freed share among surviving cores, proportional
-    surviving_total = sum(h["allocation_pct"] for h in surviving_core)
-    adjustments: dict[int, float] = {}
-    if freed > 0 and surviving_core:
-        if surviving_total == 0:
-            # Equal redistribution fallback
-            per_core = freed / len(surviving_core)
-            for h in surviving_core:
-                adjustments[id(h)] = h["allocation_pct"] + per_core
-        else:
-            for h in surviving_core:
-                adjustments[id(h)] = round(
-                    h["allocation_pct"] + freed * h["allocation_pct"] / surviving_total, 1
-                )
+    adjustments = _redistribute_freed_share(surviving_core, freed)
 
     # Assemble new list preserving original order, replacing the removed core
     replaced_inserted = False

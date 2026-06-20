@@ -55,18 +55,18 @@ def test_interrupt_pauses_then_resumes(fundmaster_4fund, tmp_path):
 # Universe = {PGA, PBA, PSCA, PeEMAS, PeCDF-A}; PeEMAS=gold, PeCDF-A=money-market.
 _VIOLATING_EDIT = {
     "allocation": [
-        {"abbrev": "PGA", "allocation_pct": 40},
-        {"abbrev": "PBA", "allocation_pct": 40},
-        {"abbrev": "PeEMAS", "allocation_pct": 10},
-        {"abbrev": "PeCDF-A", "allocation_pct": 5},   # sums to 95 → sum violation
+        {"abbr": "PGA", "allocation_pct": 40},
+        {"abbr": "PBA", "allocation_pct": 40},
+        {"abbr": "PeEMAS", "allocation_pct": 10},
+        {"abbr": "PeCDF-A", "allocation_pct": 5},   # sums to 95 → sum violation
     ]
 }
 _VALID_EDIT = {
     "allocation": [
-        {"abbrev": "PGA", "allocation_pct": 30},
-        {"abbrev": "PBA", "allocation_pct": 30},
-        {"abbrev": "PeEMAS", "allocation_pct": 25},
-        {"abbrev": "PeCDF-A", "allocation_pct": 15},  # sums to 100, all within cap
+        {"abbr": "PGA", "allocation_pct": 30},
+        {"abbr": "PBA", "allocation_pct": 30},
+        {"abbr": "PeEMAS", "allocation_pct": 25},
+        {"abbr": "PeCDF-A", "allocation_pct": 15},  # sums to 100, all within cap
     ]
 }
 

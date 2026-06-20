@@ -142,35 +142,40 @@ def _cfs_for(abbr: str, cfs_scores: list[dict]) -> dict | None:
     return None
 
 
-def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target: float) -> str:
+_DEFAULT_CFS_WEIGHTS = {"alpha": 28, "returnfit": 40, "efficiency": 20, "momentum": 12}
+
+
+def _cfs_card_values(cfs: dict | None) -> dict:
+    """Scalar scores + dimension weights a fund card renders. No score → all zeros
+    (an unscored card shows 0/100 at 0% weight, never the default weights)."""
+    score_keys = ("composite", "alpha_n", "returnfit_n", "efficiency_n", "momentum_n")
+    weight_keys = ("alpha_w", "returnfit_w", "efficiency_w", "momentum_w")
+    if not cfs:
+        return {k: 0 for k in (*score_keys, *weight_keys)}
+    weights = cfs.get("weights", _DEFAULT_CFS_WEIGHTS)
+    return {
+        **{k: cfs.get(k, 0) for k in score_keys},
+        "alpha_w": weights.get("alpha", 28),
+        "returnfit_w": weights.get("returnfit", 40),
+        "efficiency_w": weights.get("efficiency", 20),
+        "momentum_w": weights.get("momentum", 12),
+    }
+
+
+def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, target_annual_return_pct: float) -> str:
     """Build a fund-card HTML block for a core/alpha holding (not structural)."""
     abbr = holding["abbr"]
     alloc = holding["allocation_pct"]
     name = fund.get("name", abbr)
-    rl = fund.get("risk_level", "—")
+    fund_risk_level = fund.get("risk_level", "—")
     disqualified = fund.get("status") == "Disqualified"
-
-    # CFS values
-    if cfs:
-        composite = cfs.get("composite", 0)
-        alpha_n = cfs.get("alpha_n", 0)
-        returnfit_n = cfs.get("returnfit_n", 0)
-        efficiency_n = cfs.get("efficiency_n", 0)
-        momentum_n = cfs.get("momentum_n", 0)
-        weights = cfs.get("weights", {"alpha": 28, "returnfit": 40, "efficiency": 20, "momentum": 12})
-        alpha_w = weights.get("alpha", 28)
-        returnfit_w = weights.get("returnfit", 40)
-        efficiency_w = weights.get("efficiency", 20)
-        momentum_w = weights.get("momentum", 12)
-    else:
-        composite = alpha_n = returnfit_n = efficiency_n = momentum_n = 0
-        alpha_w = returnfit_w = efficiency_w = momentum_w = 0
+    c = _cfs_card_values(cfs)
 
     # Python-owned facts (C2b): rendered inline, never authored by the LLM.
     fund_type = fund.get("fund_type") or "&mdash;"
     shariah = "Shariah" if fund.get("shariah") else "Conventional"
     lipper = fund.get("lipper_class") or "&mdash;"
-    vf = f"{fund['vf']:g}" if fund.get("vf") is not None else "&mdash;"
+    volatility_factor = f"{fund['volatility_factor']:g}" if fund.get("volatility_factor") is not None else "&mdash;"
 
     perf_rows = _build_perf_rows(fund.get("returns", {}))
 
@@ -182,8 +187,8 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
   </div>
   <div class="fund-meta">
     <span><strong>Type:</strong> {fund_type}</span>
-    <span><strong>RL:</strong> {rl}</span>
-    <span><strong>VF:</strong> {vf}</span>
+    <span><strong>RL:</strong> {fund_risk_level}</span>
+    <span><strong>VF:</strong> {volatility_factor}</span>
     <span><strong>Shariah:</strong> {shariah}</span>
     <span><strong>AUM:</strong> RM —M</span>
     <span><strong>Lipper:</strong> {lipper}</span>
@@ -191,34 +196,34 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
   <div class="fund-card-body">
     {"<div class=\"alpha-warning\"><!--slot:alpha_warning." + abbr + "--></div>" if disqualified else ""}
     <div class="cfs-bar">
-      <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">{composite}</span> / 100</div>
+      <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">{c['composite']}</span> / 100</div>
       <div class="cfs-row">
         <div class="cfs-row-label">
           <span>Alpha (Manager Skill)</span>
-          <span>{alpha_n} / 100 &middot; {alpha_w}% weight</span>
+          <span>{c['alpha_n']} / 100 &middot; {c['alpha_w']}% weight</span>
         </div>
-        <div class="cfs-track"><div class="cfs-fill alpha" style="width:{alpha_n}%;"></div></div>
+        <div class="cfs-track"><div class="cfs-fill alpha" style="width:{c['alpha_n']}%;"></div></div>
       </div>
       <div class="cfs-row">
         <div class="cfs-row-label">
-          <span>Return Fit (vs {e_target}% target)</span>
-          <span>{returnfit_n} / 100 &middot; {returnfit_w}% weight</span>
+          <span>Return Fit (vs {target_annual_return_pct}% target)</span>
+          <span>{c['returnfit_n']} / 100 &middot; {c['returnfit_w']}% weight</span>
         </div>
-        <div class="cfs-track"><div class="cfs-fill return-fit" style="width:{returnfit_n}%;"></div></div>
+        <div class="cfs-track"><div class="cfs-fill return-fit" style="width:{c['returnfit_n']}%;"></div></div>
       </div>
       <div class="cfs-row">
         <div class="cfs-row-label">
           <span>Efficiency (Risk-Adjusted)</span>
-          <span>{efficiency_n} / 100 &middot; {efficiency_w}% weight</span>
+          <span>{c['efficiency_n']} / 100 &middot; {c['efficiency_w']}% weight</span>
         </div>
-        <div class="cfs-track"><div class="cfs-fill efficiency" style="width:{efficiency_n}%;"></div></div>
+        <div class="cfs-track"><div class="cfs-fill efficiency" style="width:{c['efficiency_n']}%;"></div></div>
       </div>
       <div class="cfs-row">
         <div class="cfs-row-label">
           <span>Momentum (ATH Proximity)</span>
-          <span>{momentum_n} / 100 &middot; {momentum_w}% weight</span>
+          <span>{c['momentum_n']} / 100 &middot; {c['momentum_w']}% weight</span>
         </div>
-        <div class="cfs-track"><div class="cfs-fill momentum" style="width:{momentum_n}%;"></div></div>
+        <div class="cfs-track"><div class="cfs-fill momentum" style="width:{c['momentum_n']}%;"></div></div>
       </div>
     </div>
     <h4>Performance vs Benchmark</h4>
@@ -247,7 +252,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
 
 
 def _build_fund_cards_html(portfolio: list[dict], cfs_scores: list[dict],
-                            eligible_funds: list[dict], e_target: float) -> str:
+                            eligible_funds: list[dict], target_annual_return_pct: float) -> str:
     """Build the full fund-cards section HTML: one card per holding."""
     cards = []
     for holding in portfolio:
@@ -258,7 +263,7 @@ def _build_fund_cards_html(portfolio: list[dict], cfs_scores: list[dict],
             cards.append(render_structural_card(holding, fund))
         else:
             cfs = _cfs_for(abbr, cfs_scores)
-            cards.append(_build_core_fund_card(holding, fund, cfs, e_target))
+            cards.append(_build_core_fund_card(holding, fund, cfs, target_annual_return_pct))
     return "\n".join(cards)
 
 
@@ -277,6 +282,10 @@ def _build_fee_table_rows(portfolio: list[dict]) -> str:
     return "\n".join(rows)
 
 
+# Holding role → portfolio-summary "Type" label; core/alpha holdings fall back to Equity.
+_ROLE_LABEL = {"structural:gold": "Gold", "structural:money_market": "Money Market"}
+
+
 def _build_portfolio_summary_rows(portfolio: list[dict], cfs_scores: list[dict],
                                    eligible_funds: list[dict]) -> str:
     """Build portfolio summary table <tr> rows for Section 5."""
@@ -285,18 +294,15 @@ def _build_portfolio_summary_rows(portfolio: list[dict], cfs_scores: list[dict],
         abbr = holding["abbr"]
         alloc = holding["allocation_pct"]
         fund = _lookup_fund(abbr, eligible_funds)
-        rl = fund.get("risk_level", "—")
+        fund_risk_level = fund.get("risk_level", "—")
         role = holding.get("role", "core")
         cfs = _cfs_for(abbr, cfs_scores)
         cfs_val = f"{cfs['composite']}" if cfs else "—"
         alpha_val = f"{cfs['alpha_n']}" if cfs else "—"
-        ftype = (
-            "Gold" if role == "structural:gold"
-            else ("Money Market" if role == "structural:money_market" else "Equity")
-        )
+        ftype = _ROLE_LABEL.get(role, "Equity")
         rows.append(
             f"<tr><td>{abbr}</td><td>{ftype}</td><td>{alloc}%</td>"
-            f"<td>{cfs_val}</td><td>{alpha_val}</td><td>RL{rl}</td></tr>"
+            f"<td>{cfs_val}</td><td>{alpha_val}</td><td>RL{fund_risk_level}</td></tr>"
         )
     return "\n".join(rows)
 
@@ -304,23 +310,23 @@ def _build_portfolio_summary_rows(portfolio: list[dict], cfs_scores: list[dict],
 def _compute_portfolio_metrics(portfolio: list[dict], cfs_scores: list[dict],
                                 eligible_funds: list[dict]) -> dict:
     """Compute weighted portfolio metrics from portfolio holdings + CFS scores."""
-    wtd_cfs = 0.0
-    wtd_alpha = 0.0
-    wtd_rl = 0.0
+    weighted_cfs = 0.0
+    weighted_alpha = 0.0
+    weighted_risk_level = 0.0
     for holding in portfolio:
         abbr = holding["abbr"]
         alloc = holding["allocation_pct"] / 100.0
         cfs = _cfs_for(abbr, cfs_scores)
         fund = _lookup_fund(abbr, eligible_funds)
-        rl = fund.get("risk_level", 3)
+        fund_risk_level = fund.get("risk_level", 3)
         if cfs:
-            wtd_cfs += cfs.get("composite", 0) * alloc
-            wtd_alpha += cfs.get("alpha_n", 0) * alloc
-        wtd_rl += rl * alloc
+            weighted_cfs += cfs.get("composite", 0) * alloc
+            weighted_alpha += cfs.get("alpha_n", 0) * alloc
+        weighted_risk_level += fund_risk_level * alloc
     return {
-        "wtd_cfs": f"{wtd_cfs:.1f}",
-        "wtd_alpha": f"{wtd_alpha:.1f}",
-        "wtd_rl": f"{wtd_rl:.1f}",
+        "weighted_cfs": f"{weighted_cfs:.1f}",
+        "weighted_alpha": f"{weighted_alpha:.1f}",
+        "weighted_risk_level": f"{weighted_risk_level:.1f}",
     }
 
 
@@ -333,7 +339,7 @@ def _build_slot_values(
     portfolio = state["portfolio"]
     eligible_funds = state.get("eligible_funds", [])
 
-    e_target = client["e_target"]   # guaranteed by load_profile (setdefault); fail loud if absent
+    target_annual_return_pct = client["target_annual_return_pct"]   # guaranteed by load_profile (setdefault); fail loud if absent
     funds_selected = len(portfolio)
     funds_screened = len(eligible_funds)
 
@@ -344,18 +350,18 @@ def _build_slot_values(
             "[SKILL_VERSION]", consultant_engine.__version__
         ),
         # Cover
-        "cover.e_target": str(e_target),
+        "cover.target_annual_return_pct": str(target_annual_return_pct),
         "cover.funds_selected_n": str(funds_selected),
         "cover.funds_screened_m": str(funds_screened),
         # Profile
-        "profile.e_target": str(e_target),
+        "profile.target_annual_return_pct": str(target_annual_return_pct),
         # Portfolio (weighted)
-        "portfolio.cfs_composite": portfolio_metrics["wtd_cfs"],
-        "portfolio.alpha_3y": portfolio_metrics["wtd_alpha"],
-        "portfolio.vf": "—",
-        "portfolio.wtd_cfs": portfolio_metrics["wtd_cfs"],
-        "portfolio.wtd_alpha": portfolio_metrics["wtd_alpha"],
-        "portfolio.wtd_rl": portfolio_metrics["wtd_rl"],
+        "portfolio.cfs_composite": portfolio_metrics["weighted_cfs"],
+        "portfolio.alpha_3y": portfolio_metrics["weighted_alpha"],
+        "portfolio.volatility_factor": "—",
+        "portfolio.weighted_cfs": portfolio_metrics["weighted_cfs"],
+        "portfolio.weighted_alpha": portfolio_metrics["weighted_alpha"],
+        "portfolio.weighted_risk_level": portfolio_metrics["weighted_risk_level"],
         # Exposure — deterministic look-through (Python-owned, never the LLM's).
         "exposure.asset.domestic_equity_pct": f"{asset_exposure['exposure.asset.domestic_equity_pct']}%",
         "exposure.asset.foreign_equity_pct": f"{asset_exposure['exposure.asset.foreign_equity_pct']}%",
@@ -418,9 +424,9 @@ def generate_proposal(state: ConsultantState) -> dict:
     portfolio = state["portfolio"]
     cfs_scores = state.get("cfs_scores", [])
     eligible_funds = state.get("eligible_funds", [])
-    e_target = state["client_profile"]["e_target"]   # guaranteed by load_profile; fail loud if absent
+    target_annual_return_pct = state["client_profile"]["target_annual_return_pct"]   # guaranteed by load_profile; fail loud if absent
 
-    fund_cards_html = _build_fund_cards_html(portfolio, cfs_scores, eligible_funds, e_target)
+    fund_cards_html = _build_fund_cards_html(portfolio, cfs_scores, eligible_funds, target_annual_return_pct)
     fee_rows_html = _build_fee_table_rows(portfolio)
     portfolio_summary_rows = _build_portfolio_summary_rows(portfolio, cfs_scores, eligible_funds)
     macro_rows_html = _build_macro_rows(state.get("macro_context", {}).get("events", []))
