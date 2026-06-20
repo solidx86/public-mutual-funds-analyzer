@@ -6,11 +6,7 @@ CEILING = {"Conservative": 4.0, "Moderate": 6.0,
            "Moderately Aggressive": 8.0, "Aggressive": 10.0}
 
 def load_profile(state: ConsultantState) -> dict:
-    p = dict(state.get("client_profile", {}))
-    # Handle empty/stub case (return as-is for skeleton testing)
-    if not p or "risk_level" not in p:
-        return {"client_profile": p}
-
+    p = dict(state["client_profile"])
     rl = p["risk_level"]
     p.setdefault("experience", "experienced")   # normalize the tier into the profile (single owner)
     p.setdefault("e_target", MIDPOINT[rl])
