@@ -60,3 +60,15 @@ def test_conservative_ceiling():
     # Conservative ceiling: 2. shariah=True means A and C, but only A is within RL 2.
     # A (shariah=True, RL=2) ✓, B (shariah=False) ✗, C (shariah=True, RL=3) ✗
     assert {f["abbr"] for f in out["filtered_funds"]} == {"A"}
+
+
+def test_unknown_risk_level_excluded():
+    """A fund whose risk_level is None (blank cell from load_funds) is dropped,
+    not silently admitted, and never raises."""
+    funds = [{"abbr": "X", "shariah": None, "risk_level": None},
+             {"abbr": "Y", "shariah": None, "risk_level": 3}]
+    out = filter_universe({
+        "eligible_funds": funds,
+        "client_profile": {"risk_level": "Moderate", "shariah": None}
+    })
+    assert {f["abbr"] for f in out["filtered_funds"]} == {"Y"}

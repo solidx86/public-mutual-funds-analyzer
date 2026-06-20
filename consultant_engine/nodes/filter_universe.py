@@ -29,8 +29,9 @@ def filter_universe(state: ConsultantState) -> dict:
     client_profile = state.get("client_profile", {})
 
     shariah_pref = client_profile.get("shariah")
-    profile_risk_level = client_profile.get("risk_level", "Moderate")
-    ceiling = RISK_CEILING.get(profile_risk_level, 3)
+    # risk_level is a required, normalized field by the time this node runs
+    # (load_profile guarantees it) — fail loud rather than guess the client's risk.
+    ceiling = RISK_CEILING[client_profile["risk_level"]]
 
     filtered_funds = []
     for fund in eligible_funds:
@@ -46,9 +47,11 @@ def filter_universe(state: ConsultantState) -> dict:
                 if fund_shariah:
                     continue
 
-        # Apply risk-level ceiling
-        fund_risk_level = fund.get("risk_level", 0)
-        if fund_risk_level > ceiling:
+        # Apply risk-level ceiling. A fund with an unknown risk level (None) is
+        # excluded rather than silently admitted — we never recommend a fund whose
+        # risk we can't place.
+        fund_risk_level = fund.get("risk_level")
+        if fund_risk_level is None or fund_risk_level > ceiling:
             continue
 
         filtered_funds.append(fund)
