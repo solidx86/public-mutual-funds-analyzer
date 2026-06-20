@@ -300,6 +300,59 @@ def check_exposure_consistency(html_text: str) -> list[dict[str, str]]:
     return violations
 
 
+def check_summary_consistency(html_text: str) -> list[dict[str, str]]:
+    """Cross-check each Portfolio Summary row's CFS against the same fund's
+    fund-card composite.
+
+    Both numbers are Python-rendered from the same ``cfs_scores``, so a mismatch
+    means the summary table was corrupted downstream (defense-in-depth for the
+    Python-owned summary numbers, mirroring the CFS/perf/exposure guards).
+    Structural rows (no card composite) and ``—`` cells are skipped.
+    Tolerance: ±1.0.
+
+    Violation code: ``summary_mismatch``
+    """
+    violations: list[dict[str, str]] = []
+
+    # Composite per fund from the fund cards (the cfs-score span).
+    card_cfs: dict[str, float] = {}
+    for abbr, chunk in fund_cards(html_text):
+        m = re.search(r'class="cfs-score">([\d.]+)</span>', chunk)
+        if m:
+            card_cfs[abbr] = float(m.group(1))
+
+    # Isolate the Portfolio Summary section (up to the next section or EOF).
+    sect_m = re.search(
+        r'Portfolio Summary</div>(.*?)(?=<div class="section">|</body>)',
+        html_text,
+        re.DOTALL,
+    )
+    if sect_m is None:
+        return violations
+
+    for row in re.findall(r"<tr>(.*?)</tr>", sect_m.group(1), re.DOTALL):
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+        if len(cells) < 4:
+            continue
+        abbr = _html.unescape(re.sub(r"<[^>]+>", "", cells[0])).strip()
+        if abbr not in card_cfs:
+            continue  # structural row / fund without a card composite
+        cfs_txt = _html.unescape(re.sub(r"<[^>]+>", "", cells[3])).strip()
+        try:
+            summary_cfs = float(cfs_txt)
+        except ValueError:
+            continue  # "—" or non-numeric
+        if abs(summary_cfs - card_cfs[abbr]) > 1.0:
+            violations.append({
+                "code": "summary_mismatch",
+                "msg": (
+                    f"{abbr}: Portfolio Summary CFS {summary_cfs} != "
+                    f"fund-card composite {card_cfs[abbr]}"
+                ),
+            })
+    return violations
+
+
 def check_funds_in_workbook(
     html_text: str,
     wb_index: dict[str, dict[str, Any]],
@@ -388,6 +441,7 @@ def validate_html(
         + check_cfs_consistency(html_text)
         + check_perf_consistency(html_text)
         + check_exposure_consistency(html_text)
+        + check_summary_consistency(html_text)
         + check_funds_in_workbook(html_text, wb_index)
         + check_alpha_warning(html_text, wb_index)
         + check_retail_eligibility(html_text, wb_index)

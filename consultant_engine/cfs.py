@@ -1,6 +1,15 @@
 import functools
 
 
+def _num(value) -> float:
+    """Coerce a possibly-None allocation/return cell to a float (None → 0.0).
+
+    Explicit None check rather than ``value or 0`` — the ``or`` form also swallows
+    a legitimate ``0.0``, which is the exact None-vs-0 trap the plan warns against.
+    """
+    return value if value is not None else 0.0
+
+
 def derived_class(fund) -> str:
     """
     Determine derived asset class from asset allocation.
@@ -10,8 +19,8 @@ def derived_class(fund) -> str:
     Otherwise Balanced
     """
     a = fund["assets"]
-    eq = (a.get("dom_equity") or 0) + (a.get("for_equity") or 0)
-    deff = (a.get("fi") or 0) + (a.get("mm") or 0) + (a.get("deposits") or 0)
+    eq = _num(a.get("dom_equity")) + _num(a.get("for_equity"))
+    deff = _num(a.get("fi")) + _num(a.get("mm")) + _num(a.get("deposits"))
     if eq >= 60:
         return "Equity-equivalent"
     if deff >= 60:
@@ -46,8 +55,13 @@ def raw_alpha_penalised(fund, penalize=True) -> float:
     alpha_periods = {k: fund["returns"].get(k, {}).get("alpha") for k in WEIGHTS}
     raw = weighted_blend(alpha_periods)
     if penalize:
-        if (fund["returns"].get("3y", {}).get("alpha") or 0) < 0: raw /= 2
-        if (fund["returns"].get("5y", {}).get("alpha") or 0) < 0: raw /= 2
+        # Explicit None checks: a missing alpha is "no penalty", distinct from a
+        # genuine negative alpha. (None and 0.0 both fail `< 0`, so behaviour is
+        # unchanged — this just drops the `or 0` None-vs-0 trap.)
+        alpha_3y = fund["returns"].get("3y", {}).get("alpha")
+        alpha_5y = fund["returns"].get("5y", {}).get("alpha")
+        if alpha_3y is not None and alpha_3y < 0: raw /= 2
+        if alpha_5y is not None and alpha_5y < 0: raw /= 2
     return raw
 
 
@@ -207,7 +221,14 @@ def score_all(funds: list, profile: str, e_target: float) -> list:
                 "derived_class": cls,
             })
 
-    # --- sort: composite desc, with 2.0-gap tiebreaker ---
+    # --- sort: composite desc, with an intentional 2.0-gap tiebreaker band ---
+    # Within 2.0 composite points two funds are "close enough" and ranked by
+    # alpha_n then efficiency_n; beyond that gap, composite wins. This banding is
+    # deliberately NON-transitive (A~B and B~C by gap, yet A vs C by composite),
+    # so it is not a total order. Determinism is preserved by Python's stable sort
+    # over the fixed input order (FundMaster row order), which never varies for a
+    # given workbook. A true total order would mean dropping the spec-mandated
+    # 2.0-gap semantics — a scoring change, not a cleanup, so out of scope here.
     def _cmp(a, b):
         if abs(a["composite"] - b["composite"]) <= 2.0:
             if a["alpha_n"] != b["alpha_n"]:

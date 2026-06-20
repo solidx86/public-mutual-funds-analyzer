@@ -333,7 +333,7 @@ def _build_slot_values(
     portfolio = state["portfolio"]
     eligible_funds = state.get("eligible_funds", [])
 
-    e_target = client.get("e_target", 8.0)
+    e_target = client["e_target"]   # guaranteed by load_profile (setdefault); fail loud if absent
     funds_selected = len(portfolio)
     funds_screened = len(eligible_funds)
 
@@ -418,7 +418,7 @@ def generate_proposal(state: ConsultantState) -> dict:
     portfolio = state["portfolio"]
     cfs_scores = state.get("cfs_scores", [])
     eligible_funds = state.get("eligible_funds", [])
-    e_target = state["client_profile"].get("e_target", 8.0)
+    e_target = state["client_profile"]["e_target"]   # guaranteed by load_profile; fail loud if absent
 
     fund_cards_html = _build_fund_cards_html(portfolio, cfs_scores, eligible_funds, e_target)
     fee_rows_html = _build_fee_table_rows(portfolio)

@@ -51,10 +51,18 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 >   wired into `validate_html`. Prompt's 3 exposure prose-slot rows struck. All 3 curated
 >   examples pass the new guard (KNOWN_* stay empty). Suite **208 passed**.
 > - **Determinism boundary is now FULLY CLOSED** — every number in the proposal is Python-owned
->   and guarded (CFS, perf, exposure) or structurally Python-rendered (meta, macro facts,
->   portfolio-summary). **Still open (Minor only):** M2 (unreachable `e_target` default),
->   M3 (non-transitive CFS comparator), M4 (`or 0` in cfs.py), M-new (portfolio-summary CFS
->   rows Python-owned but not recompute-guarded — defense-in-depth).
+>   and guarded (CFS, perf, exposure, summary) or structurally Python-rendered (meta, macro facts).
+> - **2026-06-20 — all Minors RESOLVED.** M2: `generate_proposal` reads
+>   `client["e_target"]` directly (fail-loud) — the unreachable `8.0` default is gone. M3: the
+>   2.0-gap CFS comparator is documented as intentionally non-transitive + deterministic via stable
+>   sort over fixed FundMaster row order (a total order would mean dropping the spec's gap semantics —
+>   a scoring change, not a cleanup, so behaviour is unchanged). M4: `or 0` in `cfs.py` replaced with a
+>   `_num()` explicit-None helper (behaviour-preserving). M-new: new `check_summary_consistency`
+>   cross-checks each Portfolio Summary CFS against the matching fund-card composite (±1.0, code
+>   `summary_mismatch`), wired into `validate_html`, with an adversarial test; all 3 curated examples
+>   pass. Suite **209 passed**.
+> - **REMEDIATION COMPLETE.** All Critical (C1–C3), Important (I1, I2, I3, I-new-1), and Minor
+>   (I4, M1–M5, M-new) findings are resolved. 167 → 209 tests. Nothing merged yet.
 
 ---
 
@@ -132,7 +140,7 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 - [x] **I3** ✓ `060b0ab` — bounded loop-until-clean (`MAX_REVIEW_ROUNDS=3`) + re-pause→fix→resume test; fails loudly after the cap.
 - [x] **I4 + M1** ✓ `060b0ab` — removed the dead `--no-review` branch + duplicate `read_resume_payload`/`review_gate` stubs.
 - [x] **I-new-1 + M5** ✓ `a466c38` — Portfolio Exposure computed for real in Python (`exposure.py`) + `check_exposure_consistency` guard.
-- [ ] **M2 / M3 / M4 / M-new** — remaining Minors (unreachable `e_target` default; non-transitive CFS comparator; `or 0` in cfs.py; portfolio-summary CFS rows unguarded).
+- [x] **M2 / M3 / M4 / M-new** ✓ — `e_target` direct read (fail-loud); CFS comparator non-transitivity documented (behaviour unchanged); `or 0` → `_num()` explicit-None helper; new `check_summary_consistency` cross-check guard (`summary_mismatch`) + adversarial test.
 
 **Guardrail for the round:** every fix lands with an adversarial test that would have caught the bug — the lesson is that empty/list fixtures + a vacuous check gave 167 green while the determinism boundary was half-real.
 

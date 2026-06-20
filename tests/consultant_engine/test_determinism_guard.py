@@ -25,6 +25,7 @@ from consultant_engine.nodes.generate_proposal import generate_proposal
 from consultant_engine.rules.validation import (
     check_cfs_consistency,
     check_perf_consistency,
+    check_summary_consistency,
     validate_html,
     workbook_index,
 )
@@ -132,6 +133,30 @@ def test_c2c_macro_rows_carry_real_event_and_date(fundmaster_4fund):
     # The events-row marker is consumed (not left as a prose placeholder):
     assert "macro.events_rows" not in html
     assert "[macro.events_rows narrative]" not in html
+
+
+# ── M-new — Portfolio Summary CFS is cross-checked against the fund cards ─────
+
+def test_m_new_summary_cfs_cross_checked(fundmaster_4fund):
+    """The Portfolio Summary CFS column is consistent with each fund card's
+    composite by construction; corrupting a summary cell trips summary_mismatch."""
+    html = _html(fundmaster_4fund)
+    assert check_summary_consistency(html) == []           # consistent by construction
+
+    # Corrupt PGA's Portfolio Summary CFS cell (4th <td>) so it disagrees with its card.
+    corrupted, n = re.subn(
+        r"(<tr><td>PGA</td><td>[^<]*</td><td>[^<]*</td><td>)[\d.]+(</td>)",
+        r"\g<1>1.0\g<2>", html, count=1,
+    )
+    assert n == 1, "expected a PGA Portfolio Summary row to corrupt"
+
+    codes = {v["code"] for v in check_summary_consistency(corrupted)}
+    assert "summary_mismatch" in codes
+
+    idx = workbook_index(fundmaster_4fund)
+    codes_full = {v["code"] for v in
+                  validate_html(corrupted, consultant_engine.__version__, idx)}
+    assert "summary_mismatch" in codes_full
 
 
 def _first_perf_table(html: str) -> str:
