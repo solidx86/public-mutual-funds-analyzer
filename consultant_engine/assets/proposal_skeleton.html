@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<!--
+  proposal_skeleton.html — Slotted HTML skeleton for the fund-consultant engine.
+
+  CSS-embedding approach: {{design_system_css}} SLOT (not inline).
+  The generator (Task 3.2 / 3.5) replaces {{design_system_css}} with the
+  verbatim contents of consultant_engine/assets/design_system.css before
+  writing the final output file. This keeps the CSS single-source and avoids
+  duplicating 740 lines into every filled proposal.
+
+  Slot conventions:
+    {{key}}                   — scalar string/version placeholder
+    {{design_system_css}}     — full CSS body (filled by generator at write time)
+    data-slot="key"           — numeric slot: the element's text content is the number
+    [comment]slot:key[/comment] — prose slot: LLM writes narrative between the markers
+
+  Version placeholder: {{version}} replaces [SKILL_VERSION] everywhere (cover
+  footer, Section 9 attribution, and the CSS comment header if re-embedded).
+
+  Conditional Foundation block is wrapped in:
+    [comment]FOUNDATION_START[/comment] ... [comment]FOUNDATION_END[/comment]
+  The generator includes the block for experience_level == "New Investor" and
+  strips it (along with its .page wrapper) for experienced investors.
+
+  Locked template source: fund-consultant-skill/references/proposal_template.md
+  Design system source:   fund-consultant-skill/references/design_system.css
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fund Portfolio Proposal — <!--slot:cover.profile--><!--slot:cover.month_year--></title>
+  <style>
+    {{design_system_css}}
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     1. COVER PAGE (always rendered)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-top-bar">
+    <div class="cover-brand">
+      <strong>SOLID</strong>
+      Public Mutual Berhad
+    </div>
+    <div class="cover-contact">
+      <strong>Shoo Kyuk Wei (Solid)</strong><br>
+      Licensed Unit Trust Consultant &amp; Licensed PRS Consultant<br>
+      +601173381713 &middot; me@engineerdad.my<br>
+      FIMM No: F01091705
+    </div>
+  </div>
+  <div class="cover-body">
+    <div class="cover-eyebrow">INVESTMENT PROPOSAL</div>
+    <div class="cover-divider"></div>
+    <div class="cover-title">Fund Portfolio<br>Proposal</div>
+    <div class="cover-subtitle"><!--slot:cover.subtitle--></div>
+    <div class="cover-meta-grid">
+      <div>
+        <div class="cover-meta-label">Risk Profile</div>
+        <div class="cover-meta-value"><!--slot:cover.profile--></div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Return Target</div>
+        <div class="cover-meta-value"><span data-slot="cover.e_target"></span>% p.a.</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Shariah Preference</div>
+        <div class="cover-meta-value"><!--slot:cover.shariah--></div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Data Source</div>
+        <div class="cover-meta-value">FundMaster <!--slot:cover.fundmaster_month_year--></div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Funds Selected</div>
+        <div class="cover-meta-value"><span data-slot="cover.funds_selected_n"></span> of <span data-slot="cover.funds_screened_m"></span> screened</div>
+      </div>
+      <div>
+        <div class="cover-meta-label">Proposal Date</div>
+        <div class="cover-meta-value"><!--slot:cover.proposal_date--></div>
+      </div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <span>FIMM F01091705</span>
+    <span>fund-consultant v{{version}}</span>
+    <span>Confidential</span>
+    <span>Prepared <!--slot:cover.prepared_date--></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     2. FOUNDATION INTRO (conditional — New Investor only)
+     Generator includes this block when experience_level == "New Investor"
+     and strips it (including the .page wrapper) for experienced investors.
+     3 notes only: Unit Trust / Returns / Cooling-Off.
+     The "Why a Starter Portfolio" 4th note has been permanently dropped.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<!--FOUNDATION_START-->
+<div class="page">
+  <div class="foundation-section">
+    <h2>Before We Start — A Quick Foundation</h2>
+    <p style="margin-bottom:8px; color:var(--text-mid);">
+      You're new to unit trusts. Three short notes before we dive into the recommendations.
+    </p>
+
+    <h3>1. What is a Unit Trust?</h3>
+    <p>A unit trust is a pool of money from many investors, professionally managed and invested
+    across a basket of assets — stocks, bonds, cash — on your behalf. You own units; the fund
+    manager does the work.</p>
+
+    <h3>2. How Returns Work</h3>
+    <p>Your investment grows in two ways: the price per unit (NAV) rises as the underlying assets
+    appreciate, and some funds distribute income periodically. Reinvesting distributions compounds
+    your growth.</p>
+
+    <h3>3. Your Cooling-Off Right</h3>
+    <p>As a first-time investor with Public Mutual, you have a <strong>6 business day cooling-off
+    period</strong> from the date of your first purchase. If you change your mind, you may redeem
+    your units at the original NAV paid — no loss on the principal.</p>
+  </div>
+</div>
+<!--FOUNDATION_END-->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTIONS 1–9 (always rendered — inside a single .page wrapper)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 1 — Executive Summary
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-title">Executive Summary</div>
+    </div>
+    <div class="section-rule"></div>
+    <div class="exec-summary">
+      <ul>
+        <li><strong>Profile:</strong> <!--slot:exec_summary.profile--></li>
+        <li><strong>Composition:</strong> <!--slot:exec_summary.composition--></li>
+        <li><strong>Weighted CFS:</strong> <span data-slot="portfolio.cfs_composite"></span> / 100 &middot; <strong>3Y Alpha:</strong> <span data-slot="portfolio.alpha_3y"></span>% p.a. &middot; <strong>Portfolio VF:</strong> <span data-slot="portfolio.vf"></span> (<!--slot:portfolio.volatility_class-->)</li>
+        <li><strong>Thesis:</strong> <!--slot:exec_summary.thesis--></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 2 — Global & Local Macro Context
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-title">Global &amp; Local Macro Context</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <p style="margin-bottom:12px; color:var(--text-mid);">
+      Recent events shaping our positioning <!--slot:macro.month_year-->:
+    </p>
+
+    <div class="table-wrap">
+      <table class="macro-table">
+        <thead>
+          <tr><th>Event</th><th>Date</th><th>Implication for the Portfolio</th></tr>
+        </thead>
+        <tbody>
+          <!--slot:macro.events_rows-->
+          <!-- Generator writes 3–5 <tr> rows here -->
+        </tbody>
+      </table>
+    </div>
+
+    <h4 style="font-size:13px; color:var(--navy); text-transform:uppercase; letter-spacing:0.06em; margin:20px 0 8px;">Medium-Long Horizon Themes</h4>
+    <p><!--slot:macro.themes--></p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 3 — Client Risk Profile
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-title">Client Risk Profile</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <table>
+      <tbody>
+        <tr><td style="width:30%;"><strong>Profile</strong></td><td><!--slot:profile.name_description--></td></tr>
+        <tr><td><strong>Return Target</strong></td><td><span data-slot="profile.e_target"></span>% p.a. (<!--slot:profile.target_note-->)</td></tr>
+        <tr><td><strong>Shariah Preference</strong></td><td><!--slot:profile.shariah--></td></tr>
+        <tr><td><strong>Experience Level</strong></td><td><!--slot:profile.experience_level--></td></tr>
+        <tr><td><strong>Risk Level Ceiling</strong></td><td>RL <!--slot:profile.rl_ceiling--> (per profile rule)</td></tr>
+        <tr><td><strong>Target Portfolio VF</strong></td><td><!--slot:profile.target_vf_range--></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 4 — Fund Recommendations
+       One <div class="fund-card"> per recommended fund.
+       Cards ordered: highest allocation first, money-market last.
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-title">Fund Recommendations</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <!--slot:fund_cards-->
+    <!--
+      Generator writes one fund-card block per recommended fund here.
+      Each card follows the locked fund-card structure below (shown for one fund PIX as example).
+
+      <div class="fund-card">
+        <div class="fund-card-header [equity|fixed-income|mixed-asset|money-market|gold|alpha-outlier]">
+          <h3>[Fund Name] &middot; [Abbr]</h3>
+          <span class="alloc" data-slot="alloc.PIX.pct">[XX]%</span>
+        </div>
+
+        <div class="fund-meta">
+          <span><strong>Type:</strong> <!--slot:meta.PIX.type--></span>
+          <span><strong>RL:</strong> <span data-slot="meta.PIX.rl"></span></span>
+          <span><strong>VF:</strong> <span data-slot="meta.PIX.vf"></span></span>
+          <span><strong>Shariah:</strong> <!--slot:meta.PIX.shariah--></span>
+          <span><strong>AUM:</strong> RM <span data-slot="meta.PIX.aum_m"></span>M</span>
+          <span><strong>Lipper:</strong> <!--slot:meta.PIX.lipper--></span>
+        </div>
+
+        <div class="fund-card-body">
+
+          (a) ALPHA WARNING — conditional
+          <div class="alpha-warning"><!--slot:alpha_warning.PIX--></div>
+
+          (b) CFS mini-bar
+          <div class="cfs-bar">
+            <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score" data-slot="cfs.PIX.composite"></span> / 100</div>
+            <div class="cfs-row">
+              <div class="cfs-row-label">
+                <span>Alpha (Manager Skill)</span>
+                <span><span data-slot="cfs.PIX.alpha_score"></span> / 100 &middot; <span data-slot="cfs.PIX.alpha_weight"></span>% weight</span>
+              </div>
+              <div class="cfs-track"><div class="cfs-fill alpha" style="width:[XX]%;"></div></div>
+            </div>
+            <div class="cfs-row">
+              <div class="cfs-row-label">
+                <span>Return Fit (vs <span data-slot="cfs.PIX.e_target"></span>% target)</span>
+                <span><span data-slot="cfs.PIX.return_fit_score"></span> / 100 &middot; <span data-slot="cfs.PIX.return_fit_weight"></span>% weight</span>
+              </div>
+              <div class="cfs-track"><div class="cfs-fill return-fit" style="width:[XX]%;"></div></div>
+            </div>
+            <div class="cfs-row">
+              <div class="cfs-row-label">
+                <span>Efficiency (Risk-Adjusted)</span>
+                <span><span data-slot="cfs.PIX.efficiency_score"></span> / 100 &middot; <span data-slot="cfs.PIX.efficiency_weight"></span>% weight</span>
+              </div>
+              <div class="cfs-track"><div class="cfs-fill efficiency" style="width:[XX]%;"></div></div>
+            </div>
+            <div class="cfs-row">
+              <div class="cfs-row-label">
+                <span>Momentum (ATH Proximity)</span>
+                <span><span data-slot="cfs.PIX.momentum_score"></span> / 100 &middot; <span data-slot="cfs.PIX.momentum_weight"></span>% weight</span>
+              </div>
+              <div class="cfs-track"><div class="cfs-fill momentum" style="width:[XX]%;"></div></div>
+            </div>
+          </div>
+
+          (c) Performance table
+          <h4>Performance vs Benchmark</h4>
+          <div class="table-wrap">
+            <table class="perf-table">
+              <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
+              <tbody>
+                <!--slot:perf.PIX.rows-->
+              </tbody>
+            </table>
+          </div>
+
+          (d) Cost & Alpha mini-card
+          <h4>Cost &amp; Alpha</h4>
+          <div class="cost-alpha-mini">
+            <div class="cell"><span class="label">Sales Charge</span><span class="value" data-slot="fees.PIX.sales_charge"></span></div>
+            <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value" data-slot="fees.PIX.mgmt_fee"></span></div>
+            <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value" data-slot="fees.PIX.trustee_fee"></span></div>
+            <div class="cell"><span class="label">Annual Cost</span><span class="value" data-slot="fees.PIX.annual_cost"></span></div>
+            <div class="cell"><span class="label">3Y Alpha</span><span class="value" data-slot="fees.PIX.alpha_3y"></span></div>
+            <div class="cell"><span class="label">Net Value-Add</span><span class="value" data-slot="fees.PIX.net_value_add"></span></div>
+            <div class="source">Fees sourced verbatim from <code>[Abbr]_PHS.pdf</code> &middot; PHS dated <!--slot:fees.PIX.phs_date--></div>
+          </div>
+
+          (e) Why we chose it
+          <h4>Why We Chose It</h4>
+          <p><!--slot:why.PIX--></p>
+
+          (f) What to watch
+          <h4>What to Watch</h4>
+          <ul>
+            <!--slot:watch.PIX-->
+          </ul>
+
+        </div>
+      </div>
+    -->
+
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 5 — Portfolio Summary
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-title">Portfolio Summary</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fund</th>
+            <th>Type</th>
+            <th>Alloc %</th>
+            <th>CFS</th>
+            <th>3Y Alpha</th>
+            <th>Risk Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!--slot:portfolio_summary.fund_rows-->
+          <!-- Generator writes one <tr> per fund, then the highlight-row below -->
+          <tr class="highlight-row">
+            <td>PORTFOLIO</td>
+            <td></td>
+            <td>100%</td>
+            <td><span data-slot="portfolio.wtd_cfs"></span></td>
+            <td><span data-slot="portfolio.wtd_alpha"></span></td>
+            <td><span data-slot="portfolio.wtd_rl"></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:12px; color:var(--text-mid); margin-top:8px;">
+      Weighted Portfolio CFS: <strong><span data-slot="portfolio.cfs_composite"></span> / 100</strong> &middot;
+      Weighted Portfolio Alpha (3Y): <strong><span data-slot="portfolio.alpha_3y"></span>%</strong> &middot;
+      Weighted Portfolio VF: <strong><span data-slot="portfolio.vf"></span> (<!--slot:portfolio.volatility_class-->)</strong>
+    </p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 6 — Portfolio Exposure
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div class="section-title">Portfolio Exposure</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <p style="color:var(--text-mid); margin-bottom:12px;">
+      Look-through to what the portfolio actually holds — not the fund types, but the underlying
+      asset classes and countries.
+    </p>
+
+    <div class="exposure-chart-wrap">
+
+      <div class="exposure-chart-block">
+        <div class="exposure-chart-title">Asset Class</div>
+        <!--slot:exposure.asset_class.pie_chart-->
+        <!-- Generator writes:
+          <div class="pie-chart" style="background: conic-gradient(...);">  </div>
+          data-slot="exposure.asset_class.domestic_equity_pct" etc. on legend items
+        -->
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--equity);"></span>
+            <span class="legend-label">Equity (Domestic)</span>
+            <span class="legend-pct" data-slot="exposure.asset.domestic_equity_pct"></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--teal);"></span>
+            <span class="legend-label">Equity (Foreign)</span>
+            <span class="legend-pct" data-slot="exposure.asset.foreign_equity_pct"></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--fixed-income);"></span>
+            <span class="legend-label">Fixed Income / Sukuk</span>
+            <span class="legend-pct" data-slot="exposure.asset.fixed_income_pct"></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--money-market);"></span>
+            <span class="legend-label">Money Market &amp; Cash</span>
+            <span class="legend-pct" data-slot="exposure.asset.money_market_pct"></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--gold);"></span>
+            <span class="legend-label">Gold / Other</span>
+            <span class="legend-pct" data-slot="exposure.asset.gold_pct"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="exposure-chart-block">
+        <div class="exposure-chart-title">Geographic</div>
+        <!--slot:exposure.geo.pie_chart-->
+        <!-- Generator writes pie + legend (slices ≥ 2% only, "Other" for remainder) -->
+        <div class="legend">
+          <!--slot:exposure.geo.legend_items-->
+        </div>
+      </div>
+
+    </div>
+
+    <p class="exposure-note">
+      Asset-class slices are the weighted average of each fund's underlying asset allocation.
+      Geographic slices treat Malaysian-issued bonds as Malaysia exposure. Slices below 2% are
+      merged into "Other" for readability.
+    </p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 7 — Investment Strategy
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <div class="section-title">Investment Strategy</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <div class="strategy-card">
+      <h4>1. Regular Savings Plan (RSP)</h4>
+      <p><!--slot:strategy.rsp--></p>
+    </div>
+
+    <div class="strategy-card">
+      <h4>2. Distribution Policy</h4>
+      <p><!--slot:strategy.distribution--></p>
+    </div>
+
+    <div class="strategy-card">
+      <h4>3. Rebalancing Triggers</h4>
+      <p><!--slot:strategy.rebalancing--></p>
+    </div>
+
+    <div class="strategy-card">
+      <h4>4. Tactical Dip-Capture Playbook</h4>
+      <p><!--slot:strategy.dip_capture--></p>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 8 — Fee Disclosure
+       8 columns: Fund | Sales Charge | Mgmt Fee | Trustee Fee | Annual Cost |
+                  3Y Alpha | Net Value-Add | PHS Date
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <div class="section-title">Fee Disclosure</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <p style="color:var(--text-mid); margin-bottom:8px;">
+      Every fee shown is sourced verbatim from each fund's Product Highlight Sheet (PHS).
+      No values are inferred or carried over from prior proposals.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fund</th>
+            <th>Sales Charge</th>
+            <th>Mgmt Fee p.a.</th>
+            <th>Trustee Fee p.a.</th>
+            <th>Annual Cost</th>
+            <th>3Y Alpha</th>
+            <th>Net Value-Add</th>
+            <th>PHS Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!--slot:fee_table.fund_rows-->
+          <!-- Generator writes one <tr> per fund:
+            <tr>
+              <td><strong data-slot="fees.PIX.abbr">PIX</strong></td>
+              <td data-slot="fees.PIX.sales_charge"></td>
+              <td data-slot="fees.PIX.mgmt_fee"></td>
+              <td data-slot="fees.PIX.trustee_fee"></td>
+              <td data-slot="fees.PIX.annual_cost"></td>
+              <td class="[alpha-pos|alpha-neg]" data-slot="fees.PIX.alpha_3y"></td>
+              <td class="[alpha-pos|alpha-neg]" data-slot="fees.PIX.net_value_add"></td>
+              <td data-slot="fees.PIX.phs_date"></td>
+            </tr>
+          -->
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+      <strong>Annual Cost</strong> = Mgmt Fee + Trustee Fee. <strong>Net Value-Add</strong> = 3Y Alpha − Annual Cost.
+      Sales Charge is a one-time entry load. Switching fee, redemption fee, and full disclosures are in each fund's PHS and Master Prospectus.
+    </p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────────────
+       SECTION 9 — Disclaimer, Sources & References
+       4 mandatory h4 headings in order:
+         AI-Generated Document / Regulatory Disclaimer /
+         Cooling-Off Right / Conflict of Interest
+       ───────────────────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <div class="section-title">Disclaimer, Sources &amp; References</div>
+    </div>
+    <div class="section-rule"></div>
+
+    <div class="disclaimer">
+      <h4>AI-Generated Document</h4>
+      <p>This document was generated with the assistance of an AI-driven analysis and drafting
+      tool (fund-consultant skill, version {{version}}) developed by the consultant. All
+      fund data is sourced from Public Mutual's official Monthly Fund Review (MFR) and Product
+      Highlight Sheet (PHS) publications. The Composite Fund Score and fund recommendations
+      reflect a combination of quantitative scoring and the consultant's professional judgment;
+      the licensed consultant has reviewed and approved all recommendations before delivery.
+      Clients should treat this document as a starting point for discussion — please consult
+      the licensed UTC for any clarifications or to adjust the recommendations to your specific
+      circumstances.</p>
+
+      <h4>Regulatory Disclaimer</h4>
+      <p>Past performance is not indicative of future results. This analysis is based on historical
+      fund data and current market conditions. It should not be considered personal financial advice.
+      Please consult with a licensed financial advisor and review the fund's Product Highlight Sheet
+      (PHS) and Master Prospectus before making any investment decision. All investments carry risk,
+      including the possible loss of principal.</p>
+
+      <h4>Cooling-Off Right</h4>
+      <p>First-time investors with Public Mutual are entitled to a 6 business day cooling-off period
+      from the date of the first purchase, during which units may be redeemed at the original NAV
+      paid.</p>
+
+      <h4>Conflict of Interest</h4>
+      <p>Shoo Kyuk Wei (Solid) is a Licensed Unit Trust Consultant and Licensed Private Retirement
+      Scheme (PRS) Consultant representing Public Mutual Berhad (FIMM No: F01091705). Recommendations
+      are limited to funds within the Public Mutual range.</p>
+    </div>
+
+    <div class="sources">
+      <h4>Sources &amp; References</h4>
+      <ul>
+        <!--slot:sources.fundmaster-->
+        <!-- <li>FundMaster workbook — <code>[filename].xlsx</code> (MFR data, [Month Year])</li> -->
+        <!--slot:sources.phs_list-->
+        <!-- <li>Product Highlight Sheets — one entry per fund</li> -->
+        <!--slot:sources.web_urls-->
+        <!-- <li><a href="[URL]">[Source title — publication, date]</a></li> -->
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DOCUMENT FOOTER
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="doc-footer">
+    <div class="credit-line">
+      <strong>Shoo Kyuk Wei (Solid)</strong> &middot; Licensed UTC &amp; PRS Consultant &middot; Public Mutual Berhad
+    </div>
+    <div>+601173381713 &middot; me@engineerdad.my &middot; FIMM No: F01091705</div>
+    <div>Confidential — prepared <!--slot:cover.prepared_date--></div>
+  </div>
+
+</div><!-- end .page (sections 1–9 + footer) -->
+
+</body>
+</html>
