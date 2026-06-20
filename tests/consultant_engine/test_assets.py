@@ -14,7 +14,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 SKELETON_PATH = REPO_ROOT / "consultant_engine" / "assets" / "proposal_skeleton.html"
 CSS_PATH = REPO_ROOT / "consultant_engine" / "assets" / "design_system.css"
-SOURCE_CSS_PATH = REPO_ROOT / "fund-consultant-skill" / "references" / "design_system.css"
 
 # The 9 locked section titles — exact strings as they appear in the HTML
 # (HTML-escaped where needed, matching LOCKED_SECTIONS in test_proposal_validation.py)
@@ -43,16 +42,8 @@ DISCLAIMER_HEADINGS = [
 
 def test_design_system_css_exists():
     assert CSS_PATH.exists(), f"Missing: {CSS_PATH}"
-
-
-def test_design_system_css_is_verbatim_copy():
-    """The copied CSS must be byte-for-byte identical to the source."""
-    assert CSS_PATH.exists(), f"design_system.css not found at {CSS_PATH}"
-    assert SOURCE_CSS_PATH.exists(), f"source CSS not found at {SOURCE_CSS_PATH}"
-    assert CSS_PATH.read_bytes() == SOURCE_CSS_PATH.read_bytes(), (
-        "consultant_engine/assets/design_system.css differs from "
-        "fund-consultant-skill/references/design_system.css — it must be a verbatim copy"
-    )
+    # consultant_engine/assets/design_system.css is now the canonical design system
+    # (the fund-consultant-skill bundle it was copied from has been retired).
 
 
 # ── Skeleton exists ────────────────────────────────────────────────────────────
