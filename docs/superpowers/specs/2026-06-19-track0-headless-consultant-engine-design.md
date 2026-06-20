@@ -113,8 +113,8 @@ At `interrupt()` the engine writes `data/review/<thread_id>.json` (editable) plu
   "constraints": {
     "_comment": "Re-validation enforces these on resume. Stay within them or it re-pauses (review ON) / fails loudly (--no-review).",
     "allocations_sum_to_pct": 100,
-    "fund_count": { "min": 4, "max": 6 },
-    "per_fund_cap_pct": 40,
+    "fund_count": { "min": 4, "max": 4 },
+    "per_fund_cap_pct": 50,
     "risk_level_ceiling": 3,
     "required_structural": { "gold": 1, "money_market": 1 },
     "universe": "scored eligible funds only (retail-eligible, risk ≤ ceiling, Shariah filter applied)"

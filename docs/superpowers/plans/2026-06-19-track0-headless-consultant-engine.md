@@ -799,8 +799,9 @@ Base from drawdown bands; recovery bonus from days-from-ATH; clamp [0,100]. **No
 from consultant_engine.cfs import momentum_score
 def test_momentum_at_ath_fast_recovery():
     assert momentum_score(0.0, 10) == 95          # band 80 + <30d bonus 15
-def test_momentum_none_drawdown_defaults_safely():
-    assert momentum_score(None, None) == momentum_score(-50.0, 400)
+def test_momentum_none_drawdown_defaults_to_minus_50():
+    # None drawdown defaults to -50.0; compare against -50.0 with the SAME days
+    assert momentum_score(None, None) == momentum_score(-50.0, None)
 def test_momentum_clamped():
     assert momentum_score(-3.0, 500) == 70        # 80 base + (-10) old → 70
 ```
@@ -1008,7 +1009,7 @@ def test_skip_when_satellite_present():
 
 ### Task 1.15: `portfolio` alpha-outlier satellite + carve
 
-Scan qualified universe (Status=Qualified); top-5 by CFS minus held; gates A (3Y>0, 5Y>0 if present), A2 (Alpha_N≥80), B (Shariah), C (overlap<3); pick ≤1; size per profile cap; Aggressive skips. Because the portfolio is fixed at 4 funds, the satellite **substitutes the lowest-alpha core slot** (never a fifth fund), redistributing the freed share so the book sums to 100. It carries alpha-qualified precedence over any exposure-gap pick (spec decision 10).
+Scan qualified universe (Status=Qualified); top-5 by CFS minus held; gates A (3Y>0, 5Y>0 if present), A2 (Alpha_N≥80), B (Shariah), C (overlap<3); pick ≤1; size per profile cap; Aggressive skips. Because the portfolio is fixed at 4 funds, the satellite **substitutes the lowest-alpha core slot** (never a fifth fund), **inheriting that core's allocation** so the book stays at 100 (a small-tilt satellite + redistribute is infeasible here — it would over-concentrate the one surviving core past the cap). It carries alpha-qualified precedence over any exposure-gap pick (spec decision 10).
 
 **Files:** `consultant_engine/portfolio.py`, test.
 
@@ -1128,7 +1129,7 @@ def test_clean_edit_accepted():
 
 The macro-context seam (spec §6, deliverable 3): a pydantic schema, a fixture producer, and a `macro_context` node that normalizes/validates the contract. Live web-search producer is **deferred to ENH-6** — ship the contract + fixture only.
 
-**Files:** `consultant_engine/macro.py`, `tests/consultant_engine/fixtures/macro_fixture.json`, `consultant_engine/nodes/macro_context.py`, `tests/consultant_engine/test_macro.py`
+**Files:** `consultant_engine/macro.py`, `consultant_engine/assets/macro_fixture.json`, `consultant_engine/nodes/macro_context.py`, `tests/consultant_engine/test_macro.py`
 
 - [ ] **Step 1: Failing test**
 ```python
@@ -1164,7 +1165,7 @@ class MacroContext(BaseModel):
     events: list[MacroEvent] = []
 
 def load_fixture() -> MacroContext:
-    p = Path(__file__).resolve().parent.parent / "tests/consultant_engine/fixtures/macro_fixture.json"
+    p = Path(__file__).resolve().parent.parent / "consultant_engine/assets/macro_fixture.json"
     return MacroContext.model_validate(json.loads(p.read_text()))
 ```
 `macro_context` node: if `state["macro_context"].get("source") == "fixture"` (or `"none"`), return `{"macro_context": load_fixture().model_dump()}`; else validate the passed dict through `MacroContext` and return its `model_dump()`. The fixture JSON holds 2–3 dated events spanning themes (rates, ringgit, AI/tech).
