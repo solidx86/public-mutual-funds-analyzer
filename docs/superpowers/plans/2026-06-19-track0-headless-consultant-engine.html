@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Track 0 — Headless Consultant Engine Implementation Plan</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Track 0 — Headless Consultant Engine (implementation plan)</title>
 <style>
 :root{--bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
 --line:#2d3a47;--accent:#4ea1ff;--good:#56d364;--warn:#ffb454;--kw:#d2a8ff;}
@@ -174,7 +174,7 @@ class Fund(TypedDict, total=False):
     returns: dict            # {&quot;ytd&quot;:{&quot;fund&quot;,&quot;bench&quot;,&quot;alpha&quot;}, &quot;1y&quot;:..., &quot;3y&quot;:..., &quot;5y&quot;:..., &quot;10y&quot;:...}
     ae: dict                 # {&quot;ytd&quot;,&quot;1y&quot;,&quot;3y&quot;,&quot;5y&quot;,&quot;10y&quot;}
     assets: dict             # {&quot;dom_equity&quot;,&quot;for_equity&quot;,&quot;fi&quot;,&quot;mm&quot;,&quot;deposits&quot;,&quot;other&quot;}
-    geo: dict                # {&quot;usa&quot;,&quot;china&quot;,... ,&quot;geo_other&quot;}
+    geo: dict                # %/country, exact FundMaster headers: {&quot;USA&quot;,&quot;Taiwan&quot;,&quot;Korea&quot;,&quot;Japan&quot;,&quot;France&quot;,&quot;Germany&quot;,&quot;China&quot;,&quot;Singapore&quot;,&quot;Netherlands&quot;,&quot;Indonesia&quot;,&quot;Australia&quot;,&quot;Geo Other&quot;}
     top5: list
     vf: float
     lipper_class: str
@@ -206,8 +206,6 @@ class ConsultantState(TypedDict, total=False):
     no_review: bool
     model: str
     output_dir: str
-    # routing
-    experience_tier: Literal[&quot;new&quot;, &quot;experienced&quot;]
     # computed
     eligible_funds: list
     filtered_funds: list
@@ -263,7 +261,7 @@ def score_cfs(state: ConsultantState) -&gt; dict:
     return {&quot;cfs_scores&quot;: []}</code></pre>
 <p>Per-node stub return values:</p>
 <ul>
-<li><code>load_profile</code> → <code>{&quot;experience_tier&quot;: &quot;experienced&quot;}</code></li>
+<li><code>load_profile</code> → <code>{&quot;client_profile&quot;: {&quot;experience&quot;: &quot;experienced&quot;}}</code></li>
 <li><code>load_funds</code> → <code>{&quot;eligible_funds&quot;: []}</code></li>
 <li><code>filter_universe</code> → <code>{&quot;filtered_funds&quot;: []}</code></li>
 <li><code>score_cfs</code> → <code>{&quot;cfs_scores&quot;: []}</code></li>
@@ -370,7 +368,7 @@ def build_graph(checkpointer):
 
 def _fail_loudly(state: ConsultantState) -&gt; dict:
     raise RuntimeError(f&quot;validation did not converge: {state.get(&#x27;violations&#x27;)}&quot;)</code></pre>
-<p>Note: the <strong>experience-tier branch</strong> is handled *inside* <code>generate_proposal</code> (prompt selection), not as a graph edge — keeps topology to one conditional (the validate loop) plus the interrupt, per spec §4.</p>
+<p>Note: the <strong>experience branch</strong> is handled *inside* <code>generate_proposal</code> (prompt selection, keyed on <code>client_profile[&quot;experience&quot;]</code>), not as a graph edge — keeps topology to one conditional (the validate loop) plus the interrupt, per spec §4.</p>
 <ul>
 <li class="task"><strong>Step 4: Run green</strong></li>
 </ul>
@@ -497,7 +495,7 @@ git commit -m &quot;feat(engine): CLI entry with invoke + resume wiring&quot;</c
 <h2 class="phase">Phase L1 — Deterministic compute (full parity)</h2>
 <p>Goal: real Python for every compute node, unit-TDD&#x27;d against the formulas in <code>fund-consultant-skill/SKILL.md</code>. The LLM nodes stay stubbed. <strong>e-Series / shortlist is OUT</strong> (spec decision 6) — one linear build for all clients.</p>
 <h3>Task 1.1: <code>load_profile</code> node</h3>
-<p>Parses the client-profile dict, sets <code>experience_tier</code>, defaults <code>e_target</code> from the profile midpoint when absent, attaches a mismatch note when <code>e_target</code> exceeds the profile ceiling.</p>
+<p>Parses the client-profile dict, <strong>normalizes <code>experience</code> in-place</strong> (defaults to <code>&quot;experienced&quot;</code> when absent — <code>client_profile</code> is the single owner of the tier; there is no separate <code>experience_tier</code> channel), defaults <code>e_target</code> from the profile midpoint when absent, attaches a mismatch note when <code>e_target</code> exceeds the profile ceiling.</p>
 <p><strong>Files:</strong> <code>consultant_engine/nodes/load_profile.py</code>, <code>tests/consultant_engine/test_load_profile.py</code></p>
 <p>Reference (SKILL.md Step 0): midpoints Conservative 3.5, Moderate 5, Moderately Aggressive 7, Aggressive 9; ceilings 4/6/8/10; &gt;10% always &quot;unrealistic&quot;.</p>
 <ul>
@@ -505,12 +503,17 @@ git commit -m &quot;feat(engine): CLI entry with invoke + resume wiring&quot;</c
 </ul>
 <pre><code>from consultant_engine.nodes.load_profile import load_profile
 
-def test_experience_tier_and_default_target():
+def test_experience_normalized_and_default_target():
     out = load_profile({&quot;client_profile&quot;: {
         &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;experience&quot;: &quot;new&quot;, &quot;shariah&quot;: None,
         &quot;upfront_capital_rm&quot;: 5000}})
-    assert out[&quot;experience_tier&quot;] == &quot;new&quot;
+    assert out[&quot;client_profile&quot;][&quot;experience&quot;] == &quot;new&quot;      # profile is the sole owner of the tier
     assert out[&quot;client_profile&quot;][&quot;e_target&quot;] == 5.0          # midpoint default
+
+def test_experience_defaults_to_experienced_when_absent():
+    out = load_profile({&quot;client_profile&quot;: {
+        &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: None, &quot;upfront_capital_rm&quot;: 5000}})
+    assert out[&quot;client_profile&quot;][&quot;experience&quot;] == &quot;experienced&quot;
 
 def test_target_mismatch_note():
     out = load_profile({&quot;client_profile&quot;: {
@@ -531,13 +534,14 @@ CEILING = {&quot;Conservative&quot;: 4.0, &quot;Moderate&quot;: 6.0,
 def load_profile(state: ConsultantState) -&gt; dict:
     p = dict(state[&quot;client_profile&quot;])
     rl = p[&quot;risk_level&quot;]
+    p.setdefault(&quot;experience&quot;, &quot;experienced&quot;)   # normalize the tier into the profile (single owner)
     p.setdefault(&quot;e_target&quot;, MIDPOINT[rl])
     note = &quot;&quot;
     if p[&quot;e_target&quot;] &gt; CEILING[rl]:
         note = (f&quot;Target {p[&#x27;e_target&#x27;]}% p.a. exceeds the realistic ceiling &quot;
                 f&quot;for a {rl} profile ({CEILING[rl]}%).&quot;)
     p[&quot;target_note&quot;] = note
-    return {&quot;client_profile&quot;: p, &quot;experience_tier&quot;: p.get(&quot;experience&quot;, &quot;experienced&quot;)}</code></pre>
+    return {&quot;client_profile&quot;: p}</code></pre>
 <ul>
 <li class="task"><strong>Step 4: Run green.</strong></li>
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): load_profile node (target defaulting + mismatch note)</code></li>
@@ -841,25 +845,25 @@ def test_score_all_ranks_higher_alpha_first():
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS score_all + tiebreaker + bear exception</code></li>
 </ul>
 <h3>Task 1.11: <code>invariants</code> module</h3>
-<p>Pure checks reused by <code>build_portfolio</code> (post-build) and the review gate (post-edit): allocations sum to 100 (±0.5), fund count in profile range, no single fund over the concentration cap, every fund&#x27;s RL ≤ profile ceiling (except a disclosed satellite), gold + money-market structural positions both present, all funds retail-eligible + in the scored universe.</p>
+<p>Pure checks reused by <code>build_portfolio</code> (post-build) and the review gate (post-edit): allocations sum to 100 (±0.5), <strong>exactly four funds</strong>, no single fund over the concentration cap, every fund&#x27;s RL ≤ profile ceiling (except a disclosed satellite), gold + money-market structural positions both present, all funds retail-eligible + in the scored universe.</p>
 <p><strong>Files:</strong> <code>consultant_engine/invariants.py</code>, <code>tests/consultant_engine/test_invariants.py</code></p>
-<p>Concentration cap + count ranges (derive from SKILL.md Step-4 templates): per-fund cap 40 (Conservative/Moderate core) — encode <code>CAP = {&quot;Conservative&quot;:45,&quot;Moderate&quot;:40,&quot;Moderately Aggressive&quot;:55,&quot;Aggressive&quot;:68}</code> matching the max single-sleeve in the templates; count <code>{Conservative:(4,5),Moderate:(4,6),Moderately Aggressive:(4,5),Aggressive:(4,5)}</code>.</p>
+<p>Concentration cap + portfolio size — the build is <strong>always 4 funds</strong> (gold + MM + 2 discretionary), so count is exactly four for every profile: <code>SIZE = {p: (4, 4) for p in PROFILES}</code> (satellite / exposure-gap *substitute* a slot, never add a fifth). The per-fund concentration cap is a <strong>backstop sized for the 4-fund structure</strong> — with only two core funds absorbing a whole asset-band each after normalization, it is looser than the old 6-fund caps: <code>CAP = {&quot;Conservative&quot;:50,&quot;Moderate&quot;:50,&quot;Moderately Aggressive&quot;:60,&quot;Aggressive&quot;:70}</code> (derived from the profile&#x27;s largest asset-band ceiling in SKILL.md Step-4, with headroom for normalization). The deterministic allocator&#x27;s band logic does the real shaping; the cap only catches a single fund dominating the book (and guards human edits at the review gate).</p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong></li>
 </ul>
 <pre><code>from consultant_engine.invariants import check_invariants
 
 PORT = [
-    {&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 50},
+    {&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 60},
     {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;role&quot;: &quot;structural:gold&quot;, &quot;allocation_pct&quot;: 10},
     {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;role&quot;: &quot;structural:money_market&quot;, &quot;allocation_pct&quot;: 10},
-    {&quot;abbr&quot;: &quot;PeDiv&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 30},
+    {&quot;abbr&quot;: &quot;PeDiv&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 20},
 ]
 UNIVERSE = {&quot;PIX&quot;, &quot;PeEMAS&quot;, &quot;PeCDF-A&quot;, &quot;PeDiv&quot;}
 
 def test_concentration_violation():
     v = check_invariants(PORT, &quot;Moderate&quot;, UNIVERSE, rl_by_abbr={a: 3 for a in UNIVERSE})
-    assert any(&quot;cap&quot; in x[&quot;msg&quot;].lower() for x in v)     # PIX 50 &gt; 40 cap
+    assert any(&quot;cap&quot; in x[&quot;msg&quot;].lower() for x in v)     # PIX 60 &gt; 50 cap
 
 def test_clean_portfolio_has_no_violations():
     clean = [{&quot;abbr&quot;:&quot;PIX&quot;,&quot;role&quot;:&quot;core&quot;,&quot;allocation_pct&quot;:40},
@@ -873,7 +877,7 @@ def test_clean_portfolio_has_no_violations():
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): deterministic invariants</code></li>
 </ul>
 <h3>Task 1.12: <code>portfolio</code> templates + structural gold/MM</h3>
-<p><code>build(scores, funds, profile, shariah, experience)</code> → <code>list[Holding]</code>. Picks top-CFS core funds per the profile template (Starter cap 4 funds for new investors; full count otherwise), then always appends gold <code>PeEMAS</code> and money-market <code>PeCDF-A</code> (or <code>PIMMF-A</code> if shariah). Allocation % from the template gradient, normalized to 100.</p>
+<p><code>build(scores, funds, profile, shariah)</code> → <code>list[Holding]</code>. <strong>Experience-blind</strong> — every client gets the same <strong>4-fund</strong> portfolio: the top-2 CFS core funds for the profile, then always appends gold <code>PeEMAS</code> and money-market <code>PeCDF-A</code> (or <code>PIMMF-A</code> if shariah). Allocation % from the template gradient, normalized to 100.</p>
 <p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, <code>tests/consultant_engine/test_build_portfolio.py</code></p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong></li>
@@ -887,12 +891,13 @@ def test_structural_always_present_and_sums_100():
                        &quot;top5&quot;: [], &quot;shariah&quot;: False} for i in range(6)}
     funds[&quot;PeEMAS&quot;] = {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;fund_type&quot;: &quot;Gold&quot;, &quot;risk_level&quot;: 3, &quot;top5&quot;: []}
     funds[&quot;PeCDF-A&quot;] = {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;fund_type&quot;: &quot;Money Market&quot;, &quot;risk_level&quot;: 1, &quot;top5&quot;: []}
-    port = build(scores, funds, &quot;Moderate&quot;, shariah=None, experience=&quot;experienced&quot;)
+    port = build(scores, funds, &quot;Moderate&quot;, shariah=None)
     roles = {h[&quot;role&quot;] for h in port}
     assert &quot;structural:gold&quot; in roles and &quot;structural:money_market&quot; in roles
+    assert len(port) == 4                                      # gold + MM + 2 core, always
     assert round(sum(h[&quot;allocation_pct&quot;] for h in port)) == 100</code></pre>
 <ul>
-<li class="task"><strong>Step 2–4: red → implement → green.</strong> Encode template ranges (use midpoints, then normalize). New investor → cap core picks so total funds = 4.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Encode template ranges (use midpoints, then normalize). Always take exactly the top-2 core picks so total funds = 4 (gold + MM + 2 core) for every client.</li>
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): portfolio templates + structural positions</code></li>
 </ul>
 <h3>Task 1.13: <code>portfolio</code> diversification (top-holdings overlap dedup)</h3>
@@ -912,7 +917,7 @@ def test_overlap_drops_lower_alpha():
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): diversification overlap dedup</code></li>
 </ul>
 <h3>Task 1.14: <code>portfolio</code> exposure-gap pick</h3>
-<p>Conditional satellite when macro flags an exposure no core fund covers. Gates: positive 3Y alpha, ≤1 per portfolio, ≤15% allocation, profile supports it. (Macro-driven; in L1 the trigger comes from <code>state[&quot;macro_context&quot;][&quot;exposure_gaps&quot;]</code>, empty by default.)</p>
+<p>Conditional <strong>exposure-gap pick</strong> when macro flags an exposure no core fund covers. Because the portfolio is fixed at 4 funds, the pick <strong>substitutes the lowest-alpha core slot</strong> — never a fifth fund — and <strong>no-ops when an alpha-outlier satellite is already present</strong> (satellite wins the single discretionary substitution, per spec decision 10). The gap fund is capped at 15%; the freed slot share is redistributed to the surviving non-structural holdings so the book still sums to 100. Gates: positive 3Y alpha, ≤1 per portfolio, ≤15% allocation, profile supports it. (Macro-driven; in L1 the trigger comes from <code>state[&quot;macro_context&quot;][&quot;exposure_gaps&quot;]</code>, empty by default.)</p>
 <p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, test.</p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong></li>
@@ -920,46 +925,58 @@ def test_overlap_drops_lower_alpha():
 <pre><code>from consultant_engine.portfolio import exposure_gap_pick
 
 CAND = [{&quot;abbr&quot;: &quot;PUSEQ&quot;, &quot;returns&quot;: {&quot;3y&quot;: {&quot;alpha&quot;: 1.5}}, &quot;fund_type&quot;: &quot;Equity&quot;}]
+CORE = [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 45, &quot;alpha_n&quot;: 70},
+        {&quot;abbr&quot;: &quot;PLO&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 35, &quot;alpha_n&quot;: 30},
+        {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;role&quot;: &quot;structural:gold&quot;, &quot;allocation_pct&quot;: 10},
+        {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;role&quot;: &quot;structural:money_market&quot;, &quot;allocation_pct&quot;: 10}]
 
-def test_gap_pick_when_theme_uncovered():
-    pick = exposure_gap_pick(portfolio=[{&quot;abbr&quot;: &quot;PIX&quot;}], candidates=CAND,
-                             gaps=[&quot;US equity&quot;], profile=&quot;Moderate&quot;)
-    assert pick[&quot;abbr&quot;] == &quot;PUSEQ&quot; and pick[&quot;allocation_pct&quot;] &lt;= 15
+def test_gap_pick_substitutes_lowest_alpha_core_capped_15():
+    out = exposure_gap_pick(CORE, candidates=CAND, gaps=[&quot;US equity&quot;], profile=&quot;Moderate&quot;)
+    abbrs = {h[&quot;abbr&quot;] for h in out}
+    assert &quot;PUSEQ&quot; in abbrs and &quot;PLO&quot; not in abbrs           # replaced the lower-alpha core slot
+    assert len(out) == 4 and round(sum(h[&quot;allocation_pct&quot;] for h in out)) == 100
+    assert next(h for h in out if h[&quot;abbr&quot;] == &quot;PUSEQ&quot;)[&quot;allocation_pct&quot;] &lt;= 15
 
-def test_no_gap_returns_none():
-    assert exposure_gap_pick([{&quot;abbr&quot;: &quot;PIX&quot;}], CAND, gaps=[], profile=&quot;Moderate&quot;) is None</code></pre>
+def test_no_gap_returns_portfolio_unchanged():
+    assert exposure_gap_pick(CORE, CAND, gaps=[], profile=&quot;Moderate&quot;) == CORE
+
+def test_skip_when_satellite_present():
+    with_sat = CORE + [{&quot;abbr&quot;: &quot;STAR&quot;, &quot;role&quot;: &quot;satellite&quot;, &quot;allocation_pct&quot;: 8}]
+    assert exposure_gap_pick(with_sat, CAND, gaps=[&quot;US equity&quot;], profile=&quot;Moderate&quot;) == with_sat</code></pre>
 <ul>
-<li class="task"><strong>Step 2–4: red → implement → green.</strong> Signature <code>exposure_gap_pick(portfolio, candidates, gaps, profile) -&gt; Optional[Holding]</code>; gate on positive 3Y alpha + ≤1 pick + ≤15%.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Signature <code>exposure_gap_pick(portfolio, candidates, gaps, profile) -&gt; list[Holding]</code>; <strong>no-op if a satellite is already present</strong> (precedence) or no gap/candidate; else swap the lowest-alpha core for the gap fund, cap it at 15%, redistribute the freed slot to the surviving non-structural holdings (sum stays 100). Gate on positive 3Y alpha + ≤1 pick + ≤15%.</li>
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): exposure-gap pick</code></li>
 </ul>
 <h3>Task 1.15: <code>portfolio</code> alpha-outlier satellite + carve</h3>
-<p>Scan qualified universe (Status=Qualified); top-5 by CFS minus held; gates A (3Y&gt;0, 5Y&gt;0 if present), A2 (Alpha_N≥80), B (Shariah), C (overlap&lt;3); pick ≤1; size per profile cap; carve pro-rata from the lowest-alpha core fund; Aggressive skips. New-investor: satellite counts as a slot (replace weakest core if it would exceed 4).</p>
+<p>Scan qualified universe (Status=Qualified); top-5 by CFS minus held; gates A (3Y&gt;0, 5Y&gt;0 if present), A2 (Alpha_N≥80), B (Shariah), C (overlap&lt;3); pick ≤1; size per profile cap; Aggressive skips. Because the portfolio is fixed at 4 funds, the satellite <strong>substitutes the lowest-alpha core slot</strong> (never a fifth fund), redistributing the freed share so the book sums to 100. It carries alpha-qualified precedence over any exposure-gap pick (spec decision 10).</p>
 <p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, test.</p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong></li>
 </ul>
 <pre><code>from consultant_engine.portfolio import alpha_outlier
 
-def test_outlier_added_and_carved_from_lowest_alpha_core():
-    portfolio = [{&quot;abbr&quot;: &quot;CORE_HI&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 50, &quot;alpha_n&quot;: 70},
-                 {&quot;abbr&quot;: &quot;CORE_LO&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 50, &quot;alpha_n&quot;: 40}]
+def test_outlier_substitutes_lowest_alpha_core():
+    portfolio = [{&quot;abbr&quot;: &quot;CORE_HI&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 45, &quot;alpha_n&quot;: 70},
+                 {&quot;abbr&quot;: &quot;CORE_LO&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 35, &quot;alpha_n&quot;: 40},
+                 {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;role&quot;: &quot;structural:gold&quot;, &quot;allocation_pct&quot;: 10},
+                 {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;role&quot;: &quot;structural:money_market&quot;, &quot;allocation_pct&quot;: 10}]
     scores = [{&quot;abbr&quot;: &quot;STAR&quot;, &quot;composite&quot;: 99, &quot;alpha_n&quot;: 95, &quot;derived_class&quot;: &quot;Equity-equivalent&quot;}]
     funds = {&quot;STAR&quot;: {&quot;abbr&quot;: &quot;STAR&quot;, &quot;status&quot;: &quot;Qualified&quot;, &quot;shariah&quot;: False,
                       &quot;risk_level&quot;: 5, &quot;top5&quot;: [], &quot;returns&quot;: {&quot;3y&quot;: {&quot;alpha&quot;: 9.0}, &quot;5y&quot;: {&quot;alpha&quot;: 7.0}}}}
-    out = alpha_outlier(portfolio, scores, funds, &quot;Moderate&quot;, shariah=None, experience=&quot;experienced&quot;)
-    assert any(h[&quot;role&quot;] == &quot;satellite&quot; and h[&quot;abbr&quot;] == &quot;STAR&quot; for h in out)
-    assert round(sum(h[&quot;allocation_pct&quot;] for h in out)) == 100
-    lo = next(h for h in out if h[&quot;abbr&quot;] == &quot;CORE_LO&quot;)
-    assert lo[&quot;allocation_pct&quot;] &lt; 50                       # carved from lowest-alpha core
+    out = alpha_outlier(portfolio, scores, funds, &quot;Moderate&quot;, shariah=None)
+    abbrs = {h[&quot;abbr&quot;] for h in out}
+    assert &quot;STAR&quot; in abbrs and &quot;CORE_LO&quot; not in abbrs        # took the lowest-alpha core&#x27;s slot
+    assert next(h for h in out if h[&quot;abbr&quot;] == &quot;STAR&quot;)[&quot;role&quot;] == &quot;satellite&quot;
+    assert len(out) == 4 and round(sum(h[&quot;allocation_pct&quot;] for h in out)) == 100
 
 def test_aggressive_skips_outlier():
-    assert alpha_outlier([], [], {}, &quot;Aggressive&quot;, None, &quot;experienced&quot;) == []</code></pre>
+    assert alpha_outlier([], [], {}, &quot;Aggressive&quot;, None) == []</code></pre>
 <ul>
-<li class="task"><strong>Step 2–4: red → implement → green.</strong> Signature <code>alpha_outlier(portfolio, scores, funds, profile, shariah, experience) -&gt; list[Holding]</code>; gates A/A2/B/C from SKILL.md Step 4d; Aggressive returns input unchanged.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Signature <code>alpha_outlier(portfolio, scores, funds, profile, shariah) -&gt; list[Holding]</code>; gates A/A2/B/C from SKILL.md Step 4d; substitutes the lowest-alpha core (keeps the book at 4 funds); Aggressive returns input unchanged.</li>
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): alpha-outlier satellite + carve</code></li>
 </ul>
 <h3>Task 1.16: <code>build_portfolio</code> node (compose + invariants)</h3>
-<p>Wires 1.12–1.15 into <code>build_portfolio(state)</code>: build → dedup → exposure-gap → satellite → normalize → <code>check_invariants</code>; raise on any invariant violation (a build-time bug, not a human edit). Also emits <code>proposed_allocation</code> (the review artifact payload, Task 2.1 fills detail).</p>
+<p>Wires 1.12–1.15 into <code>build_portfolio(state)</code>: build → dedup → <strong>satellite → exposure-gap</strong> (satellite runs first so it claims the single discretionary substitution; exposure-gap no-ops when a satellite was taken — spec decision 10) → normalize → <code>check_invariants</code>; raise on any invariant violation (a build-time bug, not a human edit). Also emits <code>proposed_allocation</code> (the review artifact payload, Task 2.1 fills detail).</p>
 <p><strong>Files:</strong> <code>consultant_engine/nodes/build_portfolio.py</code>, <code>tests/consultant_engine/test_build_portfolio_node.py</code></p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong> — full pipeline from <code>tiny_fundmaster</code> → <code>load_funds → filter → score → build_portfolio</code> yields a 100%-summing portfolio with gold+MM and no invariant violations.</li>
@@ -1079,7 +1096,7 @@ def load_fixture() -&gt; MacroContext:
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): macro contract + fixture + macro_context node</code></li>
 </ul>
 <h3>Task 3.1: Move design system + build slotted skeleton</h3>
-<p>Copy <code>fund-consultant-skill/references/design_system.css</code> → <code>consultant_engine/assets/design_system.css</code> verbatim. Derive <code>consultant_engine/assets/proposal_skeleton.html</code> from <code>references/proposal_template.md</code>: keep the locked structure (cover, 9 numbered sections in the order from <code>tests/test_proposal_validation.py::LOCKED_SECTIONS</code>), convert each <code>[BRACKETED]</code> token into an explicit slot — numeric slots as <code>data-slot=&quot;cfs.PIX.composite&quot;</code> attributes, prose slots as <code>&lt;!--slot:why.PIX--&gt;</code> markers — so <code>validate</code> can diff numbers by slot.</p>
+<p>Copy <code>fund-consultant-skill/references/design_system.css</code> → <code>consultant_engine/assets/design_system.css</code> verbatim. Derive <code>consultant_engine/assets/proposal_skeleton.html</code> from <code>references/proposal_template.md</code>: keep the locked structure (cover, 9 numbered sections in the order from <code>tests/test_proposal_validation.py::LOCKED_SECTIONS</code>), convert each <code>[BRACKETED]</code> token into an explicit slot — numeric slots as <code>data-slot=&quot;cfs.PIX.composite&quot;</code> attributes, prose slots as <code>&lt;!--slot:why.PIX--&gt;</code> markers — so <code>validate</code> can diff numbers by slot. Include the <strong>conditional Foundation Intro</strong> block (rendered for new investors only) as a <strong>3-note</strong> block — *What is a Unit Trust / How Returns Work / Cooling-Off Right*; <strong>drop the old &quot;Why a Starter Portfolio (vs a full 6-fund)&quot; note</strong>, since every client now gets the same focused 4-fund build.</p>
 <p><strong>Files:</strong> <code>consultant_engine/assets/design_system.css</code>, <code>consultant_engine/assets/proposal_skeleton.html</code>, <code>tests/consultant_engine/test_assets.py</code></p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong> — skeleton contains all 9 <code>LOCKED_SECTIONS</code> titles in order, exactly 9 <code>&lt;div class=&quot;section&quot;&gt;</code>, the 4 disclaimer <code>&lt;h4&gt;</code>s, and the <code>fund-consultant v[SKILL_VERSION]</code>→<code>{{version}}</code> slot.</li>
@@ -1095,7 +1112,7 @@ def load_fixture() -&gt; MacroContext:
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): structural-card templating + slot fill</code></li>
 </ul>
 <h3>Task 3.3: Generation prompt assets</h3>
-<p>Author <code>consultant_engine/assets/prompts/generate_proposal.md</code> from SKILL.md Steps 6–7: per-fund &quot;Why/Watch&quot; prose, macro alignment, investment strategy, the two-layer jargon rule keyed on <code>experience_tier</code>, tone/compliance language rules, and the instruction to fill prose slots only (numbers come pre-filled). Include the canonical jargon table verbatim.</p>
+<p>Author <code>consultant_engine/assets/prompts/generate_proposal.md</code> from SKILL.md Steps 6–7: per-fund &quot;Why/Watch&quot; prose, macro alignment, investment strategy, the two-layer jargon rule keyed on <code>client_profile[&quot;experience&quot;]</code>, tone/compliance language rules, and the instruction to fill prose slots only (numbers come pre-filled). Include the canonical jargon table verbatim.</p>
 <p><strong>Files:</strong> <code>consultant_engine/assets/prompts/generate_proposal.md</code> (+ <code>repair.md</code>)</p>
 <ul>
 <li class="task"><strong>Step 1:</strong> Write the prompt; no test (asset). Smoke: file exists + contains the jargon table + &quot;do not alter numeric slots&quot;.</li>
@@ -1110,7 +1127,7 @@ def load_fixture() -&gt; MacroContext:
 <li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): Anthropic wrapper with fake-LLM mode</code></li>
 </ul>
 <h3>Task 3.5: <code>generate_proposal</code> node</h3>
-<p>Pre-fill all numeric slots deterministically (CFS bars, performance tables, allocations, portfolio summary, exposure pies from SKILL.md 7b/7c), render structural cards deterministically, then call the LLM (selecting the prompt by <code>experience_tier</code>) to fill prose slots only. Returns <code>{&quot;proposal_html&quot;: ...}</code>.</p>
+<p>Pre-fill all numeric slots deterministically (CFS bars, performance tables, allocations, portfolio summary, exposure pies from SKILL.md 7b/7c), render structural cards deterministically, then call the LLM (selecting the prompt by <code>client_profile[&quot;experience&quot;]</code>) to fill prose slots only. The <strong>Foundation Intro</strong> block renders only for new investors (conditional skeleton block). Returns <code>{&quot;proposal_html&quot;: ...}</code>.</p>
 <p><strong>Files:</strong> <code>consultant_engine/nodes/generate_proposal.py</code>, test (run under fake-LLM).</p>
 <ul>
 <li class="task"><strong>Step 1: Failing test</strong> — under fake-LLM, output contains the cover, all 9 sections, a CFS bar whose numeric slots equal the state CFS, and the version stamp.</li>

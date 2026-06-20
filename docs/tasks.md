@@ -378,3 +378,54 @@ contract was produced. That dependency-inversion seam is what makes acquisition 
 - Do NOT start before Track 0 has shipped the contract + script/fixture producer — ENH-6 is an
   upgrade of the producer behind a stable interface, not a prerequisite.
 - Scope via brainstorming → writing-plans before implementing.
+
+---
+
+## ENH-7 — Small-upfront-capital fund selection (standard high-performer vs e-Series low-entry)
+
+**Related:** ENH-5 Track 0 (decision 11 — capital adequacy is flagged, not solved), ENH-8 (the
+deployment-plan sibling). Falls out of the Track-0 decision to retire the e-Series shortlist mode.
+
+### Problem
+Track 0 builds one universal 4-fund portfolio and is **capital-blind**: standard funds need
+**RM 1,000** initial per fund, e-Series need only **RM 100** (confirmed from the Master
+Prospectuses). A client with small upfront capital can't clear the RM 1,000 minimum on every
+sleeve of a standard 4-fund build, so a higher-performing standard fund may simply be
+**unreachable** for them — while a lower-entry e-Series fund is. Track 0 only *flags* this; it
+does not reason about the trade-off.
+
+### Idea
+A selection layer that, for small-capital clients, reasons explicitly between **a higher-performing
+standard fund the client can't yet fully fund** vs **a lower-entry e-Series alternative** — surfacing
+the performance gap, the entry-minimum gap, and a recommendation. The e-Series universe (Pe-prefix)
+and the RM 100 entry point are the levers retired from the old Step-4e shortlist mode, repurposed as
+a *reasoned* choice rather than a hard mode switch.
+
+### Notes
+- Needs the per-fund minimum-investment data as first-class structured input (pairs naturally with
+  ENH-2's canonical store). Scope via brainstorming → writing-plans before implementing.
+
+---
+
+## ENH-8 — Contribution / deployment plan to clear per-fund minimums
+
+**Related:** ENH-5 Track 0 (decision 11), ENH-7 (the selection sibling — different problem: *which*
+fund vs *when/how-much*).
+
+### Problem
+Even with the right funds chosen, a small-capital client may not be able to fund all four sleeves to
+their RM 1,000 standard-fund minimum **at once**. The portfolio is correct in *target weights* but
+not yet *fundable in one lump*. Track 0 produces target allocations only — it has no notion of
+staging contributions over time.
+
+### Idea
+A deployment/phasing planner that turns a target 4-fund allocation + an upfront-capital figure (and
+optional monthly capacity, e.g. RM 100/mo additional minimums) into a **funding schedule**: which
+sleeves to seed first to clear RM 1,000, which to layer in over subsequent months, and how the
+portfolio converges to target weights. Distinct from ENH-7 (selection) — this is execution
+scheduling.
+
+### Notes
+- Consumes the same per-fund minimum data as ENH-7. The HITL review gate is the natural surface to
+  present a proposed schedule for consultant adjustment. Scope via brainstorming → writing-plans
+  before implementing.
