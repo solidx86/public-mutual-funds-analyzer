@@ -35,6 +35,7 @@ border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin
 </style></head><body><div class="wrap"><h1>Track 0 — Code Review Findings &amp; Remediation Plan</h1>
 <blockquote><strong>Status:</strong> implementation complete (38/38 tasks), <strong>167 tests green</strong>, all pushed to branch <code>track0-headless-consultant-engine-spec</code>. Final whole-implementation code review verdict: <strong>NEEDS WORK</strong> — the green suite is partly false confidence (gaps masked by empty/list fixtures + one structurally-bypassed check). This note tracks the findings and the remediation round. Nothing is merged.</blockquote>
 <p><strong>Review range:</strong> <code>git diff 5688581..HEAD</code> (base <code>5688581</code> = post design/plan commit; HEAD at review = <code>3079b94</code>). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.</p>
+<blockquote><strong>Remediation log</strong> - <strong>2026-06-20 — C1 + C2 RESOLVED</strong> (commit <code>938a981</code>). The CFS-transcription guard is live on engine output (composite wrapped in <code>&lt;span class=&quot;cfs-score&quot;&gt;</code>), and performance rows / fund metadata / macro Event+Date cells are now deterministic Python renders (macro *Implication* stays per-row prose). A new pure-HTML <code>check_perf_consistency</code> (Alpha == Fund − Bench, ±0.1, code <code>perf_recompute</code>) is wired into <code>validate_html</code>. Six adversarial tests in <code>tests/consultant_engine/test_determinism_guard.py</code> were proven to fail on the pre-fix engine and pass after. Full suite <strong>173 passed</strong> (was 167). Still pending: <strong>C3, I1, I2, I3, I4 + minors.</strong></blockquote>
 <hr>
 <h2>What&#x27;s solid (keep)</h2>
 <ul>
@@ -48,13 +49,13 @@ border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin
 </ul>
 <hr>
 <h2>Critical — must fix before &quot;done&quot; (undermine the determinism thesis / corrupt real data)</h2>
-<h3>C1 — CFS-transcription guard is vacuous on engine output</h3>
+<h3>C1 — CFS-transcription guard is vacuous on engine output  ✓ RESOLVED 2026-06-20 (<code>938a981</code>)</h3>
 <ul>
 <li><strong>Where:</strong> <code>consultant_engine/nodes/generate_proposal.py</code> <code>_build_core_fund_card</code> (~L107-153) vs <code>consultant_engine/rules/validation.py::check_cfs_consistency</code> (~L173-209).</li>
 <li><strong>What:</strong> the check looks for <code>&lt;span class=&quot;cfs-score&quot;&gt;N&lt;/span&gt;</code> inside a <code>cfs-bar</code> (the curated-fixture shape), but the engine emits <code>&lt;div class=&quot;cfs-title&quot;&gt;COMPOSITE FUND SCORE: {composite} / 100&lt;/div&gt;</code> with <strong>no <code>cfs-score</code> span</strong>. So <code>score_m is None</code> → the check <code>continue</code>s and never recomputes any engine card&#x27;s composite. Reviewer corrupted a composite → <code>check_cfs_consistency == []</code>. The flagship guard (decision 2 / §8) is dead on the surface it was built to protect. <code>test_validate_node</code> passes *because* the check is vacuous; <code>test_broken_html_produces_violations</code> only corrupts the version stamp.</li>
 <li><strong>Fix:</strong> make <code>_build_core_fund_card</code> emit the validator&#x27;s <code>cfs-bar</code>/<code>cfs-score</code>/<code>… / 100 · W% weight</code> structure (the golden fixture&#x27;s shape) + add an <strong>adversarial test</strong>: corrupt a composite in engine output → assert <code>cfs_recompute</code> fires.</li>
 </ul>
-<h3>C2 — numbers the spec reserves for Python are routed through the LLM</h3>
+<h3>C2 — numbers the spec reserves for Python are routed through the LLM  ✓ RESOLVED 2026-06-20 (<code>938a981</code>)</h3>
 <ul>
 <li><strong>Where:</strong> <code>generate_proposal.py</code> (~L158,114,117,119); <code>consultant_engine/assets/prompts/generate_proposal.md</code> (~L60,79-84).</li>
 <li><strong>What:</strong> per-fund performance tables (<code>&lt;!--slot:perf.{abbr}.rows--&gt;</code>), fund metadata (<code>meta.{abbr}.type/.shariah/.lipper</code>), and macro event rows (<code>macro.events_rows</code>) are <strong>prose</strong> slots; the prompt instructs the LLM to &quot;transcribe&quot; FundMaster numbers. These are Python-owned per decision 2 → carry no <code>data-slot</code> → validator-invisible → a hallucinated figure/date passes silently. In fake-LLM mode they degrade to literal <code>[perf.PGA.rows narrative]</code> text (CI proposal has no real perf/meta content).</li>
@@ -104,7 +105,7 @@ border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin
 <hr>
 <h2>Remediation plan (subagent-driven, like the rest)</h2>
 <ul>
-<li class="task"><strong>C1 + C2 together</strong> — <code>_build_core_fund_card</code> emits the validator&#x27;s <code>cfs-bar</code>/<code>cfs-score</code> structure; move performance/metadata/macro rows to deterministic Python <code>data-slot</code> fills (only Why/Watch/strategy stay prose). <strong>Add adversarial tests</strong> corrupting a CFS composite AND a performance number → assert violations fire.</li>
+<li class="task"><strong>C1 + C2 together</strong> ✓ <code>938a981</code> — <code>_build_core_fund_card</code> emits the <code>cfs-score</code> span; performance rows, fund meta (Type/Shariah/Lipper/VF), and macro Event+Date cells are deterministic Python renders (macro Implication stays per-row prose <code>macro.impact.N</code>); new <code>check_perf_consistency</code> (Alpha == Fund − Bench) wired into <code>validate_html</code>; prompt updated to stop instructing the now-Python-owned slots. Six adversarial tests, fail-before/pass-after proven; suite 167 → 173.</li>
 <li class="task"><strong>C3</strong> — split col 64 into a list in <code>load_funds</code> + realistic-holdings dedup test.</li>
 <li class="task"><strong>I1</strong> — carry <code>alpha_n</code> onto core holdings in <code>build()</code>.</li>
 <li class="task"><strong>I2</strong> — Shariah/RL-filter the exposure-gap candidates; <strong>decide:</strong> make exposure-gap live (reconcile macro-before-build ordering) vs explicitly inert + documented for Track 0. *(Lean: inert + documented; live in a follow-up ENH.)*</li>

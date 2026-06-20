@@ -9,6 +9,17 @@
 **Review range:** `git diff 5688581..HEAD` (base `5688581` = post design/plan commit;
 HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 
+> **Remediation log**
+> - **2026-06-20 — C1 + C2 RESOLVED** (commit `938a981`). The CFS-transcription guard
+>   is live on engine output (composite wrapped in `<span class="cfs-score">`), and
+>   performance rows / fund metadata / macro Event+Date cells are now deterministic
+>   Python renders (macro *Implication* stays per-row prose). A new pure-HTML
+>   `check_perf_consistency` (Alpha == Fund − Bench, ±0.1, code `perf_recompute`) is
+>   wired into `validate_html`. Six adversarial tests in
+>   `tests/consultant_engine/test_determinism_guard.py` were proven to fail on the
+>   pre-fix engine and pass after. Full suite **173 passed** (was 167). Still pending:
+>   **C3, I1, I2, I3, I4 + minors.**
+
 ---
 
 ## What's solid (keep)
@@ -25,12 +36,12 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 
 ## Critical — must fix before "done" (undermine the determinism thesis / corrupt real data)
 
-### C1 — CFS-transcription guard is vacuous on engine output
+### C1 — CFS-transcription guard is vacuous on engine output  ✓ RESOLVED 2026-06-20 (`938a981`)
 - **Where:** `consultant_engine/nodes/generate_proposal.py` `_build_core_fund_card` (~L107-153) vs `consultant_engine/rules/validation.py::check_cfs_consistency` (~L173-209).
 - **What:** the check looks for `<span class="cfs-score">N</span>` inside a `cfs-bar` (the curated-fixture shape), but the engine emits `<div class="cfs-title">COMPOSITE FUND SCORE: {composite} / 100</div>` with **no `cfs-score` span**. So `score_m is None` → the check `continue`s and never recomputes any engine card's composite. Reviewer corrupted a composite → `check_cfs_consistency == []`. The flagship guard (decision 2 / §8) is dead on the surface it was built to protect. `test_validate_node` passes *because* the check is vacuous; `test_broken_html_produces_violations` only corrupts the version stamp.
 - **Fix:** make `_build_core_fund_card` emit the validator's `cfs-bar`/`cfs-score`/`… / 100 · W% weight` structure (the golden fixture's shape) + add an **adversarial test**: corrupt a composite in engine output → assert `cfs_recompute` fires.
 
-### C2 — numbers the spec reserves for Python are routed through the LLM
+### C2 — numbers the spec reserves for Python are routed through the LLM  ✓ RESOLVED 2026-06-20 (`938a981`)
 - **Where:** `generate_proposal.py` (~L158,114,117,119); `consultant_engine/assets/prompts/generate_proposal.md` (~L60,79-84).
 - **What:** per-fund performance tables (`<!--slot:perf.{abbr}.rows-->`), fund metadata (`meta.{abbr}.type/.shariah/.lipper`), and macro event rows (`macro.events_rows`) are **prose** slots; the prompt instructs the LLM to "transcribe" FundMaster numbers. These are Python-owned per decision 2 → carry no `data-slot` → validator-invisible → a hallucinated figure/date passes silently. In fake-LLM mode they degrade to literal `[perf.PGA.rows narrative]` text (CI proposal has no real perf/meta content).
 - **Fix:** render performance rows, fund meta, and macro event rows **deterministically in Python** (all in `state`) as `data-slot`/pre-built rows; keep only genuine narrative (Why/Watch/thesis/strategy) as prose. Add adversarial test for a corrupted performance number.
@@ -78,7 +89,7 @@ HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
 
 ## Remediation plan (subagent-driven, like the rest)
 
-- [ ] **C1 + C2 together** — `_build_core_fund_card` emits the validator's `cfs-bar`/`cfs-score` structure; move performance/metadata/macro rows to deterministic Python `data-slot` fills (only Why/Watch/strategy stay prose). **Add adversarial tests** corrupting a CFS composite AND a performance number → assert violations fire.
+- [x] **C1 + C2 together** ✓ `938a981` — `_build_core_fund_card` emits the `cfs-score` span; performance rows, fund meta (Type/Shariah/Lipper/VF), and macro Event+Date cells are deterministic Python renders (macro Implication stays per-row prose `macro.impact.N`); new `check_perf_consistency` (Alpha == Fund − Bench) wired into `validate_html`; prompt updated to stop instructing the now-Python-owned slots. Six adversarial tests, fail-before/pass-after proven; suite 167 → 173.
 - [ ] **C3** — split col 64 into a list in `load_funds` + realistic-holdings dedup test.
 - [ ] **I1** — carry `alpha_n` onto core holdings in `build()`.
 - [ ] **I2** — Shariah/RL-filter the exposure-gap candidates; **decide:** make exposure-gap live (reconcile macro-before-build ordering) vs explicitly inert + documented for Track 0. *(Lean: inert + documented; live in a follow-up ENH.)*
