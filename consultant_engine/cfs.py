@@ -73,3 +73,23 @@ def efficiency_raw(fund) -> float:
     if v is None:
         v = 0.0
     return v
+
+
+def _dd_base(dd):
+    for hi, score in [(-5,80),(-10,70),(-15,60),(-25,40),(-40,20)]:
+        if dd >= hi: return score
+    return 10
+
+
+def _recovery(days):
+    if days is None: return 0
+    if days < 30: return 15
+    if days <= 90: return 10
+    if days <= 180: return 5
+    if days <= 365: return 0
+    return -10
+
+
+def momentum_score(drawdown, days) -> float:
+    dd = drawdown if drawdown is not None else -50.0
+    return max(0.0, min(100.0, _dd_base(dd) + _recovery(days)))

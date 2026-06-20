@@ -57,3 +57,19 @@ def test_efficiency_preserves_zero_3y():
     from consultant_engine.cfs import efficiency_raw
     # 0.0 is a valid Alpha Efficiency value — it must NOT fall through to 1Y
     assert efficiency_raw({"ae": {"3y": 0.0, "1y": 0.5}}) == 0.0
+
+
+def test_momentum_at_ath_fast_recovery():
+    from consultant_engine.cfs import momentum_score
+    assert momentum_score(0.0, 10) == 95          # band 80 + <30d bonus 15
+
+
+def test_momentum_none_drawdown_defaults_to_minus_50():
+    from consultant_engine.cfs import momentum_score
+    # None drawdown defaults to -50.0; compare against -50.0 with the SAME days
+    assert momentum_score(None, None) == momentum_score(-50.0, None)
+
+
+def test_momentum_clamped():
+    from consultant_engine.cfs import momentum_score
+    assert momentum_score(-3.0, 500) == 70        # 80 base + (-10) old → 70
