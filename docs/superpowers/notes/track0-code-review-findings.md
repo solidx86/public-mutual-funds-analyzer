@@ -1,10 +1,15 @@
 # Track 0 — Code Review Findings & Remediation Plan
 
-> **Status:** implementation complete (38/38 tasks), **167 tests green**, all pushed to
-> branch `track0-headless-consultant-engine-spec`. Final whole-implementation code review
-> verdict: **NEEDS WORK** — the green suite is partly false confidence (gaps masked by
-> empty/list fixtures + one structurally-bypassed check). This note tracks the findings and
-> the remediation round. Nothing is merged.
+> **Status:** ✅ **REMEDIATION COMPLETE** — all findings resolved; **209 tests green** on
+> branch `track0-headless-consultant-engine-spec` (pushed; PR open against `main`, not yet
+> merged). The original whole-implementation review verdict was **NEEDS WORK** (the 167-green
+> suite was partly false confidence — gaps masked by empty/list fixtures + one structurally
+> bypassed check); a re-review after C1–C3 + I1 surfaced one more (I-new-1). All Critical
+> (C1–C3), Important (I1, I2, I3, I-new-1), and Minor (I4, M1–M5, M-new) findings are now fixed,
+> each with an adversarial test that fails on the pre-fix code. **The determinism boundary is
+> fully closed** — every proposal number is Python-owned and guarded (CFS, perf, exposure,
+> summary) or structurally Python-rendered (meta, macro facts). Per-finding status + the dated
+> remediation log are below.
 
 **Review range:** `git diff 5688581..HEAD` (base `5688581` = post design/plan commit;
 HEAD at review = `3079b94`). 42 commits, ~2,530 LOC engine + ~1,670 LOC tests.
