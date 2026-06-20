@@ -188,6 +188,112 @@ def exposure_gap_pick(
     return new_portfolio
 
 
+def alpha_outlier(
+    portfolio: list[Holding],
+    scores: list[dict],
+    funds: dict[str, dict],
+    profile: str,
+    shariah: bool | None,
+) -> list[Holding]:
+    """Optionally swap ONE high-alpha satellite fund into the lowest-alpha_n core slot.
+
+    Returns the portfolio unchanged (same object) when:
+      - profile == "Aggressive"
+      - no candidate passes all gates (A, A2, B, C)
+
+    Otherwise substitutes the lowest-alpha_n core holding with the satellite.
+    The satellite INHERITS the replaced core's allocation_pct exactly (no redistribution).
+    Always returns a list of exactly 4 holdings summing to 100.
+
+    Args:
+        portfolio: Current 4-holding portfolio list.
+        scores:    CFS score list sorted descending by composite.
+        funds:     Dict abbr -> Fund.
+        profile:   Risk profile string.
+        shariah:   True -> Shariah only; False -> conventional only; None -> no filter.
+    """
+    # Step 1: Aggressive skip
+    if profile == "Aggressive":
+        return portfolio
+
+    # Step 2: Candidate pool — Qualified, not already held, top-5 by composite
+    held_abbrs = {h["abbr"] for h in portfolio}
+    candidates = [
+        s for s in scores
+        if funds.get(s["abbr"], {}).get("status") == "Qualified"
+        and s["abbr"] not in held_abbrs
+    ][:5]
+
+    # Look up held core holdings for overlap check (gate C)
+    held_cores = [h for h in portfolio if h.get("role") == "core"]
+
+    pick_abbr: str | None = None
+    for s in candidates:
+        abbr = s["abbr"]
+        fund = funds.get(abbr, {})
+
+        # Gate A: 3Y alpha > 0, and 5Y alpha (if present) > 0
+        returns = fund.get("returns", {})
+        alpha_3y = returns.get("3y", {}).get("alpha")
+        alpha_5y = returns.get("5y", {}).get("alpha")
+        if alpha_3y is None or alpha_3y <= 0:
+            continue
+        if alpha_5y is not None and alpha_5y <= 0:
+            continue
+
+        # Gate A2: alpha_n >= 80
+        if s.get("alpha_n", 0) < 80:
+            continue
+
+        # Gate B: Shariah filter
+        fund_shariah = fund.get("shariah")
+        if shariah is True and fund_shariah is not True:
+            continue
+        if shariah is False and fund_shariah is not False:
+            continue
+
+        # Gate C: overlap with each held core's top5 must be < 3
+        candidate_top5 = set(fund.get("top5") or [])
+        overlap_blocked = False
+        for core_h in held_cores:
+            core_fund = funds.get(core_h["abbr"])
+            if core_fund is None:
+                continue
+            core_top5 = set(core_fund.get("top5") or [])
+            if len(candidate_top5 & core_top5) >= 3:
+                overlap_blocked = True
+                break
+        if overlap_blocked:
+            continue
+
+        # First candidate to pass all gates wins (scores already sorted by composite desc)
+        pick_abbr = abbr
+        break
+
+    if pick_abbr is None:
+        return portfolio
+
+    # Step 5: Substitute lowest-alpha_n core holding
+    if not held_cores:
+        return portfolio
+
+    replaced = min(held_cores, key=lambda h: h.get("alpha_n", 0))
+    satellite: Holding = {
+        "abbr": pick_abbr,
+        "role": "satellite",
+        "allocation_pct": replaced["allocation_pct"],
+    }
+
+    new_portfolio: list[Holding] = []
+    for h in portfolio:
+        if h is replaced:
+            new_portfolio.append(satellite)
+        else:
+            new_portfolio.append(dict(h))
+
+    return new_portfolio
+
+
 def dedup_overlap(picks: list[dict]) -> list[dict]:
     """Remove picks with overlapping top-5 holdings.
 

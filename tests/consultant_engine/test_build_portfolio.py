@@ -127,3 +127,56 @@ def test_exact_100_sum_after_redistribution():
     """After substitution the allocation_pct sum is exactly 100.0 (not just rounded)."""
     out = exposure_gap_pick(CORE, candidates=CAND, gaps=["US equity"], profile="Moderate")
     assert sum(h["allocation_pct"] for h in out) == 100.0
+
+
+# ---------------------------------------------------------------------------
+# alpha_outlier tests
+# ---------------------------------------------------------------------------
+from consultant_engine.portfolio import alpha_outlier
+
+
+def test_outlier_substitutes_lowest_alpha_core():
+    portfolio = [{"abbr": "CORE_HI", "role": "core", "allocation_pct": 45, "alpha_n": 70},
+                 {"abbr": "CORE_LO", "role": "core", "allocation_pct": 35, "alpha_n": 40},
+                 {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+                 {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
+    scores = [{"abbr": "STAR", "composite": 99, "alpha_n": 95, "derived_class": "Equity-equivalent"}]
+    funds = {"STAR": {"abbr": "STAR", "status": "Qualified", "shariah": False,
+                      "risk_level": 5, "top5": [], "returns": {"3y": {"alpha": 9.0}, "5y": {"alpha": 7.0}}}}
+    out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
+    abbrs = {h["abbr"] for h in out}
+    assert "STAR" in abbrs and "CORE_LO" not in abbrs        # took the lowest-alpha core's slot
+    assert next(h for h in out if h["abbr"] == "STAR")["role"] == "satellite"
+    assert len(out) == 4 and round(sum(h["allocation_pct"] for h in out)) == 100
+
+
+def test_aggressive_skips_outlier():
+    assert alpha_outlier([], [], {}, "Aggressive", None) == []
+
+
+def test_outlier_gate_a2_fails_below_80():
+    """Candidate with alpha_n=60 (< 80) must not be swapped in."""
+    portfolio = [{"abbr": "CORE_HI", "role": "core", "allocation_pct": 45, "alpha_n": 70},
+                 {"abbr": "CORE_LO", "role": "core", "allocation_pct": 35, "alpha_n": 40},
+                 {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+                 {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
+    scores = [{"abbr": "WEAK", "composite": 99, "alpha_n": 60, "derived_class": "Equity-equivalent"}]
+    funds = {"WEAK": {"abbr": "WEAK", "status": "Qualified", "shariah": False,
+                      "risk_level": 4, "top5": [], "returns": {"3y": {"alpha": 8.0}}}}
+    out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
+    # portfolio unchanged — gate A2 blocked
+    assert out is portfolio
+
+
+def test_outlier_gate_a_fails_non_positive_3y_alpha():
+    """Candidate with 3Y alpha <= 0 must not be swapped in."""
+    portfolio = [{"abbr": "CORE_HI", "role": "core", "allocation_pct": 45, "alpha_n": 70},
+                 {"abbr": "CORE_LO", "role": "core", "allocation_pct": 35, "alpha_n": 40},
+                 {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+                 {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10}]
+    scores = [{"abbr": "FLAT", "composite": 99, "alpha_n": 90, "derived_class": "Equity-equivalent"}]
+    funds = {"FLAT": {"abbr": "FLAT", "status": "Qualified", "shariah": False,
+                      "risk_level": 4, "top5": [], "returns": {"3y": {"alpha": 0.0}}}}
+    out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
+    # portfolio unchanged — gate A blocked (3Y alpha = 0 is not > 0)
+    assert out is portfolio
