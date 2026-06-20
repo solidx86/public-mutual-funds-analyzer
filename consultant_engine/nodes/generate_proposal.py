@@ -86,6 +86,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
     alloc = holding["allocation_pct"]
     name = fund.get("name", abbr)
     rl = fund.get("risk_level", "—")
+    disqualified = fund.get("status") == "Disqualified"
 
     # CFS values
     if cfs:
@@ -118,7 +119,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, e_target:
     <span><strong>Lipper:</strong> <!--slot:meta.{abbr}.lipper--></span>
   </div>
   <div class="fund-card-body">
-    <div class="alpha-warning"><!--slot:alpha_warning.{abbr}--></div>
+    {"<div class=\"alpha-warning\"><!--slot:alpha_warning." + abbr + "--></div>" if disqualified else ""}
     <div class="cfs-bar">
       <div class="cfs-title">COMPOSITE FUND SCORE: {composite} / 100</div>
       <div class="cfs-row">
@@ -267,7 +268,9 @@ def _build_slot_values(state: ConsultantState, portfolio_metrics: dict) -> dict:
     return {
         # Scalar {{...}} replacements
         "version": consultant_engine.__version__,
-        "design_system_css": _CSS_PATH.read_text(encoding="utf-8"),
+        "design_system_css": _CSS_PATH.read_text(encoding="utf-8").replace(
+            "[SKILL_VERSION]", consultant_engine.__version__
+        ),
         # Cover
         "cover.e_target": str(e_target),
         "cover.funds_selected_n": str(funds_selected),
