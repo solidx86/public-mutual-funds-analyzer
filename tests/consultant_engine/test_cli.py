@@ -1,7 +1,7 @@
 import json, subprocess, sys
 from pathlib import Path
 
-def test_cli_runs_with_no_review(tmp_path):
+def test_cli_runs_with_no_review(tmp_path, tiny_fundmaster):
     prof = tmp_path / "p.json"
     prof.write_text(json.dumps({
         "risk_level": "Moderate", "shariah": False, "experience": "experienced",
@@ -9,7 +9,7 @@ def test_cli_runs_with_no_review(tmp_path):
     }))
     r = subprocess.run(
         [sys.executable, "-m", "consultant_engine",
-         "--profile", str(prof), "--fundmaster", "x.xlsx",
+         "--profile", str(prof), "--fundmaster", tiny_fundmaster,
          "--macro", "none", "--no-review", "-o", str(tmp_path)],
         capture_output=True, text=True,
     )
