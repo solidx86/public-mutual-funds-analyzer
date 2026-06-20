@@ -20,8 +20,9 @@ recompute any number or numeric slot. If you encounter a `data-slot` element, le
 exactly as provided. Only write text for the `<!--slot:KEY-->` comment markers.
 
 **Engine-rendered facts.** The performance tables, the fund metadata rows (Type / Shariah / Lipper /
-VF), and the macro table's Event and Date cells are now rendered deterministically by the engine.
-They are facts, not prose — never author, transcribe, or alter them.
+VF), the macro table's Event and Date cells, and the Portfolio Exposure pies (asset-class and
+geographic conic-gradients) together with the geographic legend are now rendered deterministically
+by the engine. They are facts, not prose — never author, transcribe, or alter them.
 
 ---
 
@@ -90,14 +91,6 @@ For each fund abbreviated as `PIX` (the fund's abbreviation code), fill these pr
 | Slot key | What to write |
 |---|---|
 | `portfolio_summary.fund_rows` | One `<tr>` per fund with columns: Abbreviation, Fund Type, Allocation %, CFS, 3Y Alpha, Risk Level. Values transcribed from provided data. |
-
-### Exposure chart slots (Section 7)
-
-| Slot key | What to write |
-|---|---|
-| `exposure.asset_class.pie_chart` | CSS conic-gradient pie chart HTML block (see SKILL.md Step 7b for colors and formula). Numbers are taken from the provided exposure data — do not recompute. |
-| `exposure.geo.pie_chart` | Geographic exposure pie chart HTML block (same approach). |
-| `exposure.geo.legend_items` | Legend items for the geographic chart. |
 
 ### Investment strategy prose slots (Section 8)
 

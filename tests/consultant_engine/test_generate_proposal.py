@@ -6,7 +6,14 @@ import re
 
 import pytest
 
+from consultant_engine.nodes.build_portfolio import build_portfolio
+from consultant_engine.nodes.filter_universe import filter_universe
 from consultant_engine.nodes.generate_proposal import generate_proposal
+from consultant_engine.nodes.load_funds import load_funds
+from consultant_engine.nodes.load_profile import load_profile
+from consultant_engine.nodes.macro_context import macro_context
+from consultant_engine.nodes.score_cfs import score_cfs
+from consultant_engine.rules.validation import check_exposure_consistency
 
 
 def _state():
@@ -150,3 +157,69 @@ class TestGenerateProposalFakeLLM:
         html = out["proposal_html"]
         assert html.strip().startswith("<!DOCTYPE html")
         assert "</html>" in html
+
+
+def _engine_html(fundmaster_path: str) -> str:
+    """Run the deterministic node pipeline (fake-LLM) end-to-end."""
+    s: dict = {
+        "client_profile": {"risk_level": "Moderate", "shariah": False},
+        "fundmaster_path": fundmaster_path,
+        "macro_context": {"source": "fixture"},
+    }
+    for step in (
+        load_profile,
+        load_funds,
+        filter_universe,
+        score_cfs,
+        build_portfolio,
+        macro_context,
+        generate_proposal,
+    ):
+        s.update(step(s))
+    return s["proposal_html"]
+
+
+class TestPortfolioExposureSection:
+    """Deterministic Portfolio Exposure (Section 6) — Python owns the numbers."""
+
+    def test_exposure_pies_rendered_in_both_blocks(self, monkeypatch, fundmaster_exposure):
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        # Both exposure blocks must carry a real conic-gradient pie.
+        assert html.count("conic-gradient(") >= 2
+        # No leftover prose-slot markers for exposure.
+        assert "<!--slot:exposure" not in html
+        assert "exposure.asset_class.pie_chart narrative]" not in html
+        assert "exposure.geo.legend_items narrative]" not in html
+
+    def test_asset_class_pcts_are_real_numbers(self, monkeypatch, fundmaster_exposure):
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        # The 5 asset-class data-slot spans must be real "NN.N%" — never "—".
+        spans = re.findall(
+            r'data-slot="exposure\.asset\.[a-z_]+_pct"\s*>([^<]*)<', html
+        )
+        assert len(spans) == 5
+        for val in spans:
+            assert "—" not in val and "&mdash;" not in val, spans
+            assert re.fullmatch(r"\d+(?:\.\d+)?%", val.strip()), spans
+
+    def test_geo_legend_has_real_country_labels(self, monkeypatch, fundmaster_exposure):
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        # Malaysia (dom-equity proxy) and at least one foreign country must appear.
+        assert ">Malaysia<" in html
+        assert ">USA<" in html
+
+    def test_exposure_blocks_pass_consistency_guard(self, monkeypatch, fundmaster_exposure):
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        assert check_exposure_consistency(html) == []
+
+    def test_exposure_graceful_without_geo_or_assets(self, monkeypatch, fundmaster_4fund):
+        """The 4-fund fixture has assets but blank geo headers — must still render
+        consistent blocks (no crash, guard clean)."""
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_4fund)
+        assert html.count("conic-gradient(") >= 2
+        assert check_exposure_consistency(html) == []

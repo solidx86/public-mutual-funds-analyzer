@@ -248,6 +248,58 @@ def check_perf_consistency(html_text: str) -> list[dict[str, str]]:
     return violations
 
 
+def check_exposure_consistency(html_text: str) -> list[dict[str, str]]:
+    """Within the Portfolio Exposure section, verify each ``.exposure-chart-block``
+    legend's ``legend-pct`` values sum to 100.0 (a pie is parts-of-a-whole).
+
+    Scoped to the exposure section so it never picks up unrelated ``legend-pct``
+    spans elsewhere in the document. Tolerance: ±2.0.
+
+    Violation code: ``exposure_sum``
+    """
+    violations: list[dict[str, str]] = []
+
+    # Isolate the Portfolio Exposure section (up to the next section or EOF).
+    sect_m = re.search(
+        r'Portfolio Exposure</div>(.*?)(?=<div class="section">|</body>)',
+        html_text,
+        re.DOTALL,
+    )
+    if sect_m is None:
+        return violations  # section absent — check_sections owns that failure
+    section = sect_m.group(1)
+
+    blocks = re.findall(
+        r'<div class="exposure-chart-block">(.*?)(?=<div class="exposure-chart-block">|$)',
+        section,
+        re.DOTALL,
+    )
+    for block in blocks:
+        title_m = re.search(r'exposure-chart-title">([^<]+)<', block)
+        title = title_m.group(1).strip() if title_m else "?"
+        total = 0.0
+        found = False
+        for raw in re.findall(r'class="legend-pct"[^>]*>([^<]*)<', block):
+            txt = _html.unescape(re.sub(r"<[^>]+>", "", raw)).strip()
+            txt = txt.replace("%", "").replace("+", "")
+            try:
+                total += float(txt)
+                found = True
+            except ValueError:
+                continue
+        if not found:
+            continue  # no numeric legend in this block — nothing to check
+        if abs(total - 100.0) > 2.0:
+            violations.append({
+                "code": "exposure_sum",
+                "msg": (
+                    f"{title} exposure legend sums to {total:.1f} "
+                    f"(expected 100.0 ± 2.0)"
+                ),
+            })
+    return violations
+
+
 def check_funds_in_workbook(
     html_text: str,
     wb_index: dict[str, dict[str, Any]],
@@ -335,6 +387,7 @@ def validate_html(
         + check_version_and_disclosure(html_text, version)
         + check_cfs_consistency(html_text)
         + check_perf_consistency(html_text)
+        + check_exposure_consistency(html_text)
         + check_funds_in_workbook(html_text, wb_index)
         + check_alpha_warning(html_text, wb_index)
         + check_retail_eligibility(html_text, wb_index)

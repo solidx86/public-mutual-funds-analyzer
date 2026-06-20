@@ -27,6 +27,7 @@ from datetime import datetime
 from pathlib import Path
 
 import consultant_engine
+from consultant_engine import exposure
 from consultant_engine.llm import complete
 from consultant_engine.state import ConsultantState
 from consultant_engine.templates import fill_slots, render_structural_card
@@ -323,7 +324,9 @@ def _compute_portfolio_metrics(portfolio: list[dict], cfs_scores: list[dict],
     }
 
 
-def _build_slot_values(state: ConsultantState, portfolio_metrics: dict) -> dict:
+def _build_slot_values(
+    state: ConsultantState, portfolio_metrics: dict, asset_exposure: dict[str, float]
+) -> dict:
     """Build the slot_values dict for fill_slots — covering all live data-slot keys
     in the cleaned skeleton."""
     client = state["client_profile"]
@@ -353,12 +356,12 @@ def _build_slot_values(state: ConsultantState, portfolio_metrics: dict) -> dict:
         "portfolio.wtd_cfs": portfolio_metrics["wtd_cfs"],
         "portfolio.wtd_alpha": portfolio_metrics["wtd_alpha"],
         "portfolio.wtd_rl": portfolio_metrics["wtd_rl"],
-        # Exposure — placeholders (look-through data not in state for this task)
-        "exposure.asset.domestic_equity_pct": "—",
-        "exposure.asset.foreign_equity_pct": "—",
-        "exposure.asset.fixed_income_pct": "—",
-        "exposure.asset.money_market_pct": "—",
-        "exposure.asset.gold_pct": "—",
+        # Exposure — deterministic look-through (Python-owned, never the LLM's).
+        "exposure.asset.domestic_equity_pct": f"{asset_exposure['exposure.asset.domestic_equity_pct']}%",
+        "exposure.asset.foreign_equity_pct": f"{asset_exposure['exposure.asset.foreign_equity_pct']}%",
+        "exposure.asset.fixed_income_pct": f"{asset_exposure['exposure.asset.fixed_income_pct']}%",
+        "exposure.asset.money_market_pct": f"{asset_exposure['exposure.asset.money_market_pct']}%",
+        "exposure.asset.gold_pct": f"{asset_exposure['exposure.asset.gold_pct']}%",
     }
 
 
@@ -422,17 +425,29 @@ def generate_proposal(state: ConsultantState) -> dict:
     portfolio_summary_rows = _build_portfolio_summary_rows(portfolio, cfs_scores, eligible_funds)
     macro_rows_html = _build_macro_rows(state.get("macro_context", {}).get("events", []))
 
+    # Portfolio Exposure (Section 6) — deterministic look-through. Python owns the
+    # pies and the geo legend; the LLM never authors these numbers.
+    funds_by_abbr = {f["abbr"]: f for f in eligible_funds if f.get("abbr")}
+    asset_exposure = exposure.compute_asset_exposure(portfolio, funds_by_abbr)
+    asset_pie_html = exposure.render_pie(exposure.asset_pie_slices(portfolio, funds_by_abbr))
+    geo_slices = exposure.compute_geo_exposure(portfolio, funds_by_abbr)
+    geo_pie_html = exposure.render_pie(exposure.geo_pie_pairs(geo_slices))
+    geo_legend_html = exposure.render_geo_legend(geo_slices)
+
     # Substitute dynamic sections at their prose-slot markers BEFORE fill_slots
     skeleton = skeleton.replace("<!--slot:fund_cards-->", fund_cards_html)
     skeleton = skeleton.replace("<!--slot:fee_table.fund_rows-->", fee_rows_html)
     skeleton = skeleton.replace("<!--slot:portfolio_summary.fund_rows-->", portfolio_summary_rows)
     skeleton = skeleton.replace("<!--slot:macro.events_rows-->", macro_rows_html)
+    skeleton = skeleton.replace("<!--slot:exposure.asset_class.pie_chart-->", asset_pie_html)
+    skeleton = skeleton.replace("<!--slot:exposure.geo.pie_chart-->", geo_pie_html)
+    skeleton = skeleton.replace("<!--slot:exposure.geo.legend_items-->", geo_legend_html)
 
     # 4. Compute portfolio metrics
     portfolio_metrics = _compute_portfolio_metrics(portfolio, cfs_scores, eligible_funds)
 
     # 5. Numeric prefill via fill_slots (raises on any unfilled data-slot)
-    slot_values = _build_slot_values(state, portfolio_metrics)
+    slot_values = _build_slot_values(state, portfolio_metrics, asset_exposure)
     skeleton = fill_slots(skeleton, slot_values)
 
     # 6. Prose fill

@@ -185,6 +185,82 @@ def fundmaster_4fund(tmp_path):
 
 
 @pytest.fixture
+def fundmaster_exposure(tmp_path):
+    """4-fund fixture identical in shape to ``fundmaster_4fund`` but with the
+    geographic header row (row 3, cols 41-52) populated and real per-fund geo
+    values, so the deterministic Portfolio Exposure look-through has data to
+    compute (asset-class pie + geographic pie/legend).
+
+    Geo column order matches load_funds' canonical read (cols 41-52):
+      USA, Taiwan, Korea, Japan, France, Germany, China, Singapore,
+      Netherlands, Indonesia, Australia, Geo Other.
+    """
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
+    ws.cell(3, 1, "Fund Name")
+
+    # Geo header row (cols 41-52) — canonical order load_funds reads back by key.
+    geo_headers = [
+        "USA", "Taiwan", "Korea", "Japan", "France", "Germany",
+        "China", "Singapore", "Netherlands", "Indonesia", "Australia", "Geo Other",
+    ]
+    for i, h in enumerate(geo_headers):
+        ws.cell(3, 41 + i, h)
+
+    # Equity fund 1 — heavy USA + Taiwan; Japan tiny (<2% after weighting → Other).
+    _row(ws, 4, "Public Growth A", "PGA", "No", "Equity", 3, "Qualified", 4.0,
+         c15=20.0, c16=15.0, c17=5.0,
+         c18=18.0, c19=13.0, c20=5.0,
+         c21=15.0, c22=11.0, c23=4.0,
+         c24=12.0, c25=9.0,  c26=3.0,
+         c27=10.0, c28=8.0,  c29=2.0,
+         c35=70.0, c36=20.0, c37=5.0, c39=5.0,   # dom 70, for 20, fi 5, deposits 5
+         c41=40.0, c42=15.0, c44=1.0, c52=4.0,   # USA 40, Taiwan 15, Japan 1, GeoOther 4
+         c72=-5.0, c73=20)
+
+    # Equity fund 2 — USA + Korea.
+    _row(ws, 5, "Public Balanced A", "PBA", "No", "Equity", 3, "Qualified", 3.0,
+         c15=18.0, c16=14.0, c17=4.0,
+         c18=16.0, c19=12.0, c20=4.0,
+         c21=12.0, c22=9.0,  c23=3.0,
+         c24=10.0, c25=7.5,  c26=2.5,
+         c27=9.0,  c28=7.5,  c29=1.5,
+         c35=60.0, c36=25.0, c37=10.0, c38=5.0,  # dom 60, for 25, fi 10, mm 5
+         c41=45.0, c43=12.0, c52=3.0,            # USA 45, Korea 12, GeoOther 3
+         c72=-5.0, c73=30)
+
+    # Equity fund 3 — China + USA.
+    _row(ws, 6, "Public SmallCap A", "PSCA", "No", "Equity", 3, "Qualified", 2.0,
+         c15=15.0, c16=12.0, c17=3.0,
+         c18=13.0, c19=10.0, c20=3.0,
+         c21=10.0, c22=8.0,  c23=2.0,
+         c24=8.0,  c25=6.5,  c26=1.5,
+         c27=7.0,  c28=6.0,  c29=1.0,
+         c35=65.0, c36=20.0, c37=15.0,           # dom 65, for 20, fi 15
+         c41=30.0, c47=25.0, c52=2.0,            # USA 30, China 25, GeoOther 2
+         c72=-5.0, c73=45)
+
+    # PeEMAS — gold structural (other=95 → Balanced class).
+    _row(ws, 7, "Public e-Islamic EMAS", "PeEMAS", "No", "Gold", 3, "Qualified", 0.5,
+         c15=5.0, c16=4.0, c17=1.0,
+         c18=4.0, c19=3.5, c20=0.5,
+         c21=3.0, c22=2.5, c23=0.5,
+         c40=95.0,
+         c72=-2.0, c73=10)
+
+    # PeCDF-A — money-market structural (mm=100 → Defensive).
+    _row(ws, 8, "Public e-Cash Deposit", "PeCDF-A", "No", "Money Market", 1, "Qualified", 0.1,
+         c15=2.0, c16=2.0, c17=0.0,
+         c18=2.0, c19=2.0, c20=0.0,
+         c21=2.0, c22=2.0, c23=0.0,
+         c38=100.0,
+         c72=-1.0, c73=5)
+
+    p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"
+    wb.save(p)
+    return str(p)
+
+
+@pytest.fixture
 def fundmaster_top5(tmp_path):
     """Two conventional equity funds whose Top-5 holdings (col 64) share ZERO
     real names but many characters — the case that exposes the string-vs-list

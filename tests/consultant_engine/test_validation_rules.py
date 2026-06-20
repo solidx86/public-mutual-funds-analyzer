@@ -8,7 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from consultant_engine.rules.validation import validate_html, fund_cards, workbook_index
+from consultant_engine.rules.validation import (
+    check_exposure_consistency,
+    fund_cards,
+    validate_html,
+    workbook_index,
+)
 from consultant_engine import __version__
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -61,3 +66,33 @@ def test_section_drift_is_caught(bad_section_html, wb_index):
 def test_cfs_inconsistency_is_caught(bad_cfs_html, wb_index):
     codes = {v["code"] for v in validate_html(bad_cfs_html, __version__, wb_index)}
     assert "cfs_recompute" in codes
+
+
+# ── Portfolio Exposure consistency guard ──────────────────────────────────────
+
+def test_good_proposal_exposure_is_consistent(good_html):
+    assert check_exposure_consistency(good_html) == []
+
+
+def test_corrupted_exposure_legend_is_caught(good_html):
+    """Corrupt one legend-pct so its block no longer sums to 100 → exposure_sum."""
+    # The geographic block's USA slice in the good fixture is 39.7% — shove it to
+    # 9.7% so that block sums to ~70, well outside the ±2 tolerance.
+    corrupted = good_html.replace(
+        '<span class="legend-pct">39.7%</span>',
+        '<span class="legend-pct">9.7%</span>',
+        1,
+    )
+    assert corrupted != good_html, "fixture changed — update the corruption anchor"
+    violations = check_exposure_consistency(corrupted)
+    assert any(v["code"] == "exposure_sum" for v in violations), violations
+
+
+def test_corrupted_exposure_surfaces_through_validate_html(good_html, wb_index):
+    corrupted = good_html.replace(
+        '<span class="legend-pct">39.7%</span>',
+        '<span class="legend-pct">9.7%</span>',
+        1,
+    )
+    codes = {v["code"] for v in validate_html(corrupted, __version__, wb_index)}
+    assert "exposure_sum" in codes
