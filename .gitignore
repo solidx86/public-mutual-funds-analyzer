@@ -30,3 +30,6 @@ fetch_ath.py
 # (no trailing slash so the patterns also match the symlinks, not just real dirs)
 /unit-trust
 /private-retirement-scheme
+
+# Headless consultant engine runtime artifacts
+data/review/
