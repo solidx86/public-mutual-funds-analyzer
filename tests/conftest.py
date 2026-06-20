@@ -4,6 +4,7 @@ location, so copying the skill bundle into the workspace redirects every read
 and write there."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -73,6 +74,19 @@ def pipeline_workspace(tmp_path_factory):
 # package (breaks pytest package import), and a second conftest.py would shadow the
 # bare `from conftest import ...` that test_pipeline.py relies on. Root conftest
 # fixtures are available to every test, including the consultant_engine suite.
+
+@pytest.fixture(autouse=True)
+def _fake_llm_for_ci(monkeypatch, request):
+    """Ensure LLM calls never hit the real Anthropic API in the test suite.
+    Sets CONSULTANT_ENGINE_FAKE_LLM=1 for every test in the consultant_engine suite
+    AND passes the env var into subprocess invocations (test_cli) via os.environ,
+    which subprocesses inherit.  Tests that explicitly test the real path are not
+    present in this suite, so global autouse is safe."""
+    # Only activate for consultant_engine tests (path contains consultant_engine)
+    test_path = str(request.fspath)
+    if "consultant_engine" not in test_path:
+        return  # skip for pipeline / other tests
+    monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
 
 def _row(ws, r, name, abbr, shariah, ftype, rl, status, walpha, **kw):
     ws.cell(r, 1, name); ws.cell(r, 2, abbr); ws.cell(r, 3, shariah)

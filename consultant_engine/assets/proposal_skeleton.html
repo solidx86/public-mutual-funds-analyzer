@@ -1,30 +1,5 @@
 <!DOCTYPE html>
-<!--
-  proposal_skeleton.html — Slotted HTML skeleton for the fund-consultant engine.
 
-  CSS-embedding approach: {{design_system_css}} SLOT (not inline).
-  The generator (Task 3.2 / 3.5) replaces {{design_system_css}} with the
-  verbatim contents of consultant_engine/assets/design_system.css before
-  writing the final output file. This keeps the CSS single-source and avoids
-  duplicating 740 lines into every filled proposal.
-
-  Slot conventions:
-    {{key}}                   — scalar string/version placeholder
-    {{design_system_css}}     — full CSS body (filled by generator at write time)
-    data-slot="key"           — numeric slot: the element's text content is the number
-    [comment]slot:key[/comment] — prose slot: LLM writes narrative between the markers
-
-  Version placeholder: {{version}} replaces [SKILL_VERSION] everywhere (cover
-  footer, Section 9 attribution, and the CSS comment header if re-embedded).
-
-  Conditional Foundation block is wrapped in:
-    [comment]FOUNDATION_START[/comment] ... [comment]FOUNDATION_END[/comment]
-  The generator includes the block for experience_level == "New Investor" and
-  strips it (along with its .page wrapper) for experienced investors.
-
-  Locked template source: fund-consultant-skill/references/proposal_template.md
-  Design system source:   fund-consultant-skill/references/design_system.css
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -214,99 +189,7 @@
     <div class="section-rule"></div>
 
     <!--slot:fund_cards-->
-    <!--
-      Generator writes one fund-card block per recommended fund here.
-      Each card follows the locked fund-card structure below (shown for one fund PIX as example).
-
-      <div class="fund-card">
-        <div class="fund-card-header [equity|fixed-income|mixed-asset|money-market|gold|alpha-outlier]">
-          <h3>[Fund Name] &middot; [Abbr]</h3>
-          <span class="alloc" data-slot="alloc.PIX.pct">[XX]%</span>
-        </div>
-
-        <div class="fund-meta">
-          <span><strong>Type:</strong> <!--slot:meta.PIX.type--></span>
-          <span><strong>RL:</strong> <span data-slot="meta.PIX.rl"></span></span>
-          <span><strong>VF:</strong> <span data-slot="meta.PIX.vf"></span></span>
-          <span><strong>Shariah:</strong> <!--slot:meta.PIX.shariah--></span>
-          <span><strong>AUM:</strong> RM <span data-slot="meta.PIX.aum_m"></span>M</span>
-          <span><strong>Lipper:</strong> <!--slot:meta.PIX.lipper--></span>
-        </div>
-
-        <div class="fund-card-body">
-
-          (a) ALPHA WARNING — conditional
-          <div class="alpha-warning"><!--slot:alpha_warning.PIX--></div>
-
-          (b) CFS mini-bar
-          <div class="cfs-bar">
-            <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score" data-slot="cfs.PIX.composite"></span> / 100</div>
-            <div class="cfs-row">
-              <div class="cfs-row-label">
-                <span>Alpha (Manager Skill)</span>
-                <span><span data-slot="cfs.PIX.alpha_score"></span> / 100 &middot; <span data-slot="cfs.PIX.alpha_weight"></span>% weight</span>
-              </div>
-              <div class="cfs-track"><div class="cfs-fill alpha" style="width:[XX]%;"></div></div>
-            </div>
-            <div class="cfs-row">
-              <div class="cfs-row-label">
-                <span>Return Fit (vs <span data-slot="cfs.PIX.e_target"></span>% target)</span>
-                <span><span data-slot="cfs.PIX.return_fit_score"></span> / 100 &middot; <span data-slot="cfs.PIX.return_fit_weight"></span>% weight</span>
-              </div>
-              <div class="cfs-track"><div class="cfs-fill return-fit" style="width:[XX]%;"></div></div>
-            </div>
-            <div class="cfs-row">
-              <div class="cfs-row-label">
-                <span>Efficiency (Risk-Adjusted)</span>
-                <span><span data-slot="cfs.PIX.efficiency_score"></span> / 100 &middot; <span data-slot="cfs.PIX.efficiency_weight"></span>% weight</span>
-              </div>
-              <div class="cfs-track"><div class="cfs-fill efficiency" style="width:[XX]%;"></div></div>
-            </div>
-            <div class="cfs-row">
-              <div class="cfs-row-label">
-                <span>Momentum (ATH Proximity)</span>
-                <span><span data-slot="cfs.PIX.momentum_score"></span> / 100 &middot; <span data-slot="cfs.PIX.momentum_weight"></span>% weight</span>
-              </div>
-              <div class="cfs-track"><div class="cfs-fill momentum" style="width:[XX]%;"></div></div>
-            </div>
-          </div>
-
-          (c) Performance table
-          <h4>Performance vs Benchmark</h4>
-          <div class="table-wrap">
-            <table class="perf-table">
-              <thead><tr><th>Period</th><th>Fund %</th><th>Bench %</th><th>Alpha %</th></tr></thead>
-              <tbody>
-                <!--slot:perf.PIX.rows-->
-              </tbody>
-            </table>
-          </div>
-
-          (d) Cost & Alpha mini-card
-          <h4>Cost &amp; Alpha</h4>
-          <div class="cost-alpha-mini">
-            <div class="cell"><span class="label">Sales Charge</span><span class="value" data-slot="fees.PIX.sales_charge"></span></div>
-            <div class="cell"><span class="label">Mgmt Fee p.a.</span><span class="value" data-slot="fees.PIX.mgmt_fee"></span></div>
-            <div class="cell"><span class="label">Trustee Fee p.a.</span><span class="value" data-slot="fees.PIX.trustee_fee"></span></div>
-            <div class="cell"><span class="label">Annual Cost</span><span class="value" data-slot="fees.PIX.annual_cost"></span></div>
-            <div class="cell"><span class="label">3Y Alpha</span><span class="value" data-slot="fees.PIX.alpha_3y"></span></div>
-            <div class="cell"><span class="label">Net Value-Add</span><span class="value" data-slot="fees.PIX.net_value_add"></span></div>
-            <div class="source">Fees sourced verbatim from <code>[Abbr]_PHS.pdf</code> &middot; PHS dated <!--slot:fees.PIX.phs_date--></div>
-          </div>
-
-          (e) Why we chose it
-          <h4>Why We Chose It</h4>
-          <p><!--slot:why.PIX--></p>
-
-          (f) What to watch
-          <h4>What to Watch</h4>
-          <ul>
-            <!--slot:watch.PIX-->
-          </ul>
-
-        </div>
-      </div>
-    -->
+    
 
   </div>
 
@@ -374,10 +257,7 @@
       <div class="exposure-chart-block">
         <div class="exposure-chart-title">Asset Class</div>
         <!--slot:exposure.asset_class.pie_chart-->
-        <!-- Generator writes:
-          <div class="pie-chart" style="background: conic-gradient(...);">  </div>
-          data-slot="exposure.asset_class.domestic_equity_pct" etc. on legend items
-        -->
+
         <div class="legend">
           <div class="legend-item">
             <span class="legend-swatch" style="background:var(--equity);"></span>
@@ -410,7 +290,7 @@
       <div class="exposure-chart-block">
         <div class="exposure-chart-title">Geographic</div>
         <!--slot:exposure.geo.pie_chart-->
-        <!-- Generator writes pie + legend (slices ≥ 2% only, "Other" for remainder) -->
+
         <div class="legend">
           <!--slot:exposure.geo.legend_items-->
         </div>
@@ -489,18 +369,7 @@
         </thead>
         <tbody>
           <!--slot:fee_table.fund_rows-->
-          <!-- Generator writes one <tr> per fund:
-            <tr>
-              <td><strong data-slot="fees.PIX.abbr">PIX</strong></td>
-              <td data-slot="fees.PIX.sales_charge"></td>
-              <td data-slot="fees.PIX.mgmt_fee"></td>
-              <td data-slot="fees.PIX.trustee_fee"></td>
-              <td data-slot="fees.PIX.annual_cost"></td>
-              <td class="[alpha-pos|alpha-neg]" data-slot="fees.PIX.alpha_3y"></td>
-              <td class="[alpha-pos|alpha-neg]" data-slot="fees.PIX.net_value_add"></td>
-              <td data-slot="fees.PIX.phs_date"></td>
-            </tr>
-          -->
+          
         </tbody>
       </table>
     </div>
