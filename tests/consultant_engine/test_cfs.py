@@ -45,3 +45,15 @@ def test_returnfit_anchors():
 def test_returnfit_interpolates():
     from consultant_engine.cfs import returnfit_score
     assert 80 < returnfit_score(1.25) < 100      # between 1.0 and 1.5
+
+
+def test_efficiency_prefers_3y_then_1y():
+    from consultant_engine.cfs import efficiency_raw
+    assert efficiency_raw({"ae": {"3y": 1.2, "1y": 0.5}}) == 1.2
+    assert efficiency_raw({"ae": {"3y": None, "1y": 0.5}}) == 0.5
+
+
+def test_efficiency_preserves_zero_3y():
+    from consultant_engine.cfs import efficiency_raw
+    # 0.0 is a valid Alpha Efficiency value — it must NOT fall through to 1Y
+    assert efficiency_raw({"ae": {"3y": 0.0, "1y": 0.5}}) == 0.0

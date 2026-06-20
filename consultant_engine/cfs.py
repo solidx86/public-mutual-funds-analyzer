@@ -58,3 +58,18 @@ def returnfit_score(ratio: float) -> float:
         if x0 <= ratio <= x1:
             return round(y0 + (y1 - y0) * (ratio - x0) / (x1 - x0), 1)
     return 0.0
+
+
+def efficiency_raw(fund) -> float:
+    """
+    Efficiency_raw = 3Y Alpha Efficiency with fallback to 1Y AE, else 0.
+
+    Prefer 3Y AE over 1Y AE. Uses explicit None checks to preserve 0.0 as a valid value.
+    """
+    ae = fund.get("ae", {})
+    v = ae.get("3y")
+    if v is None:
+        v = ae.get("1y")
+    if v is None:
+        v = 0.0
+    return v
