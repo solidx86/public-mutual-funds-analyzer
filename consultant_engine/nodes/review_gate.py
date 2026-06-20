@@ -7,7 +7,6 @@ from typing import Any
 
 import consultant_engine
 from consultant_engine.invariants import CAP, CEILING, SIZE
-from consultant_engine.state import ConsultantState
 
 
 # ---------------------------------------------------------------------------
@@ -170,20 +169,7 @@ def _build_html(artifact: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Stubs kept for Task 2.2
-# ---------------------------------------------------------------------------
-
-def review_gate(state: ConsultantState) -> dict:
-    return {}
-
-
-def read_resume_payload(thread_id: str) -> dict:
-    """Stub: Task 2.2 replaces this with real file-based resume payload reader."""
-    return {"decision": "approve"}
-
-
-# ---------------------------------------------------------------------------
-# Task 2.2 — resume re-validation
+# Resume re-validation
 # ---------------------------------------------------------------------------
 
 _GOLD_ABBR = "PeEMAS"

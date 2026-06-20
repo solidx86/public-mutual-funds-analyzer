@@ -17,23 +17,34 @@ from consultant_engine.nodes import (
 from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact, apply_resume
 
 MAX_REPAIR = 3
+MAX_REVIEW_ROUNDS = 3
 
 
 def _review(state: ConsultantState) -> dict:
     if state.get("no_review"):
         return {}                       # auto-approve path (evals / CI / batch)
+
     artifact = build_proposed_allocation(state)
     write_artifact("data/review", state["thread_id"], artifact)
     decision = interrupt(artifact)      # pauses; resumed value returned here
     result = apply_resume(state, decision)
+
+    # Re-pause on each violating edit and apply the correction, bounded.
+    rounds = 0
+    while result.get("violations") and rounds < MAX_REVIEW_ROUNDS:
+        rounds += 1
+        artifact = build_proposed_allocation(state)
+        artifact["review"]["violations"] = result["violations"]
+        write_artifact("data/review", state["thread_id"], artifact)
+        decision = interrupt(artifact)      # re-pause — and USE this resume value
+        result = apply_resume(state, decision)
+
     if result.get("violations"):
-        if state.get("no_review"):
-            raise RuntimeError(f"resume edit failed re-validation: {result['violations']}")
-        # review ON: re-pause with a violations-annotated artifact
-        artifact2 = build_proposed_allocation(state)
-        artifact2["review"]["violations"] = result["violations"]
-        write_artifact("data/review", state["thread_id"], artifact2)
-        interrupt(artifact2)
+        # Still violating after the cap — fail loudly, never emit a broken proposal.
+        raise RuntimeError(
+            f"review edits did not validate after {MAX_REVIEW_ROUNDS} rounds: "
+            f"{result['violations']}"
+        )
     return result          # {} (approve-as-is) or {"portfolio": ...}
 
 
