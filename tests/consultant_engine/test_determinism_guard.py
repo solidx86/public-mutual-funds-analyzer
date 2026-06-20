@@ -22,7 +22,9 @@ from consultant_engine.nodes.score_cfs import score_cfs
 from consultant_engine.nodes.build_portfolio import build_portfolio
 from consultant_engine.nodes.macro_context import macro_context
 from consultant_engine.nodes.generate_proposal import generate_proposal
+from consultant_engine.templates import render_structural_card
 from consultant_engine.rules.validation import (
+    check_alpha_warning,
     check_cfs_consistency,
     check_perf_consistency,
     check_summary_consistency,
@@ -157,6 +159,33 @@ def test_m_new_summary_cfs_cross_checked(fundmaster_4fund):
     codes_full = {v["code"] for v in
                   validate_html(corrupted, consultant_engine.__version__, idx)}
     assert "summary_mismatch" in codes_full
+
+
+# ── Structural alpha-warning disclosure gate is Python-owned (not LLM-repaired) ─
+
+def test_structural_disqualified_card_satisfies_gate_without_llm():
+    """A Disqualified *structural* fund's card satisfies check_alpha_warning by
+    Python render alone — no LLM repair needed.
+
+    Before Fix A the structural templates emitted no warning div, so a disqualified
+    gold/MM sleeve (PeEMAS is Disqualified in the live Jun-2026 book) tripped the
+    `alpha_warning` gate and only the real-LLM repair step could inject the div — a
+    hole in the determinism thesis that FAKE_LLM runs could not converge through.
+    """
+    card = render_structural_card(
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        {"abbr": "PeEMAS", "name": "Public e-EMAS", "status": "Disqualified"},
+    )
+    idx = {"PeEMAS": {"status": "Disqualified", "name": "Public e-EMAS"}}
+    # Python emitted the div, so the disclosure gate passes with zero LLM involvement.
+    assert check_alpha_warning(card, idx) == []
+
+    # Adversarial inverse: strip the div Python emitted → the gate must fire.
+    stripped = card.replace(
+        '<div class="alpha-warning"><!--slot:alpha_warning.PeEMAS--></div>', ""
+    )
+    codes = {v["code"] for v in check_alpha_warning(stripped, idx)}
+    assert "alpha_warning" in codes
 
 
 def _first_perf_table(html: str) -> str:

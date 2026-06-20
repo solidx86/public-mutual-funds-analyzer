@@ -51,9 +51,10 @@ _GOLD_CARD_TEMPLATE = """\
     <span><strong>Role:</strong> Structural — Gold / Inflation Hedge</span>
   </div>
   <div class="fund-card-body">
+    {alpha_warning}
     <p style="color:var(--text-mid); font-style:italic; font-size:13px;">
-      Structural position — allocated deterministically as a gold/inflation hedge.
-      Not subject to alpha-qualification screening.
+      Structural position — allocated deterministically as a gold/inflation hedge,
+      not selected through alpha-qualification screening.
     </p>
   </div>
 </div>"""
@@ -69,9 +70,10 @@ _MM_CARD_TEMPLATE = """\
     <span><strong>Role:</strong> Structural — Dry Powder / Liquidity Reserve</span>
   </div>
   <div class="fund-card-body">
+    {alpha_warning}
     <p style="color:var(--text-mid); font-style:italic; font-size:13px;">
-      Structural position — allocated deterministically as a liquidity reserve / dry powder.
-      Not subject to alpha-qualification screening.
+      Structural position — allocated deterministically as a liquidity reserve / dry powder,
+      not selected through alpha-qualification screening.
     </p>
   </div>
 </div>"""
@@ -100,10 +102,23 @@ def render_structural_card(holding: dict, fund: dict) -> str:
             f"Expected one of {sorted(_STRUCTURAL_ROLES)}."
         )
 
+    abbr = fund.get("abbr", holding.get("abbr", ""))
+
+    # Compliance disclosure gate: a structural sleeve carries the alpha-warning
+    # block iff the fund failed screening in the workbook — emitted here by Python
+    # (not the LLM repair step) so the gate is deterministic for structural roles
+    # too, exactly as _build_core_fund_card does for core holdings.
+    disqualified = fund.get("status") == "Disqualified"
+    alpha_warning = (
+        f'<div class="alpha-warning"><!--slot:alpha_warning.{abbr}--></div>'
+        if disqualified else ""
+    )
+
     ctx = {
-        "abbr": fund.get("abbr", holding.get("abbr", "")),
+        "abbr": abbr,
         "name": fund.get("name", ""),
         "allocation_pct": holding["allocation_pct"],
+        "alpha_warning": alpha_warning,
     }
 
     if role == "structural:gold":

@@ -96,6 +96,39 @@ def test_invalid_role_raises():
         )
 
 
+# ─── structural alpha-warning disclosure gate (Fix A) ──────────────────────────
+# A structural sleeve carries the compliance alpha-warning block iff the fund is
+# Disqualified in the workbook — emitted by Python here, not injected by the LLM
+# repair step, so the disclosure gate is deterministic for structural roles too.
+
+def test_gold_card_emits_alpha_warning_when_disqualified():
+    """A Disqualified gold structural fund's card carries the gated warning div
+    with its prose slot — Python-owned, identical in shape to a core card's."""
+    html = render_structural_card(
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        {"abbr": "PeEMAS", "name": "Public e-EMAS", "status": "Disqualified"},
+    )
+    assert '<div class="alpha-warning"><!--slot:alpha_warning.PeEMAS--></div>' in html
+
+
+def test_mm_card_emits_alpha_warning_when_disqualified():
+    """A Disqualified money-market structural fund's card carries the gated warning."""
+    html = render_structural_card(
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 5},
+        {"abbr": "PeCDF-A", "name": "Public e-Cash Deposit", "status": "Disqualified"},
+    )
+    assert '<div class="alpha-warning"><!--slot:alpha_warning.PeCDF-A--></div>' in html
+
+
+def test_structural_card_no_alpha_warning_when_qualified():
+    """A Qualified structural fund's card carries NO warning div (gate is off)."""
+    html = render_structural_card(
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        {"abbr": "PeEMAS", "name": "Public e-EMAS", "status": "Qualified"},
+    )
+    assert '<div class="alpha-warning">' not in html
+
+
 # ─── fill_slots ────────────────────────────────────────────────────────────────
 
 def test_fill_slots_replaces_version():
