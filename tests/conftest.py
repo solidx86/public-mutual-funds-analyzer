@@ -182,3 +182,18 @@ def fundmaster_4fund(tmp_path):
     p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"
     wb.save(p)
     return str(p)
+
+
+@pytest.fixture
+def fundmaster_top5(tmp_path):
+    """Two conventional equity funds whose Top-5 holdings (col 64) share ZERO
+    real names but many characters — the case that exposes the string-vs-list
+    overlap bug (C3)."""
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
+    ws.cell(3, 1, "Fund Name")
+    _row(ws, 4, "Public Alpha A", "PAAA", "No", "Equity", 3, "Qualified", 3.0,
+         c64="Apple Inc | Microsoft | Nvidia | Tesla | Amazon")
+    _row(ws, 5, "Public Beta A", "PBBB", "No", "Equity", 3, "Qualified", 2.0,
+         c64="Petronas | Maybank | CIMB | Tenaga | Genting")
+    p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"; wb.save(p)
+    return str(p)

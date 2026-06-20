@@ -88,9 +88,14 @@ def load_funds(state: ConsultantState) -> dict:
             val = ws.cell(row, 41 + i).value
             geo[header] = float(val) if val is not None else None
 
-        # Misc fields
+        # Top-5 holdings — col 64 is a " | "-delimited string in the real workbook
+        # (build_sheet_data.py joins with ' | '). Split to a list so overlap checks
+        # compare holding names, not characters.
         top5_raw = ws.cell(row, 64).value
-        top5 = top5_raw if top5_raw is not None else []
+        if top5_raw is None or top5_raw == "":
+            top5 = []
+        else:
+            top5 = [h.strip() for h in str(top5_raw).split("|") if h.strip()]
 
         vf_raw = ws.cell(row, 65).value
         vf = float(vf_raw) if vf_raw is not None else None
