@@ -32,7 +32,7 @@ from consultant_engine.cfs import derived_class
 from consultant_engine.llm import complete, complete_with_usage
 from consultant_engine.nodes.filter_universe import RISK_CEILING
 from consultant_engine.state import ConsultantState
-from consultant_engine.templates import fill_slots, render_structural_card
+from consultant_engine.templates import fill_slots, render_alpha_warning, render_structural_card
 
 _ASSETS = Path(__file__).parent.parent / "assets"
 _SKELETON_PATH = _ASSETS / "proposal_skeleton.html"
@@ -198,7 +198,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, target_an
     <span><strong>Lipper:</strong> {lipper}</span>
   </div>
   <div class="fund-card-body">
-    {"<div class=\"alpha-warning\"><!--slot:alpha_warning." + abbr + "--></div>" if disqualified else ""}
+    {render_alpha_warning(holding.get("role", "core"), alloc) if disqualified else ""}
     <div class="cfs-bar">
       <div class="cfs-title">COMPOSITE FUND SCORE: <span class="cfs-score">{c['composite']}</span> / 100</div>
       <div class="cfs-row">

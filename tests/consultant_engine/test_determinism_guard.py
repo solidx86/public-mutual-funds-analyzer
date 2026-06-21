@@ -22,7 +22,7 @@ from consultant_engine.nodes.score_cfs import score_cfs
 from consultant_engine.nodes.build_portfolio import build_portfolio
 from consultant_engine.nodes.macro_context import macro_context
 from consultant_engine.nodes.generate_proposal import generate_proposal
-from consultant_engine.templates import render_structural_card
+from consultant_engine.templates import render_alpha_warning, render_structural_card
 from consultant_engine.rules.validation import (
     check_alpha_warning,
     check_cfs_consistency,
@@ -165,12 +165,13 @@ def test_m_new_summary_cfs_cross_checked(fundmaster_4fund):
 
 def test_structural_disqualified_card_satisfies_gate_without_llm():
     """A Disqualified *structural* fund's card satisfies check_alpha_warning by
-    Python render alone — no LLM repair needed.
+    Python render alone — no LLM repair, and now with no LLM prose slot either.
 
     Before Fix A the structural templates emitted no warning div, so a disqualified
     gold/MM sleeve (PeEMAS is Disqualified in the live Jun-2026 book) tripped the
     `alpha_warning` gate and only the real-LLM repair step could inject the div — a
     hole in the determinism thesis that FAKE_LLM runs could not converge through.
+    Group 3 then made the inner text a static Python string (no `<!--slot:--> marker).
     """
     card = render_structural_card(
         {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
@@ -180,12 +181,75 @@ def test_structural_disqualified_card_satisfies_gate_without_llm():
     # Python emitted the div, so the disclosure gate passes with zero LLM involvement.
     assert check_alpha_warning(card, idx) == []
 
-    # Adversarial inverse: strip the div Python emitted → the gate must fire.
-    stripped = card.replace(
-        '<div class="alpha-warning"><!--slot:alpha_warning.PeEMAS--></div>', ""
-    )
+    # The div now carries static Python text, not an LLM prose slot marker.
+    assert "<!--slot:alpha_warning" not in card
+    assert "Disqualified" in card
+    assert "10%" in card                       # allocation interpolated by Python
+
+    # Adversarial inverse: strip the whole alpha-warning div → the gate must fire.
+    stripped = re.sub(r'<div class="alpha-warning">.*?</div>', "", card, flags=re.DOTALL)
+    assert '<div class="alpha-warning">' not in stripped
     codes = {v["code"] for v in check_alpha_warning(stripped, idx)}
     assert "alpha_warning" in codes
+
+
+def test_render_alpha_warning_role_specific_clauses():
+    """render_alpha_warning emits the disqualification lead plus the role-specific
+    clause, with the allocation interpolated — and never an LLM prose slot marker."""
+    lead = "weighted alpha &le; 0%"
+
+    gold = render_alpha_warning("structural:gold", 10)
+    assert gold.startswith('<div class="alpha-warning">') and gold.endswith("</div>")
+    assert lead in gold
+    assert "Held at 10% as a structural gold / inflation hedge" in gold
+    assert "<!--slot:alpha_warning" not in gold
+
+    mm = render_alpha_warning("structural:money_market", 5)
+    assert lead in mm
+    assert "Held at 5% as a structural liquidity reserve" in mm
+    assert "<!--slot:alpha_warning" not in mm
+
+    # Any other role (core/alpha) → generic diversifier clause.
+    for role in ("core", "alpha:equity"):
+        core = render_alpha_warning(role, 30)
+        assert lead in core
+        assert "Included at 30% as a diversifier" in core
+        assert "<!--slot:alpha_warning" not in core
+
+
+def test_pipeline_disqualified_structural_shows_static_text_no_slot():
+    """A full proposal whose portfolio holds a Disqualified structural (gold) fund
+    shows the static Python disclosure text and carries NO alpha_warning slot marker
+    anywhere — the key never reaches the LLM / FAKE_LLM fill."""
+    state = {
+        "client_profile": {
+            "risk_level": "Moderate", "shariah": False, "experience": "new",
+            "target_annual_return_pct": 8.0,
+        },
+        "fundmaster_path": "/x/PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx",
+        "portfolio": [
+            {"abbr": "PGA", "role": "core", "allocation_pct": 90},
+            {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
+        ],
+        "cfs_scores": [{"abbr": "PGA", "composite": 80, "alpha_n": 70}],
+        "eligible_funds": [
+            {"abbr": "PGA", "name": "Public Growth A", "risk_level": 3,
+             "status": "Qualified"},
+            {"abbr": "PeEMAS", "name": "Public e-Islamic EMAS", "risk_level": 3,
+             "status": "Disqualified"},
+        ],
+        "macro_context": {"events": []},
+    }
+    html = generate_proposal(state)["proposal_html"]
+
+    # No alpha_warning slot marker survives anywhere in the document.
+    assert "<!--slot:alpha_warning" not in html
+    assert "alpha_warning" not in html          # not even as a FAKE_LLM placeholder key
+
+    # The static Python disclosure text is present, scoped to the gold sleeve.
+    assert '<div class="alpha-warning">' in html
+    assert "weighted alpha &le; 0%" in html
+    assert "Held at 10% as a structural gold / inflation hedge" in html
 
 
 def test_cover_data_source_month_is_workbook_not_llm(fundmaster_4fund):

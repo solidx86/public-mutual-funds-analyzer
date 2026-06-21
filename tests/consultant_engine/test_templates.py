@@ -102,22 +102,31 @@ def test_invalid_role_raises():
 # repair step, so the disclosure gate is deterministic for structural roles too.
 
 def test_gold_card_emits_alpha_warning_when_disqualified():
-    """A Disqualified gold structural fund's card carries the gated warning div
-    with its prose slot — Python-owned, identical in shape to a core card's."""
+    """A Disqualified gold structural fund's card carries the gated warning div with
+    static Python-rendered disclosure text — no LLM prose slot remains."""
     html = render_structural_card(
         {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10},
         {"abbr": "PeEMAS", "name": "Public e-EMAS", "status": "Disqualified"},
     )
-    assert '<div class="alpha-warning"><!--slot:alpha_warning.PeEMAS--></div>' in html
+    assert '<div class="alpha-warning">' in html
+    assert "<!--slot:alpha_warning" not in html          # no prose marker survives
+    assert "Disqualified" in html
+    assert "gold / inflation hedge" in html              # gold role clause
+    assert "10%" in html                                 # allocation interpolated
 
 
 def test_mm_card_emits_alpha_warning_when_disqualified():
-    """A Disqualified money-market structural fund's card carries the gated warning."""
+    """A Disqualified money-market structural fund's card carries the gated warning
+    with static Python-rendered disclosure text — no LLM prose slot remains."""
     html = render_structural_card(
         {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 5},
         {"abbr": "PeCDF-A", "name": "Public e-Cash Deposit", "status": "Disqualified"},
     )
-    assert '<div class="alpha-warning"><!--slot:alpha_warning.PeCDF-A--></div>' in html
+    assert '<div class="alpha-warning">' in html
+    assert "<!--slot:alpha_warning" not in html          # no prose marker survives
+    assert "Disqualified" in html
+    assert "liquidity reserve" in html                   # money-market role clause
+    assert "5%" in html                                  # allocation interpolated
 
 
 def test_structural_card_no_alpha_warning_when_qualified():

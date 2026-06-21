@@ -79,6 +79,54 @@ _MM_CARD_TEMPLATE = """\
 </div>"""
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# render_alpha_warning — static, Python-owned disclosure block (no LLM)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Lead sentence shared by every Disqualified holding, regardless of role.
+_ALPHA_WARNING_LEAD = (
+    "Disqualified &mdash; weighted alpha &le; 0%, below the qualification threshold."
+)
+
+# Role → trailing clause. The clause interpolates the holding's allocation %.
+# Structural roles get their structural rationale; any other role (core/alpha)
+# falls through to the generic diversifier clause via .get(role, default).
+_ALPHA_WARNING_CLAUSE = {
+    "structural:gold": (
+        " Held at {allocation_pct}% as a structural gold / inflation hedge for "
+        "diversification, not manager skill; we monitor its alpha trend."
+    ),
+    "structural:money_market": (
+        " Held at {allocation_pct}% as a structural liquidity reserve (dry powder), "
+        "not selected for alpha."
+    ),
+}
+
+_ALPHA_WARNING_DEFAULT_CLAUSE = (
+    " Included at {allocation_pct}% as a diversifier; we monitor alpha recovery over "
+    "the coming quarters."
+)
+
+
+def render_alpha_warning(role: str, allocation_pct) -> str:
+    """Static disclosure block (no LLM) for a Disqualified holding, varying by role.
+
+    Returns the full ``<div class="alpha-warning">…</div>`` block. The lead states
+    the disqualification fact (weighted alpha ≤ 0%); a role-specific clause then
+    explains why the fund is still held at its allocation. core/alpha roles get the
+    generic diversifier clause.
+
+    Parameters
+    ----------
+    role           : holding role, e.g. ``"structural:gold"``, ``"core"``.
+    allocation_pct : the holding's allocation percentage (interpolated verbatim).
+    """
+    clause = _ALPHA_WARNING_CLAUSE.get(role, _ALPHA_WARNING_DEFAULT_CLAUSE).format(
+        allocation_pct=allocation_pct
+    )
+    return f'<div class="alpha-warning">{_ALPHA_WARNING_LEAD}{clause}</div>'
+
+
 def render_structural_card(holding: dict, fund: dict) -> str:
     """Return the HTML for a structural fund card (gold or money-market).
 
@@ -105,13 +153,12 @@ def render_structural_card(holding: dict, fund: dict) -> str:
     abbr = fund.get("abbr", holding.get("abbr", ""))
 
     # Compliance disclosure gate: a structural sleeve carries the alpha-warning
-    # block iff the fund failed screening in the workbook — emitted here by Python
-    # (not the LLM repair step) so the gate is deterministic for structural roles
-    # too, exactly as _build_core_fund_card does for core holdings.
+    # block iff the fund failed screening in the workbook — rendered here by Python
+    # as static disclosure text (no LLM) so the gate is deterministic for structural
+    # roles too, exactly as _build_core_fund_card does for core holdings.
     disqualified = fund.get("status") == "Disqualified"
     alpha_warning = (
-        f'<div class="alpha-warning"><!--slot:alpha_warning.{abbr}--></div>'
-        if disqualified else ""
+        render_alpha_warning(role, holding["allocation_pct"]) if disqualified else ""
     )
 
     ctx = {
