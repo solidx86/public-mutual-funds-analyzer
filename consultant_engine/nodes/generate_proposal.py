@@ -396,7 +396,6 @@ def _build_slot_values(
         # Portfolio (weighted)
         "portfolio.cfs_composite": portfolio_metrics["weighted_cfs"],
         "portfolio.alpha_3y": portfolio_metrics["weighted_alpha"],
-        "portfolio.volatility_factor": "—",
         "portfolio.weighted_cfs": portfolio_metrics["weighted_cfs"],
         "portfolio.weighted_alpha": portfolio_metrics["weighted_alpha"],
         "portfolio.weighted_risk_level": portfolio_metrics["weighted_risk_level"],

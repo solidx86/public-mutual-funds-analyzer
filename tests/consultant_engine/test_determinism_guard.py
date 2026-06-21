@@ -355,3 +355,25 @@ def test_source_facts_missing_macro_context_does_not_crash():
         "portfolio": [{"abbr": "PGA", "role": "core", "allocation_pct": 100}],
     }
     assert _source_facts(state)["<!--slot:sources.web_urls-->"] == ""
+
+
+# ── Group 2 — the display-only portfolio-VF surface is removed ────────────────
+
+def test_portfolio_vf_surface_removed_but_per_fund_vf_kept(fundmaster_4fund):
+    """The portfolio-level VF surface was display-only (its data-slot was a hardcoded
+    dash and the class/range were LLM-invented decoration). Group 2 removes it
+    entirely — no leftover slot markers, no exec/footer VF labels — while the per-fund
+    card VF (a real workbook value) stays."""
+    html = _html(fundmaster_4fund)
+
+    # None of the three portfolio-VF slot markers survive anywhere.
+    assert "portfolio.volatility_factor" not in html
+    assert "portfolio.volatility_class" not in html
+    assert "profile.target_vf_range" not in html
+
+    # Neither the §1 exec clause nor the §5 footer label remains.
+    assert "Portfolio VF" not in html          # also covers "Weighted Portfolio VF"
+    assert "Weighted Portfolio VF" not in html
+
+    # The per-fund card VF (a real workbook value) is preserved.
+    assert "<strong>VF:</strong>" in html
