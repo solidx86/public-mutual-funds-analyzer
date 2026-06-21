@@ -377,3 +377,64 @@ def test_portfolio_vf_surface_removed_but_per_fund_vf_kept(fundmaster_4fund):
 
     # The per-fund card VF (a real workbook value) is preserved.
     assert "<strong>VF:</strong>" in html
+
+
+# ── Group 6 — capstone: the LLM prose surface is locked to genuine synthesis ──
+
+# The ONLY prose keys allowed to reach the LLM after the determinism pass. Each
+# entry is a prefix: an exact slot key (e.g. "macro.themes") or a family stem
+# (e.g. "macro.impact.", "why.", "watch."). Every other proposal slot is now a
+# Python-rendered fact — if one regresses back through the LLM, this test fails.
+_ALLOWED_LLM_PREFIXES = {
+    "cover.subtitle",
+    "exec_summary.thesis",
+    "macro.themes",
+    "macro.impact.",
+    "why.",
+    "watch.",
+    "strategy.distribution",
+    "strategy.rebalancing",
+    "strategy.dip_capture",
+}
+
+
+def test_llm_prose_surface_is_locked_to_genuine_synthesis(fundmaster_4fund):
+    """Capstone boundary lock: in FAKE mode every remaining LLM slot becomes
+    ``[KEY narrative]``. Assert every such placeholder key has a prefix in the
+    genuine-synthesis allow-set — i.e. NO Python-owned fact (cover.shariah,
+    profile.*, sources.*, alpha_warning.*, strategy.rsp, portfolio.volatility_*,
+    exec_summary.profile/composition, macro.month_year, fee_table.*,
+    portfolio_summary.*) survives as an LLM placeholder.
+
+    This is the regression trap for the whole determinism pass: routing any fact
+    back through the LLM would re-introduce a ``[<fact-key> narrative]`` placeholder
+    here and trip the assertion loudly.
+    """
+    html = _html(fundmaster_4fund)
+
+    placeholder_keys = set(re.findall(r"\[([^\]]+?) narrative\]", html))
+    assert placeholder_keys, "expected FAKE-mode prose placeholders in the output"
+
+    def _allowed(key: str) -> bool:
+        return any(
+            key == p or key.startswith(p)
+            for p in _ALLOWED_LLM_PREFIXES
+        )
+
+    stray = sorted(k for k in placeholder_keys if not _allowed(k))
+    assert not stray, (
+        "Python-owned fact(s) leaked back through the LLM prose fill — "
+        f"these placeholder keys are not in the genuine-synthesis set: {stray}"
+    )
+
+    # Sanity: the genuine-synthesis surface is actually present (the lock isn't
+    # vacuously satisfied by an empty/over-filtered set).
+    assert "cover.subtitle" in placeholder_keys
+    assert "exec_summary.thesis" in placeholder_keys
+    assert any(k.startswith("why.") for k in placeholder_keys)
+    assert any(k.startswith("watch.") for k in placeholder_keys)
+    assert any(k.startswith("macro.impact.") for k in placeholder_keys)
+    assert "macro.themes" in placeholder_keys
+    assert "strategy.distribution" in placeholder_keys
+    assert "strategy.rebalancing" in placeholder_keys
+    assert "strategy.dip_capture" in placeholder_keys

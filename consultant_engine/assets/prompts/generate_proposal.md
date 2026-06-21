@@ -19,10 +19,15 @@ fees, VF figures, return percentages, pie-chart values — are locked. Do not al
 recompute any number or numeric slot. If you encounter a `data-slot` element, leave its content
 exactly as provided. Only write text for the `<!--slot:KEY-->` comment markers.
 
-**Engine-rendered facts.** The performance tables, the fund metadata rows (Type / Shariah / Lipper /
-VF), the macro table's Event and Date cells, and the Portfolio Exposure pies (asset-class and
-geographic conic-gradients) together with the geographic legend are now rendered deterministically
-by the engine. They are facts, not prose — never author, transcribe, or alter them.
+**Engine-rendered facts.** A large surface is now rendered deterministically by the engine and is
+**off-limits** to you — it is fact, not prose, and you must never author, transcribe, or alter it:
+the cover and metadata facts (Shariah label, FundMaster month-year, proposal/prepared dates,
+profile label, fund-type composition), the §3 risk-profile facts (name + description, return-target
+note, Shariah preference, experience level), the performance tables, the fund metadata rows (Type /
+Shariah / Lipper / VF), the macro table's Event and Date cells, the Portfolio Exposure pies
+(asset-class and geographic conic-gradients) with the geographic legend, the Portfolio Summary
+table, the fee table, the §7.1 RSP allocation table, the disqualification alpha-warning text, and
+the §9 Sources & References list. You author **only** the prose slots enumerated below.
 
 ---
 
@@ -33,12 +38,14 @@ Two types of markers appear in the skeleton:
 | Marker type | Meaning | Your action |
 |---|---|---|
 | `<span data-slot="KEY"></span>` or an element with `data-slot` | **Numeric slot** — already filled by the engine | **Leave untouched. Do not alter numeric slots.** |
-| `<!--slot:KEY-->` | **Prose slot** — awaits narrative you write | **Replace the comment with your authored text** |
+| `<!--slot:KEY-->` | **Prose slot** — awaits narrative you author | **Write its prose; the engine drops it in** |
 
-When producing the filled HTML, replace each `<!--slot:KEY-->` comment with the appropriate prose
-(inline text, `<p>` blocks, `<li>` items, or table `<tr>` rows as the surrounding structure
-requires). Do not change any HTML outside the prose slot locations. Do not add or remove sections,
-headings, CSS classes, or layout elements. The structure of the document is locked.
+You do **not** edit the document yourself. You are asked for a specific list of prose-slot keys, and
+you return the authored prose for each one in the per-slot block format defined in the task
+instruction (see "Output Format" below). The engine substitutes each fragment into the slot it owns,
+so the surrounding HTML structure — sections, headings, CSS classes, layout — is never at your mercy
+and must not be reproduced. Write only the inline text, `<li>` items, or `<p>` content the slot's
+surrounding structure expects.
 
 ---
 
@@ -48,32 +55,15 @@ headings, CSS classes, or layout elements. The structure of the document is lock
 
 | Slot key | What to write |
 |---|---|
-| `cover.subtitle` | One-sentence framing of the proposal, e.g. "A growth-oriented portfolio of 4 qualified unit-trust funds, tailored for a Moderate investor targeting 8–10% p.a." |
-| `cover.shariah` | "Shariah-compliant" or "Conventional" as appropriate |
-| `cover.fundmaster_month_year` | The month-year of the FundMaster workbook, e.g. "May 2026" |
-| `cover.proposal_date` / `cover.prepared_date` | Today's date formatted as "DD Mon YYYY", e.g. "20 Jun 2026" |
-| `exec_summary.profile` | Short label, e.g. "Moderate" |
-| `exec_summary.composition` | Fund-type breakdown, e.g. "3 equity, 1 mixed-asset" |
-| `portfolio.volatility_class` | Volatility class label matching the portfolio VF, e.g. "Medium-High" |
+| `cover.subtitle` | One-sentence framing of the proposal. **Omit all numbers** — no fund count and no target-return range (those facts are rendered elsewhere on the cover). e.g. "A growth-oriented unit-trust portfolio tailored to a Moderate investor's goals." |
 | `exec_summary.thesis` | 1–2 sentence investment thesis for the whole portfolio (see guidance below) |
 
 ### Macro context slots (Section 2)
 
 | Slot key | What to write |
 |---|---|
-| `macro.month_year` | Month-year of the macro snapshot, e.g. "June 2026" |
 | `macro.impact.N` | The engine pre-renders each macro row's Event and Date cells. Fill each row's `<!--slot:macro.impact.N-->` with one sentence on that event's implication for THIS portfolio's funds. Do not invent events or dates. |
 | `macro.themes` | 2–3 sentence narrative tying macro context to the portfolio's sector and geographic tilts. Connect BNM OPR status, ringgit trend, sector themes, and megatrends to specific fund choices. |
-
-### Risk profile slots (Section 3)
-
-| Slot key | What to write |
-|---|---|
-| `profile.name_description` | Profile label + one-sentence description, e.g. "Moderate — comfortable with medium volatility; seeks above-inflation growth without taking on full equity risk" |
-| `profile.target_note` | Brief qualification of the return target, e.g. "historical 5Y annualised, not guaranteed" |
-| `profile.shariah` | "Shariah-compliant funds only" or "Conventional funds" |
-| `profile.experience_level` | Experience level label, e.g. "New investor" or "Experienced investor" |
-| `profile.target_vf_range` | Expected VF range for this profile, e.g. "14–18 (Medium-High)" |
 
 ### Fund card prose slots (Section 5, repeated per fund)
 
@@ -81,39 +71,19 @@ For each fund abbreviated as `PIX` (the fund's abbreviation code), fill these pr
 
 | Slot key | What to write |
 |---|---|
-| `alpha_warning.PIX` | Leave empty string if fund is Qualified. If fund is Disqualified: a plain-English warning explaining the fund did not meet the weighted alpha threshold and why it is still included (e.g., "Disqualified: weighted alpha ≤ 0%. Included as diversifier — monitor alpha recovery over the next 6 months.") |
-| `fees.PIX.phs_date` | Date the PHS was last published, e.g. "Jan 2026". Sourced from the PHS PDF metadata. |
 | `why.PIX` | "Why we chose it" paragraph (see guidance below) |
 | `watch.PIX` | One or more `<li>` elements for the "What to Watch" list (see guidance below) |
 
-### Portfolio summary slots (Section 6)
-
-| Slot key | What to write |
-|---|---|
-| `portfolio_summary.fund_rows` | One `<tr>` per fund with columns: Abbreviation, Fund Type, Allocation %, CFS, 3Y Alpha, Risk Level. Values transcribed from provided data. |
-
 ### Investment strategy prose slots (Section 8)
 
-| Slot key | What to write |
-|---|---|
-| `strategy.rsp` | RSP / DCA recommendation paragraph tailored to the client profile (see guidance below) |
-| `strategy.distribution` | Distribution policy recommendation (reinvest vs payout) with rationale |
-| `strategy.rebalancing` | Rebalancing triggers paragraph: time-based, drift-based, and event-based triggers for this profile |
-| `strategy.dip_capture` | Dip capture / reserve deployment guidance: when and how to deploy cash reserves, appropriate dip threshold for this risk profile |
-
-### Fee table slot (Section 8)
+Each of these three slots is wrapped by a `<ul>…</ul>` in the skeleton — return **2–4
+`<li>…</li>` bullet items** for each (not a paragraph), exactly as `watch.PIX` works.
 
 | Slot key | What to write |
 |---|---|
-| `fee_table.fund_rows` | One `<tr>` per fund with all 8 columns. Fee values are already in the skeleton's `data-slot` elements — wrap them in the `<td>` structure. |
-
-### Sources slots (Section 9 disclaimer)
-
-| Slot key | What to write |
-|---|---|
-| `sources.fundmaster` | Citation of the FundMaster Excel file used, e.g. "PublicMutual_FundMaster_May2026_v1.26.xlsx" |
-| `sources.phs_list` | Bullet list of PHS PDFs cited, one per fund |
-| `sources.web_urls` | Bulleted list of web URLs cited for macro events |
+| `strategy.distribution` | Distribution policy recommendation (reinvest vs payout) with rationale, as 2–4 `<li>` items |
+| `strategy.rebalancing` | Rebalancing triggers as 2–4 `<li>` items: time-based, drift-based, and event-based triggers for this profile |
+| `strategy.dip_capture` | Dip capture / reserve deployment guidance as 2–4 `<li>` items: when and how to deploy cash reserves, appropriate dip threshold for this risk profile |
 
 ---
 
@@ -156,23 +126,25 @@ The `exec_summary.thesis` slot is 1–2 sentences distilling the portfolio's cor
 - What the portfolio is designed to capture or protect against
 
 Example: "Three high-alpha equity funds anchor the growth engine, offset by a Shariah mixed-asset
-fund that reduces drawdown risk during rate-uncertainty periods — the combination targets the client's
-8% p.a. goal with a blended VF that stays within the Moderate profile ceiling."
+fund that reduces drawdown risk during rate-uncertainty periods — the combination pairs strong
+manager skill (positive weighted alpha across the cores) with a risk-level mix that fits the
+Moderate profile while cushioning the deepest drawdowns."
 
 ---
 
-## RSP / DCA Strategy Guidance by Profile
+## Emphasis (Bolding)
 
-Write `strategy.rsp` based on the client's risk profile:
+Within these prose slots, wrap **key figures, percentages, and fund names/abbreviations** in
+`<strong>…</strong>` so the reader's eye lands on what matters:
 
-| Profile | Guidance |
-|---|---|
-| Conservative | Monthly RSP across bond and mixed-asset funds. Ringgit cost averaging smooths entry points. Consistency over timing. |
-| Moderate | Monthly RSP on all holdings, plus consider lump-sum top-ups during market corrections of 10%+. |
-| Moderately Aggressive | Aggressive monthly RSP. Market dips are your friend — buying more units at lower prices compounds the long-term return. |
-| Aggressive | Maximum RSP commitment + systematic lump-sum deployment during corrections of 15%+. |
+- `macro.impact.N`
+- `macro.themes`
+- `why.PIX`
+- `watch.PIX`
 
-Include the specific fund-by-fund RSP split percentages from the portfolio allocation.
+For example: "<strong>PGA</strong>'s manager added <strong>+4.0% per year</strong> above the
+benchmark over 3 years." Do NOT bold inside `cover.subtitle` — it carries no numbers. Bold sparingly:
+the figure or name itself, never whole sentences.
 
 ---
 
@@ -185,10 +157,10 @@ Apply based on `client_profile["experience"]`. Two experience levels:
 
 ### Layer 1 — Inline parenthetical on first use
 
-When a jargon term first appears in **narrative prose** (executive summary, thesis, "Why We Chose It"
-paragraphs, "What to Watch" items, macro themes, risk profile description, strategy paragraphs),
-append the plain-English definition in parentheses immediately after. On subsequent uses of the same
-term, use the term alone — never repeat the definition.
+When a jargon term first appears in **narrative prose** (the thesis, "Why We Chose It" paragraphs,
+"What to Watch" items, macro impact/themes, and the strategy bullets), append the plain-English
+definition in parentheses immediately after. On subsequent uses of the same term, use the term alone
+— never repeat the definition.
 
 **Exempt from Layer 1:** Tables, performance grids, CFS bar labels, metadata rows. These are
 reference data, not prose — adding parentheticals clutters them. Column headers provide context.
@@ -238,7 +210,7 @@ Examples:
 | "3Y alpha +16.70% — 5/5 beat rate" | "The fund manager added 16.70% per year above the market benchmark over 3 years — confirmed across a full cycle, not a lucky streak" |
 | "VF 21.1 — corrections of 25–35% possible" | "This fund's price can drop 25–35% during market panics. That is normal for this type of fund — holding through it is the strategy, not a reason to exit" |
 | "ATH drawdown -7.01% (39 days)" | "The fund is currently 7% below its highest-ever price, where it has sat for 39 days. It is approaching the 10% level that triggers our reserve deployment rule" |
-| "RSP: 45% PIATAF, 33% PISTF..." | "Set up a standing monthly investment: 45% into PIATAF, 33% into PISTF..." |
+| "Deploy reserves at -15% dip trigger" | "When a holding falls 15% from its recent peak, move money-market reserves into it — buying more units while prices are low" |
 
 **Layer 2 is NOT applied to:** Tables, performance grids, metadata, cost calculations, and the
 portfolio summary table. These are data references, not reading material.
@@ -280,7 +252,13 @@ mention the 6 business day cooling-off period for first-time investors.
 
 ## Output Format
 
-Return the complete HTML document with all `<!--slot:KEY-->` comments replaced by their prose
-content and all `data-slot` elements left exactly as provided. Do not add or remove any HTML
-elements, CSS rules, or structural elements outside the prose slots. The document must be
-self-contained (no external CSS or script dependencies).
+Do **not** return the whole HTML document. Author only the prose slots you are asked for, and return
+them in the per-slot block format specified in the task instruction (each value introduced by its own
+delimiter line). Defer to that instruction for the exact delimiter and ordering.
+
+Rules:
+- Output a block for **every** key listed in the task instruction, and **only** those keys — never
+  invent a key you were not asked for, and never emit a key the engine owns.
+- Never touch, transcribe, or reproduce any `data-slot` element or any other engine-rendered fact.
+- Each value is the slot's inline HTML prose only (or, for `watch.*` and the `strategy.*` slots, the
+  `<li>…</li>` items) — no wrapping document structure, no surrounding section/heading markup.
