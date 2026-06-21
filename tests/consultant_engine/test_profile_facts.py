@@ -262,6 +262,14 @@ def test_classify_no_assets_fallback_uses_fund_type_regex():
     assert _classify_holding(_holding("EQ"), [eq_fund]) == "equity"
 
 
+@pytest.mark.parametrize("fund_type", ["Sukuk Fund", "Bond"])
+def test_classify_no_assets_fallback_matches_bond_re_alternations(fund_type):
+    # No-assets fallback path: the _BOND_RE "sukuk" and "bond" alternations (only
+    # exercised via "Fixed Income" elsewhere) must also classify as "bond".
+    fund = _fund("BND", fund_type=fund_type, with_assets=False)
+    assert _classify_holding(_holding("BND"), [fund]) == "bond"
+
+
 def test_classify_minimal_fallback_when_fund_absent_is_equity():
     # Abbr not in eligible_funds → _lookup_fund minimal fallback (no assets, no
     # fund_type) → regex finds nothing → "equity".

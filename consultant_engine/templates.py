@@ -120,6 +120,10 @@ def render_alpha_warning(role: str, allocation_pct: int | float) -> str:
     ----------
     role           : holding role, e.g. ``"structural:gold"``, ``"core"``.
     allocation_pct : the holding's allocation percentage (interpolated verbatim).
+
+    Returns
+    -------
+    str — the full ``<div class="alpha-warning">…</div>`` disclosure block string.
     """
     clause = _ALPHA_WARNING_CLAUSE.get(role, _ALPHA_WARNING_DEFAULT_CLAUSE).format(
         allocation_pct=allocation_pct

@@ -217,6 +217,13 @@ def test_render_alpha_warning_role_specific_clauses():
         assert "<!--slot:alpha_warning" not in core
 
 
+def test_render_alpha_warning_float_allocation_not_rounded():
+    """A float allocation interpolates verbatim (no rounding) — pinning the
+    ``int | float`` contract on allocation_pct."""
+    warning = render_alpha_warning("structural:gold", 12.5)
+    assert "12.5%" in warning
+
+
 def test_pipeline_disqualified_structural_shows_static_text_no_slot():
     """A full proposal whose portfolio holds a Disqualified structural (gold) fund
     shows the static Python disclosure text and carries NO alpha_warning slot marker
@@ -355,6 +362,16 @@ def test_source_facts_missing_macro_context_does_not_crash():
         "portfolio": [{"abbr": "PGA", "role": "core", "allocation_pct": 100}],
     }
     assert _source_facts(state)["<!--slot:sources.web_urls-->"] == ""
+
+
+def test_source_facts_event_missing_theme_and_date_renders_bare_link():
+    """An event carrying only source_url (no theme/date) still renders one
+    <li><a href=…> — the .get defaults produce empty label parts, no crash."""
+    from consultant_engine.nodes.generate_proposal import _source_facts
+    events = [{"source_url": "https://example.com/bare"}]
+    web = _source_facts(_state_with_events(events))["<!--slot:sources.web_urls-->"]
+    assert '<a href="https://example.com/bare">' in web
+    assert web.count("<li>") == 1
 
 
 # ── Group 2 — the display-only portfolio-VF surface is removed ────────────────

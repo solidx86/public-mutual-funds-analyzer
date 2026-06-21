@@ -105,6 +105,19 @@ def test_build_rsp_table_total_is_summed_not_hardcoded():
     )
 
 
+def test_build_rsp_table_empty_portfolio():
+    """An empty portfolio still renders the header row and a Total row (0% / RM 0),
+    with no body holding rows in between."""
+    table = _build_rsp_table([])
+    # Only two <tr>: the header row + the summed Total row (no holding rows).
+    assert table.count("<tr>") == 2
+    # The Total row shows a zeroed allocation and a zeroed ringgit total.
+    assert (
+        "<tr><td><strong>Total</strong></td><td><strong>0%</strong></td>"
+        "<td><strong>RM 0</strong></td></tr>" in table
+    )
+
+
 # ── Pipeline tests — §7 RSP table renders; old prose key is gone ─────────────
 
 def test_pipeline_rsp_table_in_section7(fundmaster_4fund):

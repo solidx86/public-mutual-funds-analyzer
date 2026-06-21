@@ -293,6 +293,16 @@ def _build_rsp_table(portfolio: list[dict]) -> str:
     (ringgit = allocation_pct * 10). A final Total row sums the actual allocations and
     ringgit — never the hardcoded 100 / 1000 — so it stays correct for any portfolio.
     Reuses the per-fund perf-table style for visual consistency.
+
+    Args:
+        portfolio: Holdings to render, each a dict with "abbr" and "allocation_pct".
+
+    Returns:
+        An HTML string: a table-wrap-wrapped <table> with one row per holding plus a
+        summed Total row.
+
+    Raises:
+        KeyError: if a holding lacks "abbr" or "allocation_pct".
     """
     body_rows = []
     sum_alloc = 0.0
@@ -545,6 +555,14 @@ def _classify_holding(holding: dict, eligible_funds: list[dict]) -> str:
     _lookup_fund fallback has no ``assets``) do we fall back to the fund_type regex,
     then to "equity". This avoids the old bug where Mixed-Asset / Fund-of-Funds types
     were silently mislabelled "equity" by the fund_type substring match.
+
+    Args:
+        holding: A portfolio holding dict; uses "role" (optional) and "abbr".
+        eligible_funds: Funds used to resolve the holding's asset class — by allocation
+            via "assets" when present, else by the "fund_type" regex fallback.
+
+    Returns:
+        One of the literal labels "gold", "MM", "equity", "bond", or "balanced".
     """
     role = holding.get("role", "core")
     if role == "structural:gold":
@@ -577,6 +595,14 @@ def _profile_facts(state: ConsultantState) -> dict:
 
     Applied BEFORE prose fill in generate_proposal so these markers never reach the
     LLM (they then disappear from _collect_prose_keys). Mirrors the cover-facts block.
+
+    Args:
+        state: The consultant state; reads client_profile, portfolio, eligible_funds,
+            and fundmaster_path.
+
+    Returns:
+        A mapping of each <!--slot:KEY--> marker string to its Python-rendered value,
+        applied by str.replace in generate_proposal before prose fill.
     """
     client = state["client_profile"]
     risk_level = client["risk_level"]
@@ -589,7 +615,7 @@ def _profile_facts(state: ConsultantState) -> dict:
     )
     # Computed realism warning when present, else the static within-range qualifier.
     # The static qualifier intentionally renders for a defaulted-midpoint target too
-    # (target ≤ ceiling, where load_profile sets no target_note), not only for a
+    # (target ≤ ceiling, where load_profile sets an EMPTY target_note), not only for a
     # client-stated within-range target — both cases are "realistic but not guaranteed".
     target_note = client.get("target_note") or (
         f"within the realistic range for a {risk_level} profile — "
@@ -623,6 +649,13 @@ def _source_facts(state: ConsultantState) -> dict:
 
     Applied BEFORE prose fill in generate_proposal so these markers never reach the
     LLM (they then disappear from _collect_prose_keys). Mirrors _profile_facts.
+
+    Args:
+        state: The consultant state; reads fundmaster_path, portfolio, and macro_context.
+
+    Returns:
+        A mapping of each §9 Sources <!--slot:KEY--> marker to its rendered <li> HTML
+        (an empty string for web_urls when there are no macro events).
     """
     fundmaster_path = state["fundmaster_path"]
     basename = Path(fundmaster_path).name
