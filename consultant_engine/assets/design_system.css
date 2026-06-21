@@ -475,6 +475,28 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
 
 .strategy-card h4 { color: var(--navy); margin-bottom: 8px; }
 
+/* Strategy prose lists (distribution / rebalancing / dip-capture): term-anchored,
+   capped measure, softened emphasis — keeps each bullet scannable instead of a wall. */
+.strategy-card ul { list-style: none; padding: 0; margin: 0; }
+.strategy-card li {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  max-width: 68ch;              /* hold the line to ~60-75 chars for readability */
+  color: var(--text-mid);       /* description sits in muted text */
+}
+.strategy-card li:first-child { border-top: none; padding-top: 4px; }
+.strategy-card li > strong:first-child {
+  display: block;               /* lead-in becomes a term anchor on its own line */
+  color: var(--navy);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.strategy-card li strong {      /* inline figures: medium navy, not heavy black */
+  color: var(--navy);
+  font-weight: 600;
+}
+
 /* ── Pie Charts ── */
 .exposure-chart-wrap {
   display: flex;
