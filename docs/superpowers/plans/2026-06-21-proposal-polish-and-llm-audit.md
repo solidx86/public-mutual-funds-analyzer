@@ -22,7 +22,7 @@ Legend: **PY** = Python-owned (deterministic). **LLM** = free LLM prose. **PARTI
 | **1 · Executive Summary** | `exec_summary.profile` | LLM ⚠FACT | "Moderate" — derivable |
 | | `exec_summary.composition` | LLM ⚠FACT | "2 bond, 1 gold, 1 MM" — derivable from portfolio |
 | | `exec_summary.thesis` | LLM | genuine prose, OK |
-| | `portfolio.volatility_class` | LLM ⚠FACT | "Low-Medium" — derivable from VF |
+| | `portfolio.volatility_class` + `portfolio.volatility_factor` | **OMIT** | VF is display-only (not a construction input); portfolio VF is uncomputed (`—`) → drop the clause |
 | | CFS / 3Y Alpha / VF numbers + bold labels | PY | data-slots + static `<strong>` |
 | **2 · Global & Local Macro Context** | `macro.month_year` | LLM ⚠FACT | report month — Python should own (like cover) |
 | | macro table Event + Date columns | PY | engine-rendered from the macro contract |
@@ -33,14 +33,14 @@ Legend: **PY** = Python-owned (deterministic). **LLM** = free LLM prose. **PARTI
 | | `profile.shariah` | LLM ⚠FACT | Python knows |
 | | `profile.experience_level` | LLM ⚠FACT | Python knows |
 | | `profile.rl_ceiling` | LLM ⚠FACT | **Python owns the RL-ceiling rule** |
-| | `profile.target_vf_range` | LLM ⚠FACT | Python owns the VF-range rule |
+| | `profile.target_vf_range` | **OMIT** | LLM-invented; no rule, not a construction input → remove the §3 row |
 | | `profile.target_annual_return_pct` | PY | data-slot |
 | **4 · Fund Recommendations** | fund card structure (meta, CFS, perf, exposure numbers) | PY | all numbers Python-owned |
 | | `why.<FUND>` (Why We Chose It) | LLM | prose — **needs bolding** |
 | | `watch.<FUND>` (What to Watch) | LLM | prose — **needs bolding** |
 | | `alpha_warning.<FUND>` | LLM ⚠FACT | div is PY-gated; **prose is near-boilerplate Python knows** (status / weighted-alpha / role / alloc) → static PY string |
 | **5 · Portfolio Summary** | summary rows + weighted CFS/Alpha/VF | PY | engine-rendered |
-| | `portfolio.volatility_class` | LLM ⚠FACT | (same as §1) |
+| | `portfolio.volatility_class` | **OMIT** | (same as §1 — drop the clause) |
 | **6 · Portfolio Exposure** | asset + geo pies, legends, asset % | PY | deterministic look-through |
 | **7 · Investment Strategy** | `strategy.rsp` | LLM ⚠FACT(partial) | contains the allocation split (Python facts) → **RSP table** |
 | | `strategy.distribution` | LLM | prose → **bullets** |
@@ -76,10 +76,16 @@ Extend the existing "substitute before prose fill" block in `generate_proposal` 
 | `profile.target_note` | PY both branches: `load_profile`'s computed warning when `target > ceiling`, else a static standard qualifier. **Remove the LLM from this slot.** |
 | `macro.month_year` | derive from the macro-context snapshot date |
 
-### Group 2 — Two NEW locked mappings (⚠ DECISION REQUIRED before coding)
-`portfolio.volatility_class` (VF→class label; rendered in §1 **and** §5) and `profile.target_vf_range` (per-profile VF band, e.g. Moderate "6–12 (Low-Medium)") have **no rule today — the LLM invents them.** Folding to Python means **defining authoritative, client-facing band boundaries + a per-profile VF-range table** (locked numbers, like the qualification rule). This needs consultant sign-off, not silent invention.
-- **Recommended:** define one VF-band scheme + per-profile ranges in a small rule module, with a test pinning each profile's range. Boundaries to be confirmed at implementation (placeholder e.g. Low <6, Low-Medium 6–12, Medium-High 12–18, High ≥18).
-- **If the boundaries aren't signed off in time:** these two stay the *only* profile/portfolio facts the LLM fills — ship the rest of the pass, leave these as a tracked stub. Do not block the whole pass on them.
+### Group 2 — Portfolio-VF surface → OMIT entirely (decided 2026-06-21)
+**VF is display-only — it does not drive portfolio construction.** Confirmed: `volatility_factor` / VF appears nowhere in the selection / allocation / scoring path (`cfs.py`, `portfolio.py`, `filter_universe.py`, `build_portfolio.py`, `score_cfs.py` — zero references). Construction's risk control is the **RL 1–5 ceiling** (`filter_universe.RISK_CEILING`), not VF. And the portfolio-level VF is **not even computed** — `portfolio.volatility_factor` is hardcoded `"—"` (`generate_proposal.py:363`); the class label + target range are LLM-invented on top of that dash.
+
+So rather than invent locked band boundaries, **remove the portfolio-VF surface** (no new mapping, no decision):
+- §1 Executive Summary: drop the `Portfolio VF: — (volatility_class)` clause (keep CFS + 3Y Alpha — both real).
+- §5 Portfolio Summary footer: drop the `Weighted Portfolio VF: — (volatility_class)` clause.
+- §3 Client Risk Profile: remove the **Target Portfolio VF** row entirely.
+- **Keep** the per-fund VF on each fund card — that one is a real workbook value (`load_funds`, cell 65).
+
+Deletes `portfolio.volatility_class`, `portfolio.volatility_factor`, and `profile.target_vf_range` from the skeleton + prose keys. Group 2 is now a *deletion*, not a new rule.
 
 ### Group 3 — `alpha_warning.<FUND>` → PY static templated string
 Render in the card template (`templates.py`), not as a prose slot. Remove it from the collected prose keys; update the FAKE_LLM fill + the determinism-guard test (the structural-card test already asserts the div is PY-emitted — extend it to assert the *text* is Python's).
@@ -101,13 +107,13 @@ Substitute before prose fill, like the cover:
 - **Bullets:** instruct `strategy.distribution`/`rebalancing`/`dip_capture` to return `<li>` items.
 
 ### Remaining LLM-owned after this pass (the genuine-synthesis surface)
-`cover.subtitle` (no numbers) · `exec_summary.thesis` · `macro.impact.N` · `macro.themes` · `why.<FUND>` · `watch.<FUND>` · `strategy.distribution` / `rebalancing` / `dip_capture`. *(Plus `volatility_class` + `target_vf_range` only if Group 2's boundaries are deferred.)*
+`cover.subtitle` (no numbers) · `exec_summary.thesis` · `macro.impact.N` · `macro.themes` · `why.<FUND>` · `watch.<FUND>` · `strategy.distribution` / `rebalancing` / `dip_capture`.
 
 ### Deferred (still out of scope)
 - Fees (§8) — ENH-1 PHS extraction.
 
 ### Suggested order
-Group 1 → 3 → 4 → 5 (independent, mechanical) → Group 2 (gated on the VF decision) → Group 6 (prompt last). Land as one pass or a short series; regenerate a fresh proposal to review; keep `tests/test_proposal_validation.py` at 29/29.
+Group 1 → 3 → 4 → 5 (independent, mechanical) → Group 2 (skeleton deletion) → Group 6 (prompt last). Land as one pass or a short series; regenerate a fresh proposal to review; keep `tests/test_proposal_validation.py` at 29/29.
 
 ## Test/verify expectations
 - Each Python-owned slot lands an adversarial/consistency test (per repo convention).

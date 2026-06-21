@@ -44,7 +44,7 @@
 <tr><td class="sec" rowspan="4">1 · Executive Summary</td><td><code>exec_summary.profile</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>"Moderate" — derivable</td></tr>
 <tr><td><code>exec_summary.composition</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>derivable from portfolio</td></tr>
 <tr><td><code>exec_summary.thesis</code></td><td class="llm">LLM</td><td>genuine prose, OK</td></tr>
-<tr><td>CFS / Alpha / VF numbers + bold labels · <code>portfolio.volatility_class</code></td><td class="partial">PARTIAL</td><td>numbers PY, class LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td>CFS / 3Y Alpha numbers + bold labels (PY) · <code>portfolio.volatility_class</code> + <code>portfolio.volatility_factor</code></td><td class="py">PY / <strong>OMIT</strong></td><td>CFS+Alpha real; VF surface display-only (uncomputed <code>—</code>) → drop the clause</td></tr>
 <tr><td class="sec" rowspan="3">2 · Macro Context</td><td><code>macro.month_year</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>report month — Python should own</td></tr>
 <tr><td>Event + Date columns · <code>macro.impact.N</code></td><td class="partial">PARTIAL</td><td>event/date PY, implication LLM — <strong>needs bolding</strong></td></tr>
 <tr><td><code>macro.themes</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
@@ -53,11 +53,11 @@
 <tr><td><code>profile.shariah</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td><code>profile.experience_level</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td><code>profile.rl_ceiling</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
-<tr><td><code>profile.target_vf_range</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.target_vf_range</code></td><td class="py"><strong>OMIT</strong></td></tr>
 <tr><td class="sec" rowspan="3">4 · Fund Recommendations</td><td>card structure (meta, CFS, perf, exposure)</td><td class="py">PY</td><td>all numbers Python-owned</td></tr>
 <tr><td><code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
 <tr><td><code>alpha_warning.&lt;FUND&gt;</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>div is PY-gated; prose is boilerplate PY knows → static PY string</td></tr>
-<tr><td class="sec">5 · Portfolio Summary</td><td>rows + weighted CFS/Alpha/VF · <code>volatility_class</code></td><td class="partial">PARTIAL</td><td>numbers PY, class LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td class="sec">5 · Portfolio Summary</td><td>rows + weighted CFS/Alpha (PY) · <code>volatility_class</code></td><td class="py">PY / <strong>OMIT</strong></td><td>CFS+Alpha real; VF clause dropped (same as §1)</td></tr>
 <tr><td class="sec">6 · Portfolio Exposure</td><td>asset + geo pies, legends, %</td><td class="py">PY</td><td>deterministic look-through</td></tr>
 <tr><td class="sec" rowspan="4">7 · Investment Strategy</td><td><code>strategy.rsp</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>holds allocation split → <strong>RSP table (PY)</strong></td></tr>
 <tr><td><code>strategy.distribution</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
@@ -85,12 +85,16 @@
 <tr><td><code>macro.month_year</code></td><td>derive from the macro-context snapshot date</td></tr>
 </table>
 
-<h3>Group 2 — Two NEW locked mappings <span class="fact">⚠ DECISION REQUIRED before coding</span></h3>
-<p><code>portfolio.volatility_class</code> (VF→class label; §1 <strong>and</strong> §5) and <code>profile.target_vf_range</code> (per-profile VF band, e.g. Moderate "6–12 (Low-Medium)") have <strong>no rule today — the LLM invents them.</strong> Folding to Python means <strong>defining authoritative, client-facing band boundaries + a per-profile VF-range table</strong> (locked numbers, like the qualification rule). Needs consultant sign-off, not silent invention.</p>
+<h3>Group 2 — Portfolio-VF surface → OMIT entirely <span class="py">decided 2026-06-21</span></h3>
+<p><strong>VF is display-only — it does not drive portfolio construction.</strong> Confirmed: <code>volatility_factor</code>/VF appears nowhere in the selection/allocation/scoring path (<code>cfs.py</code>, <code>portfolio.py</code>, <code>filter_universe.py</code>, <code>build_portfolio.py</code>, <code>score_cfs.py</code> — zero references). Construction's risk control is the <strong>RL 1–5 ceiling</strong> (<code>filter_universe.RISK_CEILING</code>), not VF. And the portfolio-level VF is <strong>not even computed</strong> — <code>portfolio.volatility_factor</code> is hardcoded <code>"—"</code> (<code>generate_proposal.py:363</code>); the class label + target range are LLM-invented on top of that dash.</p>
+<p>So rather than invent locked band boundaries, <strong>remove the portfolio-VF surface</strong> (no new mapping, no decision):</p>
 <ul>
-<li><strong>Recommended:</strong> one VF-band scheme + per-profile ranges in a small rule module, each pinned by a test. Boundaries confirmed at implementation (placeholder e.g. Low &lt;6, Low-Medium 6–12, Medium-High 12–18, High ≥18).</li>
-<li><strong>If not signed off in time:</strong> these two stay the <em>only</em> profile/portfolio facts the LLM fills — ship the rest, leave these as a tracked stub. Do not block the whole pass on them.</li>
+<li>§1 Executive Summary: drop the <code>Portfolio VF: — (volatility_class)</code> clause (keep CFS + 3Y Alpha — both real).</li>
+<li>§5 Portfolio Summary footer: drop the <code>Weighted Portfolio VF: — (volatility_class)</code> clause.</li>
+<li>§3 Client Risk Profile: remove the <strong>Target Portfolio VF</strong> row entirely.</li>
+<li><strong>Keep</strong> the per-fund VF on each fund card — a real workbook value (<code>load_funds</code>, cell 65).</li>
 </ul>
+<p>Deletes <code>portfolio.volatility_class</code>, <code>portfolio.volatility_factor</code>, and <code>profile.target_vf_range</code> from the skeleton + prose keys. Group 2 is now a <em>deletion</em>, not a new rule.</p>
 
 <h3>Group 3 — <code>alpha_warning.&lt;FUND&gt;</code> → PY static templated string</h3>
 <p>Render in the card template (<code>templates.py</code>), not as a prose slot. Remove from collected prose keys; update the FAKE_LLM fill + the determinism-guard test (it already asserts the div is PY-emitted — extend it to assert the <em>text</em> is Python's).</p>
@@ -117,13 +121,13 @@
 </ul>
 
 <h3>Remaining LLM-owned after this pass (genuine-synthesis surface)</h3>
-<p><code>cover.subtitle</code> (no numbers) · <code>exec_summary.thesis</code> · <code>macro.impact.N</code> · <code>macro.themes</code> · <code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code> · <code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code>. <em>(Plus <code>volatility_class</code> + <code>target_vf_range</code> only if Group 2 is deferred.)</em></p>
+<p><code>cover.subtitle</code> (no numbers) · <code>exec_summary.thesis</code> · <code>macro.impact.N</code> · <code>macro.themes</code> · <code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code> · <code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code>.</p>
 
 <h3>Deferred (still out of scope)</h3>
 <ul><li>Fees (§8) — ENH-1 PHS extraction.</li></ul>
 
 <h3>Suggested order &amp; verify</h3>
-<p>Group 1 → 3 → 4 → 5 (mechanical) → Group 2 (gated on the VF decision) → Group 6 (prompt last). Each PY slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
+<p>Group 1 → 3 → 4 → 5 (mechanical) → Group 2 (skeleton deletion) → Group 6 (prompt last). Each PY slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
 </div>
 </body>
 </html>
