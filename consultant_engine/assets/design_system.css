@@ -72,7 +72,7 @@ body {
 .page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 40px;
+  padding: 24px 40px;
 }
 
 /* ── Cover Page ── */
@@ -197,8 +197,8 @@ body {
 
 /* ── Section Headers ── */
 .section {
-  margin-bottom: var(--space-2xl);
-  padding-top: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  padding-top: var(--space-md);
   page-break-inside: avoid;
 }
 
