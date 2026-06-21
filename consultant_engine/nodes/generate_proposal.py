@@ -21,6 +21,7 @@ Steps:
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import datetime
@@ -28,7 +29,7 @@ from pathlib import Path
 
 import consultant_engine
 from consultant_engine import exposure
-from consultant_engine.llm import complete
+from consultant_engine.llm import complete, complete_with_usage
 from consultant_engine.state import ConsultantState
 from consultant_engine.templates import fill_slots, render_structural_card
 
@@ -192,7 +193,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, target_an
     <span><strong>RL:</strong> {fund_risk_level}</span>
     <span><strong>VF:</strong> {volatility_factor}</span>
     <span><strong>Shariah:</strong> {shariah}</span>
-    <span><strong>AUM:</strong> RM —M</span>
+    <span><strong>AUM:</strong> &mdash;</span>
     <span><strong>Lipper:</strong> {lipper}</span>
   </div>
   <div class="fund-card-body">
@@ -243,7 +244,7 @@ def _build_core_fund_card(holding: dict, fund: dict, cfs: dict | None, target_an
       <div class="cell"><span class="label">Annual Cost</span><span class="value">—</span></div>
       <div class="cell"><span class="label">3Y Alpha</span><span class="value">—</span></div>
       <div class="cell"><span class="label">Net Value-Add</span><span class="value">—</span></div>
-      <div class="source">Fees from <code>{abbr}_PHS.pdf</code> &middot; PHS dated <!--slot:fees.{abbr}.phs_date--></div>
+      <div class="source">Fees pending PHS extraction &middot; source <code>{abbr}_PHS.pdf</code></div>
     </div>
     <h4>Why We Chose It</h4>
     <p><!--slot:why.{abbr}--></p>
@@ -278,7 +279,7 @@ def _build_fee_table_rows(portfolio: list[dict]) -> str:
             f"<tr>"
             f"<td><strong>{abbr}</strong></td>"
             f"<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>"
-            f"<td><!--slot:fees.{abbr}.phs_date--></td>"
+            f"<td>&mdash;</td>"
             f"</tr>"
         )
     return "\n".join(rows)
@@ -381,31 +382,64 @@ def _fill_prose_slots_fake(html: str) -> str:
     return _PROSE_SLOT_RE.sub(_replace, html)
 
 
+def _collect_prose_keys(html: str) -> list[str]:
+    """Unique, order-preserving list of remaining <!--slot:KEY--> prose keys."""
+    return list(dict.fromkeys(k.strip() for k in _PROSE_SLOT_RE.findall(html)))
+
+
+def _parse_prose_map(text: str) -> dict:
+    """Extract the {key: prose} JSON object from the model reply (tolerant of fences/prose)."""
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if not m:
+        return {}
+    try:
+        obj = json.loads(m.group(0))
+    except json.JSONDecodeError:
+        return {}
+    return {k: v for k, v in obj.items() if isinstance(v, str)} if isinstance(obj, dict) else {}
+
+
 def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
-    """Send the numerically-filled document to the LLM for prose authoring."""
+    """Author prose via the LLM WITHOUT round-tripping the document.
+
+    The model returns only a JSON map of slot-key -> prose; Python substitutes each
+    fragment into the skeleton it owns. The document structure is therefore never at
+    the model's mercy: a malformed or missing value degrades to a per-slot placeholder,
+    never a broken doc. (The old whole-document round-trip silently failed against a
+    real model — it truncated/paraphrased and dropped every section.)
+    """
+    keys = _collect_prose_keys(html)
+    if not keys:
+        return html
+
     system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
-
-    client = state["client_profile"]
-    portfolio = state["portfolio"]
-    macro = state.get("macro_context", {})
-    cfs_scores = state.get("cfs_scores", [])
-    fundmaster_path = state.get("fundmaster_path", "")
-
-    context_block = (
-        f"Client profile: {client}\n"
-        f"Portfolio: {portfolio}\n"
-        f"CFS scores: {cfs_scores}\n"
-        f"Macro context: {macro}\n"
-        f"FundMaster: {fundmaster_path}\n\n"
-        f"Document (fill each <!--slot:KEY--> with appropriate prose):\n\n{html}"
+    instruction = (
+        "Author the prose for this Public Mutual investment proposal. Using the client "
+        "context below, return ONLY a single JSON object that maps EACH slot key (verbatim) "
+        "to its HTML prose value — no other text, no markdown fences. For list slots whose "
+        "key starts with 'watch.' return a string of 2-4 <li>…</li> items; for all other "
+        "slots return inline HTML with no wrapping block tag.\n\n"
+        f"Client profile: {state['client_profile']}\n"
+        f"Portfolio: {state['portfolio']}\n"
+        f"CFS scores: {state.get('cfs_scores', [])}\n"
+        f"Macro context: {state.get('macro_context', {})}\n\n"
+        f"Slot keys to fill ({len(keys)}):\n" + "\n".join(keys)
     )
 
-    result = complete(context_block, system=system_prompt)
+    text, usage = complete_with_usage(instruction, model=state.get("model") or "claude-sonnet-4-6",
+                                      system=system_prompt)
+    filled = _parse_prose_map(text)
 
-    # If LLM didn't fill prose slots inline, fall back to fake placeholders
-    if "<!--slot:" in result:
-        return _fill_prose_slots_fake(result)
-    return result
+    missing = [k for k in keys if k not in filled]
+    if usage.get("cost_usd"):
+        print(f"  prose: {len(keys) - len(missing)}/{len(keys)} slots filled — "
+              f"{usage['input_tokens']} in + {usage['output_tokens']} out tokens "
+              f"≈ ${usage['cost_usd']:.4f}")
+    if missing:
+        print(f"  prose: {len(missing)} slot(s) fell back to placeholder: {missing[:6]}")
+
+    return _PROSE_SLOT_RE.sub(lambda m: filled.get(m.group(1).strip(),
+                                                    f"[{m.group(1).strip()} narrative]"), html)
 
 
 def generate_proposal(state: ConsultantState) -> dict:

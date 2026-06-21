@@ -122,9 +122,11 @@ def _build_parser() -> argparse.ArgumentParser:
              "newest PublicMutual_FundMaster_*.xlsx under output/fundmasters/ "
              "(else output/examples/fundmasters/).")
     inp.add_argument(
-        "--macro", metavar="SOURCE", default="none",
-        help="Macro-context source tag (default: none). Informational — macro "
-             "events are loaded from the bundled fixture.")
+        "--macro", metavar="SOURCE", default="live",
+        help="Macro-context source (default: live). 'live' runs the web-search "
+             "agent (24h-cached at data/cache/macro_results.json, falls back to the "
+             "fixture offline / without a key); 'fixture' or 'none' uses the bundled "
+             "fixture. Needs ANTHROPIC_API_KEY (see .env.example) for a real live pull.")
 
     out = ap.add_argument_group("output")
     out.add_argument(
@@ -152,6 +154,17 @@ def _build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def _load_env() -> None:
+    """Load a local .env (gitignored) so ANTHROPIC_API_KEY reaches the real LLM path.
+    Real environment variables take precedence; a missing python-dotenv or missing
+    .env are both no-ops (offline/fake runs never need a key)."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv()
+
+
 def main(argv=None) -> int:
     """Run the CLI: parse args, build the graph, invoke it, and report the outcome.
 
@@ -161,6 +174,7 @@ def main(argv=None) -> int:
     Returns:
         Process exit code (0 on success / clean pause).
     """
+    _load_env()
     ap = _build_parser()
     args = ap.parse_args(argv)
     if not args.resume and not args.profile:
