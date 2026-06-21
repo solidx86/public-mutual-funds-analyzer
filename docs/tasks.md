@@ -444,3 +444,45 @@ scheduling.
 - Consumes the same per-fund minimum data as ENH-7. The HITL review gate is the natural surface to
   present a proposed schedule for consultant adjustment. Scope via brainstorming → writing-plans
   before implementing.
+
+---
+
+## ENH-9 — Per-fund-card top-5 holdings + country-exposure chart
+
+**Status:** TODO — not now (parked; idea captured)
+**Raised:** 2026-06-21
+**Area:** `consultant_engine/` (Section 4 fund cards — `templates.py` structural card render),
+data source `mfr_results.json`
+**Related:** ENH-2 (top-5 holdings + geo breakdown are already listed as volatile per-MFR fields in
+the canonical store), ENH-1/Track 0 (determinism — this stays Python-rendered, never LLM prose).
+
+### Idea
+Each fund card in Section 4 currently shows meta / CFS / performance / asset-exposure but not the
+fund's own **top-5 holdings** or a **per-fund country (geographic) exposure** breakdown. Add both to
+the card:
+- **Top-5 holdings** — name + weight %, rendered as a small ranked list or mini bar.
+- **Country exposure** — a compact per-fund geographic chart (mirroring the portfolio-level geo pie
+  in Section 6, but scoped to the single fund).
+
+This deepens the per-fund story (what the fund actually holds, where) without touching the
+portfolio-level look-through in Section 6.
+
+### Why deterministic (Python-owned)
+Both are facts already extracted into `mfr_results.json` (ENH-2 lists `top-5 holdings` and
+`geo breakdown` as volatile per-MFR fields). They must render as engine facts via the structural
+card template — **never** routed through the LLM as prose (same determinism boundary as the existing
+card numbers and the Section 6 pies).
+
+### Open questions to resolve in design
+- Chart treatment: reuse the Section 6 conic-gradient pie component per fund, or a horizontal bar
+  list (cards are narrower than the full-width exposure section)?
+- Holdings display: top-5 only, or top-5 + "Other %"? Show weights or rank only?
+- Card vertical budget: cards are already dense — does this go inline, behind a sub-heading, or in a
+  two-column split with the existing asset exposure?
+- Data availability: confirm every screened fund carries top-5 + geo in `mfr_results.json` (handle
+  funds missing the field gracefully).
+
+### Notes
+- Not doing this now — captured so it isn't lost.
+- Scope via brainstorming → writing-plans before implementing; stays inside the determinism
+  boundary (facts from the workbook/JSON, Python-rendered).

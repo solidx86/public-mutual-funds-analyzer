@@ -49,13 +49,14 @@
 <tr><td>Event + Date columns · <code>macro.impact.N</code></td><td class="partial">PARTIAL</td><td>event/date PY, implication LLM — <strong>needs bolding</strong></td></tr>
 <tr><td><code>macro.themes</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
 <tr><td class="sec" rowspan="6">3 · Client Risk Profile</td><td><code>profile.name_description</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td rowspan="6"><strong>Biggest gap: almost all facts Python computes (load_profile rules).</strong></td></tr>
-<tr><td><code>profile.target_note</code></td><td class="llm">LLM</td></tr>
+<tr><td><code>profile.target_note</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td><code>profile.shariah</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td><code>profile.experience_level</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td><code>profile.rl_ceiling</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td><code>profile.target_vf_range</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
-<tr><td class="sec" rowspan="2">4 · Fund Recommendations</td><td>card structure (meta, CFS, perf, exposure)</td><td class="py">PY</td><td>all numbers Python-owned</td></tr>
-<tr><td><code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code> · <code>alpha_warning.&lt;FUND&gt;</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong> (warning div is PY-gated)</td></tr>
+<tr><td class="sec" rowspan="3">4 · Fund Recommendations</td><td>card structure (meta, CFS, perf, exposure)</td><td class="py">PY</td><td>all numbers Python-owned</td></tr>
+<tr><td><code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
+<tr><td><code>alpha_warning.&lt;FUND&gt;</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>div is PY-gated; prose is boilerplate PY knows → static PY string</td></tr>
 <tr><td class="sec">5 · Portfolio Summary</td><td>rows + weighted CFS/Alpha/VF · <code>volatility_class</code></td><td class="partial">PARTIAL</td><td>numbers PY, class LLM <span class="fact">⚠FACT</span></td></tr>
 <tr><td class="sec">6 · Portfolio Exposure</td><td>asset + geo pies, legends, %</td><td class="py">PY</td><td>deterministic look-through</td></tr>
 <tr><td class="sec" rowspan="4">7 · Investment Strategy</td><td><code>strategy.rsp</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>holds allocation split → <strong>RSP table (PY)</strong></td></tr>
@@ -75,11 +76,31 @@
 </ol>
 <p>One "proposal polish" commit, then regenerate a fresh proposal to review.</p>
 
-<h2>Part 3 — Follow-ups (determinism hardening, not this pass unless approved)</h2>
+<h2>Part 3 — Determinism hardening (follow-ups; not this pass unless approved)</h2>
+<div class="call"><strong>2026-06-21 review-pass addendum.</strong> A second content review re-classified three slots and found one bug. Two self-corrections logged: (i) <code>name_description</code> is a PY candidate because it is generic per-profile boilerplate with no client-specific input — <em>not</em> (as first claimed) because the prompt mandates exact wording; that mandate is the jargon table's. (ii) <code>target_note</code> is PY in <strong>both</strong> branches — first understated as "leave the empty case to the LLM."</div>
+
+<h3>Re-classified to Python (this review pass)</h3>
 <ul>
-<li><strong>§3 Client Risk Profile</strong> → Python data-slots from <code>load_profile</code> (largest win).</li>
-<li>Cover <code>profile</code>/<code>shariah</code>; §1 <code>exec_summary.profile</code>/<code>composition</code>/<code>volatility_class</code>; §2 <code>macro.month_year</code> → Python.</li>
-<li>Fees (§8) — ENH-1 PHS extraction (deferred).</li>
+<li><strong><code>alpha_warning.&lt;FUND&gt;</code> → PY static string.</strong> The div is already PY-gated (renders only for a Disqualified structural fund); the prose is near-boilerplate Python fully knows (status, weighted alpha, role, allocation). Promote to a templated static disclosure — removes the last per-card LLM disclosure and closes the FAKE_LLM convergence hole (today FAKE_LLM emits <code>[alpha_warning narrative]</code>, the real LLM writes the sentence).</li>
+<li><strong><code>profile.target_note</code> → PY, both branches (bug fix).</strong> <code>load_profile</code> already computes a realism warning when <code>target &gt; ceiling</code> — but it is <strong>silently discarded</strong>; the slot never carries it. "Empty" (target ≤ ceiling) is a <em>Python verdict</em>, not a blank canvas for the LLM. Make the slot wholly Python: the computed warning when it fires, a static standard qualifier otherwise. Remove the LLM entirely. (The LLM's goals-grounded "N-year horizon" is a <em>separate</em> concern — surface it in a genuine prose slot or a structured <code>horizon_years</code> field; do not smuggle it into a deterministic qualifier.)</li>
+<li><strong><code>profile.name_description</code> (description half) → PY static lookup.</strong> The <code>Moderate</code> label is already a fact; the one-sentence description is generic per-profile boilerplate (no client-specific input) → a 4-row lookup keyed by risk level. The LLM only adds run-to-run variance here, not value.</li>
+</ul>
+
+<h3>§3 Client Risk Profile + the other LLM-authored facts (the headline gap)</h3>
+<ul>
+<li>Remaining <code>profile.*</code> → PY data-slots from <code>load_profile</code>: <code>shariah</code>, <code>experience_level</code>, <code>rl_ceiling</code>, <code>target_vf_range</code> (plus the <code>name_description</code> label). Largest single win.</li>
+<li>Cover <code>profile</code>/<code>shariah</code>; §1 <code>exec_summary.profile</code>/<code>composition</code>/<code>volatility_class</code> (also rendered in §5); §2 <code>macro.month_year</code> → Python.</li>
+</ul>
+
+<h3>Prompt hygiene (real risk, not cosmetic)</h3>
+<ul>
+<li>Trim <code>assets/prompts/generate_proposal.md</code> to <strong>only</strong> the slots still LLM-owned. It still instructs the model on ~7 slots Python now owns or that are deferred — <code>cover.fundmaster_month_year</code>, <code>cover.proposal_date</code>/<code>prepared_date</code>, <code>macro.events_rows</code>, <code>portfolio_summary.fund_rows</code>, <code>fee_table.fund_rows</code>, <code>fees.PIX.phs_date</code>. A stale prompt invites the LLM to re-emit markup for already-filled slots, re-introducing the exact transcription risk Track 0 removed.</li>
+<li><code>cover.subtitle</code> stays LLM framing but instruct it to <strong>omit numbers</strong> (fund count / target range are facts).</li>
+</ul>
+
+<h3>Deferred</h3>
+<ul>
+<li>Fees (§8) — ENH-1 PHS extraction.</li>
 </ul>
 <h3>Verify</h3>
 <p>Each Python-owned slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>

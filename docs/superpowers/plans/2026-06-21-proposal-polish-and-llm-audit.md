@@ -29,7 +29,7 @@ Legend: **PY** = Python-owned (deterministic). **LLM** = free LLM prose. **PARTI
 | | `macro.impact.N` (Implication per row) | LLM | per-row prose — **needs bolding** |
 | | `macro.themes` (Medium-Long Horizon Themes) | LLM | prose — **needs bolding** |
 | **3 · Client Risk Profile** | `profile.name_description` | LLM ⚠FACT | profile name+desc |
-| | `profile.target_note` | LLM | short note — prose, OK |
+| | `profile.target_note` | LLM ⚠FACT | **bug:** `load_profile` computes a realism warning that is *discarded*; "empty" is a PY verdict, not an LLM canvas → PY both branches |
 | | `profile.shariah` | LLM ⚠FACT | Python knows |
 | | `profile.experience_level` | LLM ⚠FACT | Python knows |
 | | `profile.rl_ceiling` | LLM ⚠FACT | **Python owns the RL-ceiling rule** |
@@ -38,7 +38,7 @@ Legend: **PY** = Python-owned (deterministic). **LLM** = free LLM prose. **PARTI
 | **4 · Fund Recommendations** | fund card structure (meta, CFS, perf, exposure numbers) | PY | all numbers Python-owned |
 | | `why.<FUND>` (Why We Chose It) | LLM | prose — **needs bolding** |
 | | `watch.<FUND>` (What to Watch) | LLM | prose — **needs bolding** |
-| | `alpha_warning.<FUND>` | LLM | disclosure prose (div is PY-gated) |
+| | `alpha_warning.<FUND>` | LLM ⚠FACT | div is PY-gated; **prose is near-boilerplate Python knows** (status / weighted-alpha / role / alloc) → static PY string |
 | **5 · Portfolio Summary** | summary rows + weighted CFS/Alpha/VF | PY | engine-rendered |
 | | `portfolio.volatility_class` | LLM ⚠FACT | (same as §1) |
 | **6 · Portfolio Exposure** | asset + geo pies, legends, asset % | PY | deterministic look-through |
@@ -69,10 +69,25 @@ Legend: **PY** = Python-owned (deterministic). **LLM** = free LLM prose. **PARTI
 
 Land in one "proposal polish" commit; then regenerate a fresh proposal to review.
 
-## Part 3 — Recommended follow-ups (determinism hardening, NOT this pass unless approved)
-- **§3 Client Risk Profile:** make `profile.*` Python data-slots from `load_profile` (name/desc, Shariah, experience, RL ceiling, VF range). Largest win.
-- Cover `profile`/`shariah`; §1 `exec_summary.profile`/`composition`/`volatility_class`; §2 `macro.month_year` → Python.
-- Fees (§8) — ENH-1 PHS extraction (already deferred).
+## Part 3 — Determinism hardening (follow-ups; NOT this pass unless approved)
+
+> **2026-06-21 review-pass addendum.** A second content review re-classified three slots and found one bug. Two self-corrections logged from that review: (i) `name_description` is a PY candidate because it is generic per-profile boilerplate with no client-specific input — *not* (as first claimed) because the prompt mandates exact wording; that mandate is the jargon table's, the `name_description` instruction only gives an `e.g.`. (ii) `target_note` is PY in **both** branches — first understated as "leave the empty case to the LLM."
+
+### Re-classified to Python (this review pass)
+- **`alpha_warning.<FUND>` → PY static string.** The div is already PY-gated (renders only for a Disqualified structural fund); the prose is near-boilerplate Python fully knows (status, weighted alpha, role, allocation). Promote to a templated static disclosure. Removes the last per-card LLM disclosure and closes the FAKE_LLM convergence hole (today FAKE_LLM emits `[alpha_warning narrative]`, the real LLM writes the sentence).
+- **`profile.target_note` → PY, both branches (bug fix).** `load_profile` already computes a realism warning when `target > ceiling` — but it is **silently discarded**; the slot never carries it. "Empty" (target ≤ ceiling) is a *Python verdict*, not a blank canvas for the LLM. Make the slot wholly Python: the computed warning when it fires, a static standard qualifier otherwise. Remove the LLM from this slot entirely. (The LLM's goals-grounded "N-year horizon" is a *separate* concern — surface it in a genuine prose slot or via a structured `horizon_years` field; do not smuggle it into a deterministic qualifier.)
+- **`profile.name_description` (description half) → PY static lookup.** The `Moderate` label is already a fact; the one-sentence description is generic per-profile boilerplate (no client-specific input) → a 4-row lookup keyed by risk level. The LLM only adds run-to-run variance here, not value.
+
+### §3 Client Risk Profile + the other LLM-authored facts (the headline gap)
+- Remaining `profile.*` → PY data-slots from `load_profile`: `shariah`, `experience_level`, `rl_ceiling`, `target_vf_range` (plus the `name_description` label, above). Largest single win.
+- Cover `profile` / `shariah`; §1 `exec_summary.profile` / `composition` / `volatility_class` (also rendered in §5); §2 `macro.month_year` → Python.
+
+### Prompt hygiene (real risk, not cosmetic)
+- Trim `assets/prompts/generate_proposal.md` to **only** the slots still LLM-owned. It still instructs the model on ~7 slots Python now owns or that are deferred — `cover.fundmaster_month_year`, `cover.proposal_date` / `prepared_date`, `macro.events_rows`, `portfolio_summary.fund_rows`, `fee_table.fund_rows`, `fees.PIX.phs_date`. A stale prompt invites the LLM to re-emit markup for already-filled slots, re-introducing the exact transcription risk Track 0 removed.
+- `cover.subtitle` stays LLM framing but instruct it to **omit numbers** (fund count / target range are facts).
+
+### Deferred
+- Fees (§8) — ENH-1 PHS extraction.
 
 ## Test/verify expectations
 - Each Python-owned slot lands an adversarial/consistency test (per repo convention).
