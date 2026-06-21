@@ -108,7 +108,7 @@ _ALPHA_WARNING_DEFAULT_CLAUSE = (
 )
 
 
-def render_alpha_warning(role: str, allocation_pct) -> str:
+def render_alpha_warning(role: str, allocation_pct: int | float) -> str:
     """Static disclosure block (no LLM) for a Disqualified holding, varying by role.
 
     Returns the full ``<div class="alpha-warning">…</div>`` block. The lead states
