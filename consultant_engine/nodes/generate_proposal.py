@@ -29,6 +29,7 @@ from pathlib import Path
 import consultant_engine
 from consultant_engine import exposure
 from consultant_engine.llm import complete, complete_with_usage
+from consultant_engine.nodes.filter_universe import RISK_CEILING
 from consultant_engine.state import ConsultantState
 from consultant_engine.templates import fill_slots, render_structural_card
 
@@ -455,6 +456,108 @@ def _workbook_month_year(fundmaster_path: str) -> str:
     return f"{m.group(1)} {m.group(2)}" if m else "&mdash;"
 
 
+# ─── Profile facts are Python-owned (NOT LLM prose) ───────────────────────────
+# These cells describe the client's risk profile / preferences. They are facts the
+# pipeline already knows, so Python substitutes them before prose fill — the LLM
+# never authors them and so can never drift them.
+
+# 3-way Shariah preference label (client preference, NOT a per-fund workbook value).
+_SHARIAH_LABEL = {
+    True: "Shariah-compliant",
+    False: "Conventional",
+    None: "No preference (both)",
+}
+
+# One label-led sentence per risk profile (Section 3 "Profile" row).
+_NAME_DESCRIPTION = {
+    "Conservative": (
+        "Conservative — capital preservation is the priority; you accept lower expected "
+        "returns in exchange for low volatility and short-term stability."
+    ),
+    "Moderate": (
+        "Moderate — a balanced investor seeking steady long-term growth while tolerating "
+        "moderate short-term fluctuations."
+    ),
+    "Moderately Aggressive": (
+        "Moderately Aggressive — growth-oriented; you pursue above-average returns and can "
+        "withstand meaningful short-term volatility over a longer horizon."
+    ),
+    "Aggressive": (
+        "Aggressive — maximum long-term growth is the goal; you accept high volatility and "
+        "the potential for significant short-term losses."
+    ),
+}
+
+# Fixed-income fund_type matcher (case-insensitive). Real workbook strings include
+# "Fixed Income"; bond/sukuk variants are matched for robustness across vintages.
+_BOND_RE = re.compile(r"bond|fixed\s*income|sukuk", re.IGNORECASE)
+
+
+def _classify_holding(holding: dict, eligible_funds: list[dict]) -> str:
+    """Classify a portfolio holding into a composition label.
+
+    structural roles map directly; everything else is looked up in eligible_funds
+    by abbr and classified by fund_type (fixed-income strings → bond, else equity).
+    """
+    role = holding.get("role", "core")
+    if role == "structural:gold":
+        return "gold"
+    if role == "structural:money_market":
+        return "MM"
+    fund = _lookup_fund(holding["abbr"], eligible_funds)
+    fund_type = fund.get("fund_type") or ""
+    return "bond" if _BOND_RE.search(fund_type) else "equity"
+
+
+# Display order for the composition string (omit zero counts).
+_COMPOSITION_ORDER = ["equity", "bond", "gold", "MM"]
+
+
+def _composition_string(portfolio: list[dict], eligible_funds: list[dict]) -> str:
+    """e.g. '2 equity, 1 gold, 1 MM' — comma-joined '<n> <label>', zero counts omitted."""
+    counts: dict[str, int] = {}
+    for holding in portfolio:
+        label = _classify_holding(holding, eligible_funds)
+        counts[label] = counts.get(label, 0) + 1
+    return ", ".join(f"{counts[label]} {label}" for label in _COMPOSITION_ORDER if counts.get(label))
+
+
+def _profile_facts(state: ConsultantState) -> dict:
+    """Map each Python-owned profile/cover/exec prose marker to its substituted value.
+
+    Applied BEFORE prose fill in generate_proposal so these markers never reach the
+    LLM (they then disappear from _collect_prose_keys). Mirrors the cover-facts block.
+    """
+    client = state["client_profile"]
+    risk_level = client["risk_level"]
+    portfolio = state["portfolio"]
+    eligible_funds = state.get("eligible_funds", [])
+
+    shariah_label = _SHARIAH_LABEL[client.get("shariah")]
+    experience_label = (
+        "New investor" if client.get("experience") == "new" else "Experienced investor"
+    )
+    # Computed realism warning when present, else the static within-range qualifier.
+    target_note = client.get("target_note") or (
+        f"within the realistic range for a {risk_level} profile — "
+        "historical guide, not guaranteed"
+    )
+    macro_my = _workbook_month_year(state["fundmaster_path"])
+
+    return {
+        "<!--slot:cover.profile-->": risk_level,
+        "<!--slot:exec_summary.profile-->": risk_level,
+        "<!--slot:cover.shariah-->": shariah_label,
+        "<!--slot:profile.shariah-->": shariah_label,
+        "<!--slot:profile.experience_level-->": experience_label,
+        "<!--slot:profile.rl_ceiling-->": str(RISK_CEILING[risk_level]),
+        "<!--slot:profile.name_description-->": _NAME_DESCRIPTION[risk_level],
+        "<!--slot:profile.target_note-->": target_note,
+        "<!--slot:exec_summary.composition-->": _composition_string(portfolio, eligible_funds),
+        "<!--slot:macro.month_year-->": f"in {macro_my}",
+    }
+
+
 def generate_proposal(state: ConsultantState) -> dict:
     """Turn the locked skeleton + deterministic state into a complete proposal HTML.
 
@@ -509,6 +612,13 @@ def generate_proposal(state: ConsultantState) -> dict:
         ("<!--slot:cover.proposal_date-->", _today),
         ("<!--slot:cover.prepared_date-->", _today),
     ):
+        skeleton = skeleton.replace(_marker, _val)
+
+    # Profile facts are Python-owned too (risk level, Shariah/experience labels, RL
+    # ceiling, name description, target note, composition, macro vintage). Substituted
+    # before prose fill so they disappear from _collect_prose_keys — the LLM never
+    # authors them. Each marker (e.g. cover.profile) may appear more than once.
+    for _marker, _val in _profile_facts(state).items():
         skeleton = skeleton.replace(_marker, _val)
 
     # 4. Compute portfolio metrics
