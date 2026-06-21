@@ -21,7 +21,6 @@ Steps:
 
 from __future__ import annotations
 
-import json
 import os
 import re
 from datetime import datetime
@@ -387,16 +386,21 @@ def _collect_prose_keys(html: str) -> list[str]:
     return list(dict.fromkeys(k.strip() for k in _PROSE_SLOT_RE.findall(html)))
 
 
-def _parse_prose_map(text: str) -> dict:
-    """Extract the {key: prose} JSON object from the model reply (tolerant of fences/prose)."""
-    m = re.search(r"\{.*\}", text, re.DOTALL)
-    if not m:
-        return {}
-    try:
-        obj = json.loads(m.group(0))
-    except json.JSONDecodeError:
-        return {}
-    return {k: v for k, v in obj.items() if isinstance(v, str)} if isinstance(obj, dict) else {}
+def _parse_prose_blocks(text: str) -> dict:
+    """Parse ``@@@key@@@``-delimited blocks into ``{key: prose}``.
+
+    Delimiter framing (not JSON) because slot values are HTML — embedded quotes,
+    braces and newlines break JSON escaping (a real reply once parsed as 0/39). A
+    marker line is ``@@@<key>@@@`` on its own line; the prose is everything up to the
+    next marker, so HTML content can contain anything but that literal marker.
+    """
+    parts = re.split(r"(?m)^[ \t]*@@@([^@\n]+?)@@@[ \t]*$", text)
+    out = {}
+    for i in range(1, len(parts) - 1, 2):
+        key, body = parts[i].strip(), parts[i + 1].strip()
+        if key:
+            out[key] = body
+    return out
 
 
 def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
@@ -414,11 +418,12 @@ def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
 
     system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
     instruction = (
-        "Author the prose for this Public Mutual investment proposal. Using the client "
-        "context below, return ONLY a single JSON object that maps EACH slot key (verbatim) "
-        "to its HTML prose value — no other text, no markdown fences. For list slots whose "
-        "key starts with 'watch.' return a string of 2-4 <li>…</li> items; for all other "
-        "slots return inline HTML with no wrapping block tag.\n\n"
+        "Author the prose for this Public Mutual investment proposal using the client "
+        "context below. For EACH slot key, output a line containing exactly @@@<key>@@@ "
+        "on its own line, then the slot's HTML prose on the following line(s). Fill EVERY "
+        "key listed. For keys starting 'watch.' output 2-4 <li>…</li> items; for every "
+        "other key output inline HTML with no wrapping block tag. Output nothing except "
+        "these @@@<key>@@@ blocks.\n\n"
         f"Client profile: {state['client_profile']}\n"
         f"Portfolio: {state['portfolio']}\n"
         f"CFS scores: {state.get('cfs_scores', [])}\n"
@@ -428,7 +433,7 @@ def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
 
     text, usage = complete_with_usage(instruction, model=state.get("model") or "claude-sonnet-4-6",
                                       system=system_prompt)
-    filled = _parse_prose_map(text)
+    filled = _parse_prose_blocks(text)
 
     missing = [k for k in keys if k not in filled]
     if usage.get("cost_usd"):
