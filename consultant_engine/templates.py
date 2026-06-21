@@ -116,14 +116,12 @@ def render_alpha_warning(role: str, allocation_pct: int | float) -> str:
     explains why the fund is still held at its allocation. core/alpha roles get the
     generic diversifier clause.
 
-    Parameters
-    ----------
-    role           : holding role, e.g. ``"structural:gold"``, ``"core"``.
-    allocation_pct : the holding's allocation percentage (interpolated verbatim).
+    Args:
+        role: Holding role, e.g. ``"structural:gold"`` or ``"core"``.
+        allocation_pct: The holding's allocation percentage (interpolated verbatim).
 
-    Returns
-    -------
-    str — the full ``<div class="alpha-warning">…</div>`` disclosure block string.
+    Returns:
+        The full ``<div class="alpha-warning">…</div>`` disclosure block string.
     """
     clause = _ALPHA_WARNING_CLAUSE.get(role, _ALPHA_WARNING_DEFAULT_CLAUSE).format(
         allocation_pct=allocation_pct
@@ -134,18 +132,15 @@ def render_alpha_warning(role: str, allocation_pct: int | float) -> str:
 def render_structural_card(holding: dict, fund: dict) -> str:
     """Return the HTML for a structural fund card (gold or money-market).
 
-    Parameters
-    ----------
-    holding : dict with keys ``abbr``, ``role``, ``allocation_pct``
-    fund    : dict with keys ``abbr``, ``name`` (and optionally others)
+    Args:
+        holding: Dict with keys ``abbr``, ``role``, ``allocation_pct``.
+        fund: Dict with keys ``abbr``, ``name`` (and optionally others).
 
-    Returns
-    -------
-    str — self-contained fund-card HTML (no LLM involvement)
+    Returns:
+        Self-contained fund-card HTML (no LLM involvement).
 
-    Raises
-    ------
-    ValueError if ``role`` is not one of the two recognised structural roles.
+    Raises:
+        ValueError: If ``role`` is not one of the two recognised structural roles.
     """
     role = holding.get("role", "")
     if role not in _STRUCTURAL_ROLES:
@@ -210,22 +205,18 @@ def fill_slots(skeleton: str, slot_values: dict) -> str:
 
     Pass 3 — <!--slot:...--> prose markers are left untouched (LLM territory).
 
-    Parameters
-    ----------
-    skeleton    : HTML string (the proposal skeleton or a fragment thereof).
-    slot_values : Mapping of slot key → string value. Values should already be
-                  formatted as display strings (e.g. "88.0", "0.1.0").
+    Args:
+        skeleton: HTML string (the proposal skeleton or a fragment thereof).
+        slot_values: Mapping of slot key → string value. Values should already be
+            formatted as display strings (e.g. "88.0", "0.1.0").
 
-    Returns
-    -------
-    str — skeleton with all deterministic slots filled.
+    Returns:
+        The skeleton with all deterministic slots filled.
 
-    Raises
-    ------
-    ValueError
-        • If any ``{{...}}`` placeholder other than the two handled ones remains
-          after pass 1.
-        • If any ``data-slot="KEY"`` element's key has no entry in slot_values.
+    Raises:
+        ValueError: If any ``{{...}}`` placeholder other than the two handled ones
+            remains after pass 1, or if any ``data-slot="KEY"`` element's key has no
+            entry in slot_values.
     """
     result = skeleton
 
