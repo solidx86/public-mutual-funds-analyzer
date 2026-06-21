@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal Polish + LLM-Responsibility Audit</title>
+<style>
+  body{margin:0;background:#f6f8fc;color:#1a1f2b;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:28px 22px 70px}
+  h1{font-size:25px;margin:.2em 0}
+  h2{font-size:19px;margin:1.6em 0 .3em;border-top:3px solid #2d5bd7;padding-top:12px;display:inline-block}
+  h3{font-size:15px;margin:1.2em 0 .3em;color:#475067;text-transform:uppercase;letter-spacing:.04em}
+  .meta{color:#6b7385;font-size:13px}
+  code{background:#eef1f7;color:#243;padding:1px 5px;border-radius:5px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:13.5px}
+  th,td{border:1px solid #e3e7ef;padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f3fa;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#475067}
+  tr:nth-child(even){background:#fafbfe}
+  .py{color:#1c8a4e;font-weight:700}
+  .llm{color:#b25d00;font-weight:700}
+  .partial{color:#2d5bd7;font-weight:700}
+  .fact{background:#fdecea;color:#c0392b;font-weight:700;font-size:11px;padding:1px 5px;border-radius:4px}
+  .sec{font-weight:700;background:#eef2fb}
+  .call{border-left:4px solid #2d5bd7;background:#eaf0ff;padding:10px 15px;margin:14px 0;border-radius:0 8px 8px 0}
+  ol,ul{margin:.4em 0;padding-left:22px}li{margin:.3em 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Proposal Polish + LLM-Responsibility Audit</h1>
+<p class="meta">2026-06-21 · branch <code>track0-headless-consultant-engine-spec</code> · <strong>APPROVED plan, not yet executed</strong>. Captured for fresh execution; source of truth is the <code>.md</code> alongside this file.</p>
+
+<h2>Part 1 — LLM-responsibility audit</h2>
+<p>Legend: <span class="py">PY</span> Python-owned · <span class="llm">LLM</span> free prose · <span class="partial">PARTIAL</span> Python structure + LLM prose · <span class="fact">⚠FACT</span> currently LLM but a fact Python already knows (determinism gap).</p>
+<div class="call"><code>fund_cards</code>, <code>fee_table.fund_rows</code>, <code>portfolio_summary.fund_rows</code>, <code>macro.events_rows</code>, exposure pies/legend, and (2026-06-21) the 4 cover facts use <code>&lt;!--slot:--&gt;</code> syntax but are <strong>Python-substituted before prose fill</strong> → they are PY, not LLM.</div>
+<table>
+<tr><th>Section</th><th>Field / slot</th><th>Owner</th><th>Notes</th></tr>
+<tr><td class="sec" rowspan="5">Cover</td><td><code>cover.profile</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>risk level — Python knows it</td></tr>
+<tr><td><code>cover.subtitle</code></td><td class="llm">LLM</td><td>tagline — genuine prose, OK</td></tr>
+<tr><td><code>cover.shariah</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>Shariah pref — fact</td></tr>
+<tr><td>fundmaster_month_year / month_year / proposal_date / prepared_date</td><td class="py">PY</td><td>fixed 2026-06-21 (<code>3157df0</code>)</td></tr>
+<tr><td>target_annual_return_pct / funds_selected_n / funds_screened_m</td><td class="py">PY</td><td>data-slots</td></tr>
+<tr><td class="sec">Foundation</td><td>Unit Trust / Returns / Cooling-Off</td><td class="py">PY (static)</td><td>new-investor block; no slots</td></tr>
+<tr><td class="sec" rowspan="4">1 · Executive Summary</td><td><code>exec_summary.profile</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>"Moderate" — derivable</td></tr>
+<tr><td><code>exec_summary.composition</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>derivable from portfolio</td></tr>
+<tr><td><code>exec_summary.thesis</code></td><td class="llm">LLM</td><td>genuine prose, OK</td></tr>
+<tr><td>CFS / Alpha / VF numbers + bold labels · <code>portfolio.volatility_class</code></td><td class="partial">PARTIAL</td><td>numbers PY, class LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td class="sec" rowspan="3">2 · Macro Context</td><td><code>macro.month_year</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>report month — Python should own</td></tr>
+<tr><td>Event + Date columns · <code>macro.impact.N</code></td><td class="partial">PARTIAL</td><td>event/date PY, implication LLM — <strong>needs bolding</strong></td></tr>
+<tr><td><code>macro.themes</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
+<tr><td class="sec" rowspan="6">3 · Client Risk Profile</td><td><code>profile.name_description</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td rowspan="6"><strong>Biggest gap: almost all facts Python computes (load_profile rules).</strong></td></tr>
+<tr><td><code>profile.target_note</code></td><td class="llm">LLM</td></tr>
+<tr><td><code>profile.shariah</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.experience_level</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.rl_ceiling</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.target_vf_range</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td class="sec" rowspan="2">4 · Fund Recommendations</td><td>card structure (meta, CFS, perf, exposure)</td><td class="py">PY</td><td>all numbers Python-owned</td></tr>
+<tr><td><code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code> · <code>alpha_warning.&lt;FUND&gt;</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong> (warning div is PY-gated)</td></tr>
+<tr><td class="sec">5 · Portfolio Summary</td><td>rows + weighted CFS/Alpha/VF · <code>volatility_class</code></td><td class="partial">PARTIAL</td><td>numbers PY, class LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td class="sec">6 · Portfolio Exposure</td><td>asset + geo pies, legends, %</td><td class="py">PY</td><td>deterministic look-through</td></tr>
+<tr><td class="sec" rowspan="4">7 · Investment Strategy</td><td><code>strategy.rsp</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>holds allocation split → <strong>RSP table (PY)</strong></td></tr>
+<tr><td><code>strategy.distribution</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
+<tr><td><code>strategy.rebalancing</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
+<tr><td><code>strategy.dip_capture</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
+<tr><td class="sec">8 · Fee Disclosure</td><td>fee table structure</td><td class="py">PY</td><td>values <code>—</code> (deferred, ENH-1)</td></tr>
+<tr><td class="sec" rowspan="2">9 · Disclaimer / Sources</td><td>AI-Gen / Regulatory / Cooling-Off / Conflict</td><td class="py">PY (static)</td><td>locked disclosure text</td></tr>
+<tr><td><code>sources.fundmaster</code> · <code>sources.web_urls</code> · <code>sources.phs_list</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td><strong>fix in this pass</strong></td></tr>
+</table>
+
+<h2>Part 2 — Approved polish plan (this pass)</h2>
+<ol>
+<li><strong>Sources → Python-owned</strong> (substitute before prose fill, like the cover): <code>sources.fundmaster</code> = workbook basename; <code>sources.web_urls</code> = live macro <code>source_url</code>s (deduped <code>&lt;li&gt;</code>); <code>sources.phs_list</code> = <code>&lt;Abbr&gt;_PHS.pdf</code> per portfolio fund.</li>
+<li><strong>Consistent emphasis (Option A)</strong> — prompt the LLM to wrap key figures, %, and fund names in <code>&lt;strong&gt;</code> in <code>macro.impact.N</code>, <code>macro.themes</code>, <code>why.&lt;FUND&gt;</code>, <code>watch.&lt;FUND&gt;</code>. (Exec Summary bold comes from Python scaffolding already.)</li>
+<li><strong>Investment Strategy readability</strong> — <code>strategy.rsp</code> → Python RSP table (Fund · Allocation % · per RM 1,000); <code>distribution</code>/<code>rebalancing</code>/<code>dip_capture</code> → <code>&lt;ul&gt;&lt;li&gt;</code> bullets.</li>
+</ol>
+<p>One "proposal polish" commit, then regenerate a fresh proposal to review.</p>
+
+<h2>Part 3 — Follow-ups (determinism hardening, not this pass unless approved)</h2>
+<ul>
+<li><strong>§3 Client Risk Profile</strong> → Python data-slots from <code>load_profile</code> (largest win).</li>
+<li>Cover <code>profile</code>/<code>shariah</code>; §1 <code>exec_summary.profile</code>/<code>composition</code>/<code>volatility_class</code>; §2 <code>macro.month_year</code> → Python.</li>
+<li>Fees (§8) — ENH-1 PHS extraction (deferred).</li>
+</ul>
+<h3>Verify</h3>
+<p>Each Python-owned slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
+</div>
+</body>
+</html>
