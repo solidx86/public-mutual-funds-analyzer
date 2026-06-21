@@ -1,6 +1,6 @@
 # Proposal Polish + LLM-Responsibility Audit
 
-**Date:** 2026-06-21 · **Branch:** `track0-headless-consultant-engine-spec` · **Status:** APPROVED plan, not yet executed
+**Date:** 2026-06-21 · **Branch:** `track0-headless-consultant-engine-spec` · **Status:** EXECUTED 2026-06-21 (commits 7612bfb…cada934, 301 tests green)
 **Why this doc:** captured for fresh execution (the originating session ran very long). Source of truth = this file.
 
 ---
@@ -119,3 +119,17 @@ Group 1 → 3 → 4 → 5 (independent, mechanical) → Group 2 (skeleton deleti
 - Each Python-owned slot lands an adversarial/consistency test (per repo convention).
 - After changes, a live e2e run must converge AND pass `tests/test_proposal_validation.py` (29/29).
 - Keep the bare-`pytest` suite green.
+
+## Execution outcome (2026-06-21)
+
+Landed in 6 groups (commits `7612bfb` … `cada934`, pushed; whole suite 301 green):
+- **Group 1** — profile/cover/exec facts → Python (incl. allocation-based composition via `derived_class`, 3-way Shariah).
+- **Group 3** — alpha-warning disclosure text → static role-aware Python string.
+- **Group 4** — §9 Sources list (workbook + PHS filenames + deduped macro URLs) → Python.
+- **Group 5** — §7 RSP table → Python; distribution/rebalancing/dip_capture → `<ul>` bullets.
+- **Group 2** — deleted the display-only portfolio-VF surface (§1/§3/§5).
+- **Group 6** — trimmed the system prompt to LLM-only slots; added bolding/bullets; fixed the stale "return whole document" output-format; added `test_llm_prose_surface_is_locked_to_genuine_synthesis` locking the boundary.
+
+The LLM now authors **only** 9 genuine-synthesis prose slots: `cover.subtitle`, `exec_summary.thesis`, `macro.impact.N`, `macro.themes`, `why.<FUND>`, `watch.<FUND>`, `strategy.{distribution,rebalancing,dip_capture}`. Everything else is Python-owned or deleted.
+
+Still deferred: deterministic PHS **fee** extraction (ENH-1 remainder) and per-fund-card top-5 holdings + country-exposure chart (ENH-9).

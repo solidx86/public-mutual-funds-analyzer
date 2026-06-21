@@ -28,7 +28,7 @@
 <body>
 <div class="wrap">
 <h1>Proposal Polish + LLM-Responsibility Audit</h1>
-<p class="meta">2026-06-21 · branch <code>track0-headless-consultant-engine-spec</code> · <strong>APPROVED plan, not yet executed</strong>. Captured for fresh execution; source of truth is the <code>.md</code> alongside this file.</p>
+<p class="meta">2026-06-21 · branch <code>track0-headless-consultant-engine-spec</code> · <strong>EXECUTED 2026-06-21 (commits 7612bfb…cada934, 301 tests green)</strong>. Captured for fresh execution; source of truth is the <code>.md</code> alongside this file.</p>
 
 <h2>Part 1 — LLM-responsibility audit</h2>
 <p>Legend: <span class="py">PY</span> Python-owned · <span class="llm">LLM</span> free prose · <span class="partial">PARTIAL</span> Python structure + LLM prose · <span class="fact">⚠FACT</span> currently LLM but a fact Python already knows (determinism gap).</p>
@@ -128,6 +128,19 @@
 
 <h3>Suggested order &amp; verify</h3>
 <p>Group 1 → 3 → 4 → 5 (mechanical) → Group 2 (skeleton deletion) → Group 6 (prompt last). Each PY slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
+
+<h2>Execution outcome (2026-06-21)</h2>
+<p>Landed in 6 groups (commits <code>7612bfb</code> … <code>cada934</code>, pushed; whole suite 301 green):</p>
+<ul>
+<li><strong>Group 1</strong> — profile/cover/exec facts → Python (incl. allocation-based composition via <code>derived_class</code>, 3-way Shariah).</li>
+<li><strong>Group 3</strong> — alpha-warning disclosure text → static role-aware Python string.</li>
+<li><strong>Group 4</strong> — §9 Sources list (workbook + PHS filenames + deduped macro URLs) → Python.</li>
+<li><strong>Group 5</strong> — §7 RSP table → Python; distribution/rebalancing/dip_capture → <code>&lt;ul&gt;</code> bullets.</li>
+<li><strong>Group 2</strong> — deleted the display-only portfolio-VF surface (§1/§3/§5).</li>
+<li><strong>Group 6</strong> — trimmed the system prompt to LLM-only slots; added bolding/bullets; fixed the stale "return whole document" output-format; added <code>test_llm_prose_surface_is_locked_to_genuine_synthesis</code> locking the boundary.</li>
+</ul>
+<p>The LLM now authors <strong>only</strong> 9 genuine-synthesis prose slots: <code>cover.subtitle</code>, <code>exec_summary.thesis</code>, <code>macro.impact.N</code>, <code>macro.themes</code>, <code>why.&lt;FUND&gt;</code>, <code>watch.&lt;FUND&gt;</code>, <code>strategy.{distribution,rebalancing,dip_capture}</code>. Everything else is Python-owned or deleted.</p>
+<p>Still deferred: deterministic PHS <strong>fee</strong> extraction (ENH-1 remainder) and per-fund-card top-5 holdings + country-exposure chart (ENH-9).</p>
 </div>
 </body>
 </html>

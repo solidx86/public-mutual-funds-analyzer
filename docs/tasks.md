@@ -8,6 +8,9 @@ Status legend: `TODO` · `IN PROGRESS` · `DONE` · `WONTFIX`
 ## ENH-1 — Harden the LLM-reasoned consultant layer against hallucination / drift
 
 **Status:** PARTIALLY DONE (Track 0, 2026-06-20) — the deterministic CFS / allocation / exposure engine shipped in `consultant_engine`; deterministic PHS **fee** extraction is the open remainder.
+
+> **Update 2026-06-21 (determinism-hardening / proposal-polish pass):** moved the remaining LLM-authored *facts* into Python — §3 profile + cover/exec facts, the §9 sources list, the per-fund alpha-warning disclosure text, and the §7 RSP table — and removed the display-only portfolio-VF surface (never computed; not a construction input). The LLM now authors only genuine-synthesis prose (9 slots), with the determinism boundary locked by `test_llm_prose_surface_is_locked_to_genuine_synthesis`. Open remainder unchanged: deterministic PHS **fee** extraction.
+
 **Raised:** 2026-06-14
 **Area:** `consultant_engine/` (was `fund-consultant-skill/`, now retired)
 
