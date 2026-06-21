@@ -188,6 +188,17 @@ def test_structural_disqualified_card_satisfies_gate_without_llm():
     assert "alpha_warning" in codes
 
 
+def test_cover_data_source_month_is_workbook_not_llm(fundmaster_4fund):
+    """Cover 'Data Source: FundMaster <month>' = the source workbook's vintage, Python-
+    derived from its filename — never an LLM-authored guess (which used to stamp today's
+    month onto the cover and break workbook resolution in the proposal validator)."""
+    from consultant_engine.nodes.generate_proposal import _workbook_month_year
+    assert _workbook_month_year("/x/PublicMutual_FundMaster_Apr2026_v1.7.xlsx") == "Apr 2026"
+    html = _html(fundmaster_4fund)               # fixture workbook is ..._Jun2026_v0.1.0.xlsx
+    assert "FundMaster Jun 2026" in html
+    assert "slot:cover.fundmaster_month_year" not in html   # not left to the LLM
+
+
 def _first_perf_table(html: str) -> str:
     m = re.search(r'<table class="perf-table">.*?</table>', html, re.DOTALL)
     return m.group(0) if m else ""

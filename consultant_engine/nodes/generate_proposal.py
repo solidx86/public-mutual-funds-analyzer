@@ -447,6 +447,14 @@ def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
                                                     f"[{m.group(1).strip()} narrative]"), html)
 
 
+def _workbook_month_year(fundmaster_path: str) -> str:
+    """The source workbook's vintage as 'Mon YYYY' (e.g. 'Apr 2026'), parsed from its
+    filename exactly like emit derives the proposal name — a Python-owned fact, never
+    LLM-authored (the LLM used to guess today's month onto the cover Data Source)."""
+    m = re.search(r"PublicMutual_FundMaster_([A-Za-z]+)(\d{4})_v", Path(fundmaster_path).name)
+    return f"{m.group(1)} {m.group(2)}" if m else "&mdash;"
+
+
 def generate_proposal(state: ConsultantState) -> dict:
     """Turn the locked skeleton + deterministic state into a complete proposal HTML.
 
@@ -489,6 +497,19 @@ def generate_proposal(state: ConsultantState) -> dict:
     skeleton = skeleton.replace("<!--slot:exposure.asset_class.pie_chart-->", asset_pie_html)
     skeleton = skeleton.replace("<!--slot:exposure.geo.pie_chart-->", geo_pie_html)
     skeleton = skeleton.replace("<!--slot:exposure.geo.legend_items-->", geo_legend_html)
+
+    # Cover facts are Python-owned (NOT LLM prose): the Data Source month is the source
+    # workbook's vintage (parsed from its filename, like emit), and the proposal/prepared
+    # dates are today. Substituted before prose fill so the model can't author or drift them.
+    _wb_my = _workbook_month_year(state["fundmaster_path"])
+    _today = datetime.now().strftime("%d %b %Y")
+    for _marker, _val in (
+        ("<!--slot:cover.fundmaster_month_year-->", _wb_my),
+        ("<!--slot:cover.month_year-->", _wb_my),
+        ("<!--slot:cover.proposal_date-->", _today),
+        ("<!--slot:cover.prepared_date-->", _today),
+    ):
+        skeleton = skeleton.replace(_marker, _val)
 
     # 4. Compute portfolio metrics
     portfolio_metrics = _compute_portfolio_metrics(portfolio, cfs_scores, eligible_funds)
