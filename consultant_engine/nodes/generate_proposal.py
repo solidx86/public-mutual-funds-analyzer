@@ -28,6 +28,7 @@ from pathlib import Path
 
 import consultant_engine
 from consultant_engine import exposure
+from consultant_engine.cfs import derived_class
 from consultant_engine.llm import complete, complete_with_usage
 from consultant_engine.nodes.filter_universe import RISK_CEILING
 from consultant_engine.state import ConsultantState
@@ -490,14 +491,27 @@ _NAME_DESCRIPTION = {
 
 # Fixed-income fund_type matcher (case-insensitive). Real workbook strings include
 # "Fixed Income"; bond/sukuk variants are matched for robustness across vintages.
+# Used ONLY in the no-`assets` fallback path of _classify_holding (see below).
 _BOND_RE = re.compile(r"bond|fixed\s*income|sukuk", re.IGNORECASE)
+
+# derived_class output → composition label.
+_DERIVED_CLASS_LABEL = {
+    "Equity-equivalent": "equity",
+    "Defensive": "bond",
+    "Balanced": "balanced",
+}
 
 
 def _classify_holding(holding: dict, eligible_funds: list[dict]) -> str:
-    """Classify a portfolio holding into a composition label.
+    """Classify a portfolio holding into a composition label by its actual allocation.
 
-    structural roles map directly; everything else is looked up in eligible_funds
-    by abbr and classified by fund_type (fixed-income strings → bond, else equity).
+    structural roles map directly (gold/MM). For every other holding we look the
+    fund up in eligible_funds by abbr and, when it carries an ``assets`` dict,
+    classify it via ``cfs.derived_class`` (Equity-equivalent → equity, Defensive →
+    bond, Balanced → balanced). Only when allocation data is absent (e.g. the minimal
+    _lookup_fund fallback has no ``assets``) do we fall back to the fund_type regex,
+    then to "equity". This avoids the old bug where Mixed-Asset / Fund-of-Funds types
+    were silently mislabelled "equity" by the fund_type substring match.
     """
     role = holding.get("role", "core")
     if role == "structural:gold":
@@ -505,12 +519,15 @@ def _classify_holding(holding: dict, eligible_funds: list[dict]) -> str:
     if role == "structural:money_market":
         return "MM"
     fund = _lookup_fund(holding["abbr"], eligible_funds)
+    if fund.get("assets"):
+        return _DERIVED_CLASS_LABEL[derived_class(fund)]
+    # No allocation data — fall back to the fund_type regex, then equity.
     fund_type = fund.get("fund_type") or ""
     return "bond" if _BOND_RE.search(fund_type) else "equity"
 
 
 # Display order for the composition string (omit zero counts).
-_COMPOSITION_ORDER = ["equity", "bond", "gold", "MM"]
+_COMPOSITION_ORDER = ["equity", "balanced", "bond", "gold", "MM"]
 
 
 def _composition_string(portfolio: list[dict], eligible_funds: list[dict]) -> str:
@@ -538,6 +555,9 @@ def _profile_facts(state: ConsultantState) -> dict:
         "New investor" if client.get("experience") == "new" else "Experienced investor"
     )
     # Computed realism warning when present, else the static within-range qualifier.
+    # The static qualifier intentionally renders for a defaulted-midpoint target too
+    # (target ≤ ceiling, where load_profile sets no target_note), not only for a
+    # client-stated within-range target — both cases are "realistic but not guaranteed".
     target_note = client.get("target_note") or (
         f"within the realistic range for a {risk_level} profile — "
         "historical guide, not guaranteed"

@@ -19,6 +19,8 @@ from consultant_engine.nodes.generate_proposal import (
     generate_proposal,
     _workbook_month_year,
     _profile_facts,
+    _classify_holding,
+    _composition_string,
 )
 
 
@@ -202,3 +204,84 @@ def test_macro_month_year_is_workbook_vintage(fundmaster_4fund):
     assert "Jun 2026" in html
     assert "slot:macro.month_year" not in html
     assert "[macro.month_year narrative]" not in html
+
+
+# ── _classify_holding classifies by ACTUAL allocation (derived_class) ─────────
+# These exercise the non-equity branches the old fund_type-regex classifier never
+# reached: a Mixed-Asset / Balanced fund (neither bucket ≥60) must NOT be labelled
+# "equity", and a defensive (fi+mm+deposits ≥60) fund → "bond".
+
+def _fund(abbr, *, dom_equity=0, for_equity=0, fi=0, mm=0, deposits=0, other=0,
+          fund_type="", with_assets=True):
+    """A synthetic eligible-fund record whose assets force a derived_class outcome."""
+    f = {"abbr": abbr, "name": abbr, "risk_level": 4, "fund_type": fund_type}
+    if with_assets:
+        f["assets"] = {
+            "dom_equity": dom_equity, "for_equity": for_equity, "fi": fi,
+            "mm": mm, "deposits": deposits, "other": other,
+        }
+    return f
+
+
+def _holding(abbr, role="core"):
+    return {"abbr": abbr, "role": role, "allocation_pct": 25}
+
+
+def test_classify_equity_heavy_fund_is_equity():
+    # dom_equity + for_equity = 70 ≥ 60 → Equity-equivalent → "equity".
+    funds = [_fund("EQH", dom_equity=40, for_equity=30, fi=30)]
+    assert _classify_holding(_holding("EQH"), funds) == "equity"
+
+
+def test_classify_defensive_fund_is_bond():
+    # fi + mm + deposits = 80 ≥ 60 → Defensive → "bond".
+    funds = [_fund("DEF", dom_equity=20, fi=50, mm=20, deposits=10)]
+    assert _classify_holding(_holding("DEF"), funds) == "bond"
+
+
+def test_classify_balanced_fund_is_balanced_not_equity():
+    # Neither bucket ≥ 60 → Balanced → "balanced". This is the Mixed-Asset case the
+    # old fund_type regex mislabelled "equity"; here fund_type even SAYS equity-ish
+    # but allocation rules.
+    funds = [_fund("MIX", dom_equity=30, for_equity=20, fi=30, mm=20,
+                   fund_type="Mixed Asset / Balanced")]
+    assert _classify_holding(_holding("MIX"), funds) == "balanced"
+
+
+def test_classify_structural_gold_and_mm():
+    funds = [_fund("PeEMAS"), _fund("PeCDF-A")]
+    assert _classify_holding(_holding("PeEMAS", role="structural:gold"), funds) == "gold"
+    assert _classify_holding(_holding("PeCDF-A", role="structural:money_market"), funds) == "MM"
+
+
+def test_classify_no_assets_fallback_uses_fund_type_regex():
+    # Fund found but WITHOUT an assets dict → fall back to the fund_type regex.
+    bond_fund = _fund("BND", fund_type="Fixed Income", with_assets=False)
+    eq_fund = _fund("EQ", fund_type="Equity", with_assets=False)
+    assert _classify_holding(_holding("BND"), [bond_fund]) == "bond"
+    assert _classify_holding(_holding("EQ"), [eq_fund]) == "equity"
+
+
+def test_classify_minimal_fallback_when_fund_absent_is_equity():
+    # Abbr not in eligible_funds → _lookup_fund minimal fallback (no assets, no
+    # fund_type) → regex finds nothing → "equity".
+    assert _classify_holding(_holding("NOPE"), []) == "equity"
+
+
+def test_composition_string_mixed_holdings_exact_order_and_omission():
+    # 2 equity + 1 balanced + 1 gold + 1 MM — assert exact string incl. ordering
+    # (equity, balanced, bond, gold, MM) and that the zero "bond" count is omitted.
+    funds = [
+        _fund("EQ1", dom_equity=70, fi=30),
+        _fund("EQ2", dom_equity=65, fi=35),
+        # Neither bucket ≥ 60: equity 50, defensive (fi+mm+deposits) 50 → Balanced.
+        _fund("MIX", dom_equity=30, for_equity=20, fi=30, mm=20),
+    ]
+    portfolio = [
+        _holding("EQ1"),
+        _holding("EQ2"),
+        _holding("MIX"),
+        _holding("PeEMAS", role="structural:gold"),
+        _holding("PeCDF-A", role="structural:money_market"),
+    ]
+    assert _composition_string(portfolio, funds) == "2 equity, 1 balanced, 1 gold, 1 MM"
