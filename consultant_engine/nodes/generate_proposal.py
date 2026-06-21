@@ -578,6 +578,54 @@ def _profile_facts(state: ConsultantState) -> dict:
     }
 
 
+# ─── §9 Sources & References are Python-owned (NOT LLM prose) ──────────────────
+# The Sources list is pure fact: source filenames (the FundMaster workbook + one
+# PHS per portfolio fund) and the macro events' own URLs. Python renders all three
+# markers and substitutes them BEFORE prose fill, exactly like the cover-facts and
+# profile-facts blocks — the LLM never authors a citation, so it can never invent
+# a source or drift a filename.
+
+def _source_facts(state: ConsultantState) -> dict:
+    """Map each §9 Sources marker to its Python-rendered <li> HTML.
+
+    Applied BEFORE prose fill in generate_proposal so these markers never reach the
+    LLM (they then disappear from _collect_prose_keys). Mirrors _profile_facts.
+    """
+    fundmaster_path = state["fundmaster_path"]
+    basename = Path(fundmaster_path).name
+    month_year = _workbook_month_year(fundmaster_path)
+    fundmaster_li = (
+        f"<li>FundMaster workbook &mdash; <code>{basename}</code> "
+        f"(MFR data, {month_year})</li>"
+    )
+
+    phs_items = [
+        f"<li>Product Highlight Sheet &mdash; <code>{h['abbr']}_PHS.pdf</code></li>"
+        for h in state["portfolio"]
+    ]
+    phs_list = "\n".join(phs_items)
+
+    # Macro source URLs, deduplicated by URL preserving first-seen order. The first
+    # event for each unique URL supplies the {theme}/{date} label. No events → "".
+    seen: set[str] = set()
+    web_items = []
+    for ev in state.get("macro_context", {}).get("events", []):
+        url = ev.get("source_url")
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        web_items.append(
+            f'<li><a href="{url}">{ev.get("theme", "")} ({ev.get("date", "")})</a></li>'
+        )
+    web_urls = "\n".join(web_items)
+
+    return {
+        "<!--slot:sources.fundmaster-->": fundmaster_li,
+        "<!--slot:sources.phs_list-->": phs_list,
+        "<!--slot:sources.web_urls-->": web_urls,
+    }
+
+
 def generate_proposal(state: ConsultantState) -> dict:
     """Turn the locked skeleton + deterministic state into a complete proposal HTML.
 
@@ -639,6 +687,13 @@ def generate_proposal(state: ConsultantState) -> dict:
     # before prose fill so they disappear from _collect_prose_keys — the LLM never
     # authors them. Each marker (e.g. cover.profile) may appear more than once.
     for _marker, _val in _profile_facts(state).items():
+        skeleton = skeleton.replace(_marker, _val)
+
+    # §9 Sources & References are Python-owned too: the FundMaster workbook basename,
+    # one PHS filename per portfolio fund, and the macro events' own URLs (deduplicated).
+    # Substituted before prose fill so they disappear from _collect_prose_keys — the LLM
+    # never authors a citation.
+    for _marker, _val in _source_facts(state).items():
         skeleton = skeleton.replace(_marker, _val)
 
     # 4. Compute portfolio metrics

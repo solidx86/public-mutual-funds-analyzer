@@ -266,3 +266,92 @@ def test_cover_data_source_month_is_workbook_not_llm(fundmaster_4fund):
 def _first_perf_table(html: str) -> str:
     m = re.search(r'<table class="perf-table">.*?</table>', html, re.DOTALL)
     return m.group(0) if m else ""
+
+
+# ── Group 4 — §9 Sources & References are Python-owned (not LLM prose) ────────
+
+def test_sources_fundmaster_is_python_owned(fundmaster_4fund):
+    """The §9 FundMaster citation carries the source workbook basename + its 'Jun
+    2026' vintage as a Python-rendered <code> fact — never an LLM prose slot."""
+    html = _html(fundmaster_4fund)
+    # fixture workbook is ..._Jun2026_v0.1.0.xlsx
+    assert "<code>PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx</code>" in html
+    assert "(MFR data, Jun 2026)" in html
+    assert "slot:sources.fundmaster" not in html               # not left to the LLM
+    assert "[sources.fundmaster narrative]" not in html        # no FAKE_LLM placeholder
+
+
+def test_sources_phs_list_is_one_li_per_fund(fundmaster_4fund):
+    """One <li> PHS citation per portfolio holding, abbr-keyed; marker consumed."""
+    state = _pipeline(fundmaster_4fund)
+    html = state["proposal_html"]
+    portfolio = state["portfolio"]
+    for h in portfolio:
+        assert (
+            f"<li>Product Highlight Sheet &mdash; <code>{h['abbr']}_PHS.pdf</code></li>"
+            in html
+        )
+    # Exactly one PHS <li> per fund (no duplicates, no missing).
+    assert html.count("Product Highlight Sheet &mdash; <code>") == len(portfolio)
+    assert "slot:sources.phs_list" not in html
+    assert "[sources.phs_list narrative]" not in html
+
+
+def test_sources_web_urls_render_each_unique_macro_url(fundmaster_4fund):
+    """Each macro event's real source_url renders once as an <a href=…>; marker gone."""
+    state = _pipeline(fundmaster_4fund)
+    html = state["proposal_html"]
+    urls = [ev["source_url"] for ev in state["macro_context"]["events"]]
+    assert urls, "fixture should carry macro events"
+    for url in dict.fromkeys(urls):                # unique, order-preserving
+        assert f'<a href="{url}">' in html
+        assert html.count(f'href="{url}"') == 1    # exactly once
+    assert "slot:sources.web_urls" not in html
+    assert "[sources.web_urls narrative]" not in html
+
+
+# ── _source_facts unit tests — dedup + empty-events behavior ──────────────────
+
+def _state_with_events(events):
+    return {
+        "fundmaster_path": "/x/PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx",
+        "portfolio": [{"abbr": "PGA", "role": "core", "allocation_pct": 100}],
+        "macro_context": {"events": events},
+    }
+
+
+def test_source_facts_dedupes_shared_url():
+    """Two events sharing one URL → a single <li>, labelled by the first event."""
+    from consultant_engine.nodes.generate_proposal import _source_facts
+    events = [
+        {"date": "2026-06-01", "theme": "rates",
+         "claim": "x", "source_url": "https://example.com/a"},
+        {"date": "2026-06-10", "theme": "ringgit",
+         "claim": "y", "source_url": "https://example.com/a"},   # same URL
+    ]
+    web = _source_facts(_state_with_events(events))["<!--slot:sources.web_urls-->"]
+    assert web.count("<li>") == 1
+    assert web.count('href="https://example.com/a"') == 1
+    # first-seen event supplies the label
+    assert "rates (2026-06-01)" in web
+    assert "ringgit" not in web
+
+
+def test_source_facts_empty_events_renders_nothing():
+    """No macro events → empty web_urls string (no <li>, no invented URL, no crash)."""
+    from consultant_engine.nodes.generate_proposal import _source_facts
+    facts = _source_facts(_state_with_events([]))
+    assert facts["<!--slot:sources.web_urls-->"] == ""
+    # the other two facts still render
+    assert "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx" in facts["<!--slot:sources.fundmaster-->"]
+    assert "PGA_PHS.pdf" in facts["<!--slot:sources.phs_list-->"]
+
+
+def test_source_facts_missing_macro_context_does_not_crash():
+    """A state with no macro_context key → web_urls empty, no KeyError."""
+    from consultant_engine.nodes.generate_proposal import _source_facts
+    state = {
+        "fundmaster_path": "/x/PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx",
+        "portfolio": [{"abbr": "PGA", "role": "core", "allocation_pct": 100}],
+    }
+    assert _source_facts(state)["<!--slot:sources.web_urls-->"] == ""
