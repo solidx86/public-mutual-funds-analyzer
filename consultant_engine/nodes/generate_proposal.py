@@ -304,12 +304,12 @@ def _build_rsp_table(portfolio: list[dict]) -> str:
         sum_alloc += alloc
         sum_ringgit += ringgit
         body_rows.append(
-            f"<tr><td>{abbr}</td><td>{alloc}%</td><td>RM {ringgit:.0f}</td></tr>"
+            f"<tr><td>{abbr}</td><td>{alloc}%</td><td>RM {ringgit:,.0f}</td></tr>"
         )
     total_row = (
         f"<tr><td><strong>Total</strong></td>"
         f"<td><strong>{sum_alloc:g}%</strong></td>"
-        f"<td><strong>RM {sum_ringgit:.0f}</strong></td></tr>"
+        f"<td><strong>RM {sum_ringgit:,.0f}</strong></td></tr>"
     )
     rows = "\n".join([*body_rows, total_row])
     return (

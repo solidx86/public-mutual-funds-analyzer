@@ -46,7 +46,7 @@ def _section7(html: str) -> str:
 # ── _build_rsp_table unit tests — one row per holding + a summed Total row ────
 
 def test_build_rsp_table_synthetic_40_30_20_10():
-    """A 40/30/20/10 portfolio → RM 400/300/200/100, Total 100% / RM 1000."""
+    """A 40/30/20/10 portfolio → RM 400/300/200/100, Total 100% / RM 1,000."""
     portfolio = [
         {"abbr": "PGA", "allocation_pct": 40},
         {"abbr": "PBA", "allocation_pct": 30},
@@ -69,7 +69,7 @@ def test_build_rsp_table_synthetic_40_30_20_10():
     # Total row summed from the actual data (not hardcoded 100 / 1000).
     assert (
         "<tr><td><strong>Total</strong></td><td><strong>100%</strong></td>"
-        "<td><strong>RM 1000</strong></td></tr>" in table
+        "<td><strong>RM 1,000</strong></td></tr>" in table
     )
 
     # Six <tr> total: 1 header + 4 holding rows + 1 Total row.
@@ -85,10 +85,10 @@ def test_build_rsp_table_fractional_allocation_renders_whole_ringgit():
     table = _build_rsp_table(portfolio)
     assert "<tr><td>A</td><td>12.5%</td><td>RM 125</td></tr>" in table
     assert "<tr><td>B</td><td>87.5%</td><td>RM 875</td></tr>" in table
-    # Total: 100% / RM 1000 summed from the data.
+    # Total: 100% / RM 1,000 summed from the data.
     assert (
         "<tr><td><strong>Total</strong></td><td><strong>100%</strong></td>"
-        "<td><strong>RM 1000</strong></td></tr>" in table
+        "<td><strong>RM 1,000</strong></td></tr>" in table
     )
 
 
@@ -129,7 +129,7 @@ def test_pipeline_rsp_rows_match_portfolio(fundmaster_4fund):
     state = _pipeline(fundmaster_4fund)
     html = state["proposal_html"]
     for h in state["portfolio"]:
-        ringgit = f"{h['allocation_pct'] * 10:.0f}"
+        ringgit = f"{h['allocation_pct'] * 10:,.0f}"
         assert (
             f"<tr><td>{h['abbr']}</td><td>{h['allocation_pct']}%</td>"
             f"<td>RM {ringgit}</td></tr>" in html
