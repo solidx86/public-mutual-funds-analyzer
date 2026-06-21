@@ -68,42 +68,62 @@
 <tr><td><code>sources.fundmaster</code> · <code>sources.web_urls</code> · <code>sources.phs_list</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td><strong>fix in this pass</strong></td></tr>
 </table>
 
-<h2>Part 2 — Approved polish plan (this pass)</h2>
-<ol>
-<li><strong>Sources → Python-owned</strong> (substitute before prose fill, like the cover): <code>sources.fundmaster</code> = workbook basename; <code>sources.web_urls</code> = live macro <code>source_url</code>s (deduped <code>&lt;li&gt;</code>); <code>sources.phs_list</code> = <code>&lt;Abbr&gt;_PHS.pdf</code> per portfolio fund.</li>
-<li><strong>Consistent emphasis (Option A)</strong> — prompt the LLM to wrap key figures, %, and fund names in <code>&lt;strong&gt;</code> in <code>macro.impact.N</code>, <code>macro.themes</code>, <code>why.&lt;FUND&gt;</code>, <code>watch.&lt;FUND&gt;</code>. (Exec Summary bold comes from Python scaffolding already.)</li>
-<li><strong>Investment Strategy readability</strong> — <code>strategy.rsp</code> → Python RSP table (Fund · Allocation % · per RM 1,000); <code>distribution</code>/<code>rebalancing</code>/<code>dip_capture</code> → <code>&lt;ul&gt;&lt;li&gt;</code> bullets.</li>
-</ol>
-<p>One "proposal polish" commit, then regenerate a fresh proposal to review.</p>
+<h2>Part 2 — Combined implementation scope (this pass)</h2>
+<div class="call"><strong>Scope decision (2026-06-21):</strong> the Part-3 determinism hardening is <strong>folded into this pass</strong> — one combined commit (or a short ordered series), not a deferred follow-up. Only <strong>fees (§8, ENH-1)</strong> remain out of scope. After this pass the LLM authors <em>only</em> genuine-synthesis prose (see "Remaining LLM-owned").<br><br><strong>Review-pass addendum &amp; self-corrections (trail):</strong> a second review re-classified three slots and found one bug. (i) <code>name_description</code> is a PY candidate because it is generic per-profile boilerplate with no client-specific input — <em>not</em> because the prompt mandates exact wording (that mandate is the jargon table's). (ii) <code>target_note</code> is PY in <strong>both</strong> branches — first understated as "leave the empty case to the LLM."</div>
 
-<h2>Part 3 — Determinism hardening (follow-ups; not this pass unless approved)</h2>
-<div class="call"><strong>2026-06-21 review-pass addendum.</strong> A second content review re-classified three slots and found one bug. Two self-corrections logged: (i) <code>name_description</code> is a PY candidate because it is generic per-profile boilerplate with no client-specific input — <em>not</em> (as first claimed) because the prompt mandates exact wording; that mandate is the jargon table's. (ii) <code>target_note</code> is PY in <strong>both</strong> branches — first understated as "leave the empty case to the LLM."</div>
+<h3>Group 1 — Profile / cover / exec facts → Python data-substitution</h3>
+<p>Extend the existing "substitute before prose fill" block in <code>generate_proposal</code> (same mechanism that already fills the 4 cover facts). Each slot gets a <strong>named authoritative source</strong>:</p>
+<table>
+<tr><th>Slot (incl. duplicates)</th><th>Python source</th></tr>
+<tr><td><code>cover.profile</code>, <code>exec_summary.profile</code></td><td><code>client_profile["risk_level"]</code></td></tr>
+<tr><td><code>cover.shariah</code>, <code>profile.shariah</code></td><td><code>client_profile["shariah"]</code> — <strong>3-way</strong>: <code>True</code>→"Shariah-compliant", <code>False</code>→"Conventional", <code>None</code>→"No preference (both)". <span class="fact">⚠</span> today <code>null</code> is mislabeled "Conventional" — fix here.</td></tr>
+<tr><td><code>profile.experience_level</code></td><td><code>client_profile["experience"]</code> → "New investor" / "Experienced investor"</td></tr>
+<tr><td><code>profile.rl_ceiling</code></td><td><strong>reuse</strong> <code>filter_universe.RISK_CEILING[risk_level]</code> (Cons=2, Mod=3, MA=4, Agg=5) — do <strong>not</strong> duplicate</td></tr>
+<tr><td><code>exec_summary.composition</code></td><td>count built-portfolio holdings by fund type → "2 bond, 1 gold, 1 MM" (format helper)</td></tr>
+<tr><td><code>profile.name_description</code></td><td><code>risk_level</code> label + a <strong>new</strong> static 4-row description lookup</td></tr>
+<tr><td><code>profile.target_note</code></td><td>PY both branches: <code>load_profile</code> warning when <code>target&gt;ceiling</code>, else static qualifier. <strong>Remove LLM.</strong></td></tr>
+<tr><td><code>macro.month_year</code></td><td>derive from the macro-context snapshot date</td></tr>
+</table>
 
-<h3>Re-classified to Python (this review pass)</h3>
+<h3>Group 2 — Two NEW locked mappings <span class="fact">⚠ DECISION REQUIRED before coding</span></h3>
+<p><code>portfolio.volatility_class</code> (VF→class label; §1 <strong>and</strong> §5) and <code>profile.target_vf_range</code> (per-profile VF band, e.g. Moderate "6–12 (Low-Medium)") have <strong>no rule today — the LLM invents them.</strong> Folding to Python means <strong>defining authoritative, client-facing band boundaries + a per-profile VF-range table</strong> (locked numbers, like the qualification rule). Needs consultant sign-off, not silent invention.</p>
 <ul>
-<li><strong><code>alpha_warning.&lt;FUND&gt;</code> → PY static string.</strong> The div is already PY-gated (renders only for a Disqualified structural fund); the prose is near-boilerplate Python fully knows (status, weighted alpha, role, allocation). Promote to a templated static disclosure — removes the last per-card LLM disclosure and closes the FAKE_LLM convergence hole (today FAKE_LLM emits <code>[alpha_warning narrative]</code>, the real LLM writes the sentence).</li>
-<li><strong><code>profile.target_note</code> → PY, both branches (bug fix).</strong> <code>load_profile</code> already computes a realism warning when <code>target &gt; ceiling</code> — but it is <strong>silently discarded</strong>; the slot never carries it. "Empty" (target ≤ ceiling) is a <em>Python verdict</em>, not a blank canvas for the LLM. Make the slot wholly Python: the computed warning when it fires, a static standard qualifier otherwise. Remove the LLM entirely. (The LLM's goals-grounded "N-year horizon" is a <em>separate</em> concern — surface it in a genuine prose slot or a structured <code>horizon_years</code> field; do not smuggle it into a deterministic qualifier.)</li>
-<li><strong><code>profile.name_description</code> (description half) → PY static lookup.</strong> The <code>Moderate</code> label is already a fact; the one-sentence description is generic per-profile boilerplate (no client-specific input) → a 4-row lookup keyed by risk level. The LLM only adds run-to-run variance here, not value.</li>
+<li><strong>Recommended:</strong> one VF-band scheme + per-profile ranges in a small rule module, each pinned by a test. Boundaries confirmed at implementation (placeholder e.g. Low &lt;6, Low-Medium 6–12, Medium-High 12–18, High ≥18).</li>
+<li><strong>If not signed off in time:</strong> these two stay the <em>only</em> profile/portfolio facts the LLM fills — ship the rest, leave these as a tracked stub. Do not block the whole pass on them.</li>
 </ul>
 
-<h3>§3 Client Risk Profile + the other LLM-authored facts (the headline gap)</h3>
+<h3>Group 3 — <code>alpha_warning.&lt;FUND&gt;</code> → PY static templated string</h3>
+<p>Render in the card template (<code>templates.py</code>), not as a prose slot. Remove from collected prose keys; update the FAKE_LLM fill + the determinism-guard test (it already asserts the div is PY-emitted — extend it to assert the <em>text</em> is Python's).</p>
+
+<h3>Group 4 — Sources → Python-owned</h3>
 <ul>
-<li>Remaining <code>profile.*</code> → PY data-slots from <code>load_profile</code>: <code>shariah</code>, <code>experience_level</code>, <code>rl_ceiling</code>, <code>target_vf_range</code> (plus the <code>name_description</code> label). Largest single win.</li>
-<li>Cover <code>profile</code>/<code>shariah</code>; §1 <code>exec_summary.profile</code>/<code>composition</code>/<code>volatility_class</code> (also rendered in §5); §2 <code>macro.month_year</code> → Python.</li>
+<li><code>sources.fundmaster</code> = source workbook basename.</li>
+<li><code>sources.web_urls</code> = live macro events' <code>source_url</code>s (dedup, <code>&lt;li&gt;</code>).</li>
+<li><code>sources.phs_list</code> = <code>&lt;Abbr&gt;_PHS.pdf</code> per portfolio fund (<code>&lt;li&gt;</code>).</li>
 </ul>
 
-<h3>Prompt hygiene (real risk, not cosmetic)</h3>
+<h3>Group 5 — Investment Strategy readability</h3>
 <ul>
-<li>Trim <code>assets/prompts/generate_proposal.md</code> to <strong>only</strong> the slots still LLM-owned. It still instructs the model on ~7 slots Python now owns or that are deferred — <code>cover.fundmaster_month_year</code>, <code>cover.proposal_date</code>/<code>prepared_date</code>, <code>macro.events_rows</code>, <code>portfolio_summary.fund_rows</code>, <code>fee_table.fund_rows</code>, <code>fees.PIX.phs_date</code>. A stale prompt invites the LLM to re-emit markup for already-filled slots, re-introducing the exact transcription risk Track 0 removed.</li>
-<li><code>cover.subtitle</code> stays LLM framing but instruct it to <strong>omit numbers</strong> (fund count / target range are facts).</li>
+<li><code>strategy.rsp</code> → <strong>Python RSP table</strong> (Fund · Allocation % · per RM 1,000) from allocations. Optional one-line LLM intro.</li>
+<li><code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code> → <code>&lt;ul&gt;&lt;li&gt;</code> bullets (prompt returns bullets, not a paragraph).</li>
 </ul>
 
-<h3>Deferred</h3>
+<h3>Group 6 — Prompt + emphasis (LAST — after the slot set is final)</h3>
 <ul>
-<li>Fees (§8) — ENH-1 PHS extraction.</li>
+<li><strong>Trim</strong> <code>assets/prompts/generate_proposal.md</code> to <strong>only</strong> the slots still LLM-owned (it still instructs PY/deferred slots: <code>cover.fundmaster_month_year</code>, <code>cover.proposal_date</code>/<code>prepared_date</code>, <code>macro.events_rows</code>, <code>portfolio_summary.fund_rows</code>, <code>fee_table.fund_rows</code>, <code>fees.PIX.phs_date</code>, plus everything moved to PY above). A stale prompt invites re-emitting markup for already-filled slots.</li>
+<li><strong>Bolding:</strong> wrap key figures, %, fund names in <code>&lt;strong&gt;</code> in <code>macro.impact.N</code>, <code>macro.themes</code>, <code>why.&lt;FUND&gt;</code>, <code>watch.&lt;FUND&gt;</code>.</li>
+<li><code>cover.subtitle</code>: keep LLM framing, <strong>omit numbers</strong>.</li>
+<li><strong>Bullets:</strong> instruct <code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code> to return <code>&lt;li&gt;</code> items.</li>
 </ul>
-<h3>Verify</h3>
-<p>Each Python-owned slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
+
+<h3>Remaining LLM-owned after this pass (genuine-synthesis surface)</h3>
+<p><code>cover.subtitle</code> (no numbers) · <code>exec_summary.thesis</code> · <code>macro.impact.N</code> · <code>macro.themes</code> · <code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code> · <code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code>. <em>(Plus <code>volatility_class</code> + <code>target_vf_range</code> only if Group 2 is deferred.)</em></p>
+
+<h3>Deferred (still out of scope)</h3>
+<ul><li>Fees (§8) — ENH-1 PHS extraction.</li></ul>
+
+<h3>Suggested order &amp; verify</h3>
+<p>Group 1 → 3 → 4 → 5 (mechanical) → Group 2 (gated on the VF decision) → Group 6 (prompt last). Each PY slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
 </div>
 </body>
 </html>

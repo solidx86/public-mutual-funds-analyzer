@@ -56,38 +56,58 @@ Legend: **PY** = Python-owned (deterministic). **LLM** = free LLM prose. **PARTI
 
 ---
 
-## Part 2 — Approved polish plan (this pass)
+## Part 2 — Combined implementation scope (this pass)
 
-1. **Sources → Python-owned** (`generate_proposal`, substitute before prose fill like the cover):
-   - `sources.fundmaster` = the source workbook basename (e.g. `PublicMutual_FundMaster_Jun2026_v1.00.xlsx`).
-   - `sources.web_urls` = the live macro events' `source_url`s (dedup, as `<li>` items).
-   - `sources.phs_list` = `<Abbr>_PHS.pdf` for each portfolio fund (`<li>` items).
-2. **Consistent emphasis (Option A)** — extend the prose prompt so the LLM wraps key figures, percentages, and fund names in `<strong>` in: `macro.impact.N`, `macro.themes`, `why.<FUND>`, `watch.<FUND>`. (Exec Summary already gets its bold from Python scaffolding.)
-3. **Investment Strategy readability:**
-   - **`strategy.rsp` → Python-rendered RSP table** (Fund · Allocation % · per RM 1,000), from portfolio allocations (deterministic). Keep a one-line LLM intro slot if desired.
-   - **`strategy.distribution` / `rebalancing` / `dip_capture` → `<ul><li>` bullet lists** (prompt the LLM to return bullets, not a paragraph).
+> **Scope decision (2026-06-21):** the Part-3 determinism hardening is **folded into this pass** — one combined commit (or a short ordered series), not a deferred follow-up. Only **fees (§8, ENH-1)** remain out of scope. After this pass the LLM authors *only* genuine synthesis prose (see "Remaining LLM-owned" below).
+>
+> **Review-pass addendum & self-corrections (kept for the trail):** a second content review re-classified three slots and found one bug. (i) `name_description` is a PY candidate because it is generic per-profile boilerplate with no client-specific input — *not* (as first claimed) because the prompt mandates exact wording; that mandate is the jargon table's. (ii) `target_note` is PY in **both** branches — first understated as "leave the empty case to the LLM."
 
-Land in one "proposal polish" commit; then regenerate a fresh proposal to review.
+### Group 1 — Profile / cover / exec facts → Python data-substitution
+Extend the existing "substitute before prose fill" block in `generate_proposal` (the same mechanism that already fills the 4 cover facts). Each slot gets a **named authoritative source** — no new rules except where Group 2 says so:
 
-## Part 3 — Determinism hardening (follow-ups; NOT this pass unless approved)
+| Slot (also where duplicated) | Python source |
+|---|---|
+| `cover.profile`, `exec_summary.profile` | `client_profile["risk_level"]` |
+| `cover.shariah`, `profile.shariah` | `client_profile["shariah"]` — **3-way** map: `True`→"Shariah-compliant", `False`→"Conventional", `None`→"No preference (both)". ⚠ Today `null` is mislabeled "Conventional" — fix as part of this. |
+| `profile.experience_level` | `client_profile["experience"]` → "New investor" / "Experienced investor" |
+| `profile.rl_ceiling` | **reuse** `filter_universe.RISK_CEILING[risk_level]` (Cons=2, Mod=3, MA=4, Agg=5) — do **not** duplicate the map |
+| `exec_summary.composition` | count built-portfolio holdings by fund type → "2 bond, 1 gold, 1 MM" (small format helper) |
+| `profile.name_description` | `risk_level` label + a **new** static 4-row description lookup (one sentence per profile) |
+| `profile.target_note` | PY both branches: `load_profile`'s computed warning when `target > ceiling`, else a static standard qualifier. **Remove the LLM from this slot.** |
+| `macro.month_year` | derive from the macro-context snapshot date |
 
-> **2026-06-21 review-pass addendum.** A second content review re-classified three slots and found one bug. Two self-corrections logged from that review: (i) `name_description` is a PY candidate because it is generic per-profile boilerplate with no client-specific input — *not* (as first claimed) because the prompt mandates exact wording; that mandate is the jargon table's, the `name_description` instruction only gives an `e.g.`. (ii) `target_note` is PY in **both** branches — first understated as "leave the empty case to the LLM."
+### Group 2 — Two NEW locked mappings (⚠ DECISION REQUIRED before coding)
+`portfolio.volatility_class` (VF→class label; rendered in §1 **and** §5) and `profile.target_vf_range` (per-profile VF band, e.g. Moderate "6–12 (Low-Medium)") have **no rule today — the LLM invents them.** Folding to Python means **defining authoritative, client-facing band boundaries + a per-profile VF-range table** (locked numbers, like the qualification rule). This needs consultant sign-off, not silent invention.
+- **Recommended:** define one VF-band scheme + per-profile ranges in a small rule module, with a test pinning each profile's range. Boundaries to be confirmed at implementation (placeholder e.g. Low <6, Low-Medium 6–12, Medium-High 12–18, High ≥18).
+- **If the boundaries aren't signed off in time:** these two stay the *only* profile/portfolio facts the LLM fills — ship the rest of the pass, leave these as a tracked stub. Do not block the whole pass on them.
 
-### Re-classified to Python (this review pass)
-- **`alpha_warning.<FUND>` → PY static string.** The div is already PY-gated (renders only for a Disqualified structural fund); the prose is near-boilerplate Python fully knows (status, weighted alpha, role, allocation). Promote to a templated static disclosure. Removes the last per-card LLM disclosure and closes the FAKE_LLM convergence hole (today FAKE_LLM emits `[alpha_warning narrative]`, the real LLM writes the sentence).
-- **`profile.target_note` → PY, both branches (bug fix).** `load_profile` already computes a realism warning when `target > ceiling` — but it is **silently discarded**; the slot never carries it. "Empty" (target ≤ ceiling) is a *Python verdict*, not a blank canvas for the LLM. Make the slot wholly Python: the computed warning when it fires, a static standard qualifier otherwise. Remove the LLM from this slot entirely. (The LLM's goals-grounded "N-year horizon" is a *separate* concern — surface it in a genuine prose slot or via a structured `horizon_years` field; do not smuggle it into a deterministic qualifier.)
-- **`profile.name_description` (description half) → PY static lookup.** The `Moderate` label is already a fact; the one-sentence description is generic per-profile boilerplate (no client-specific input) → a 4-row lookup keyed by risk level. The LLM only adds run-to-run variance here, not value.
+### Group 3 — `alpha_warning.<FUND>` → PY static templated string
+Render in the card template (`templates.py`), not as a prose slot. Remove it from the collected prose keys; update the FAKE_LLM fill + the determinism-guard test (the structural-card test already asserts the div is PY-emitted — extend it to assert the *text* is Python's).
 
-### §3 Client Risk Profile + the other LLM-authored facts (the headline gap)
-- Remaining `profile.*` → PY data-slots from `load_profile`: `shariah`, `experience_level`, `rl_ceiling`, `target_vf_range` (plus the `name_description` label, above). Largest single win.
-- Cover `profile` / `shariah`; §1 `exec_summary.profile` / `composition` / `volatility_class` (also rendered in §5); §2 `macro.month_year` → Python.
+### Group 4 — Sources → Python-owned
+Substitute before prose fill, like the cover:
+- `sources.fundmaster` = source workbook basename (e.g. `PublicMutual_FundMaster_Jun2026_v1.00.xlsx`).
+- `sources.web_urls` = the live macro events' `source_url`s (dedup, as `<li>` items).
+- `sources.phs_list` = `<Abbr>_PHS.pdf` for each portfolio fund (`<li>` items).
 
-### Prompt hygiene (real risk, not cosmetic)
-- Trim `assets/prompts/generate_proposal.md` to **only** the slots still LLM-owned. It still instructs the model on ~7 slots Python now owns or that are deferred — `cover.fundmaster_month_year`, `cover.proposal_date` / `prepared_date`, `macro.events_rows`, `portfolio_summary.fund_rows`, `fee_table.fund_rows`, `fees.PIX.phs_date`. A stale prompt invites the LLM to re-emit markup for already-filled slots, re-introducing the exact transcription risk Track 0 removed.
-- `cover.subtitle` stays LLM framing but instruct it to **omit numbers** (fund count / target range are facts).
+### Group 5 — Investment Strategy readability
+- **`strategy.rsp` → Python-rendered RSP table** (Fund · Allocation % · per RM 1,000), from portfolio allocations (deterministic). Optional one-line LLM intro slot.
+- **`strategy.distribution` / `rebalancing` / `dip_capture` → `<ul><li>` bullet lists** (prompt returns bullets, not a paragraph).
 
-### Deferred
+### Group 6 — Prompt + emphasis (LAST — after the slot set is final)
+- **Trim** `assets/prompts/generate_proposal.md` to **only** the slots still LLM-owned. It still instructs the model on slots Python now owns or that are deferred (`cover.fundmaster_month_year`, `cover.proposal_date`/`prepared_date`, `macro.events_rows`, `portfolio_summary.fund_rows`, `fee_table.fund_rows`, `fees.PIX.phs_date`, plus everything moved to PY above). A stale prompt invites the LLM to re-emit markup for already-filled slots, re-introducing the transcription risk Track 0 removed.
+- **Bolding:** instruct the LLM to wrap key figures, %, and fund names in `<strong>` in `macro.impact.N`, `macro.themes`, `why.<FUND>`, `watch.<FUND>`.
+- **`cover.subtitle`:** keep LLM framing but **omit numbers** (fund count / target range are facts).
+- **Bullets:** instruct `strategy.distribution`/`rebalancing`/`dip_capture` to return `<li>` items.
+
+### Remaining LLM-owned after this pass (the genuine-synthesis surface)
+`cover.subtitle` (no numbers) · `exec_summary.thesis` · `macro.impact.N` · `macro.themes` · `why.<FUND>` · `watch.<FUND>` · `strategy.distribution` / `rebalancing` / `dip_capture`. *(Plus `volatility_class` + `target_vf_range` only if Group 2's boundaries are deferred.)*
+
+### Deferred (still out of scope)
 - Fees (§8) — ENH-1 PHS extraction.
+
+### Suggested order
+Group 1 → 3 → 4 → 5 (independent, mechanical) → Group 2 (gated on the VF decision) → Group 6 (prompt last). Land as one pass or a short series; regenerate a fresh proposal to review; keep `tests/test_proposal_validation.py` at 29/29.
 
 ## Test/verify expectations
 - Each Python-owned slot lands an adversarial/consistency test (per repo convention).
