@@ -286,6 +286,40 @@ def _build_fee_table_rows(portfolio: list[dict]) -> str:
     return "\n".join(rows)
 
 
+def _build_rsp_table(portfolio: list[dict]) -> str:
+    """Python-owned RSP allocation table for §7.1 (pure arithmetic, never the LLM's).
+
+    Each holding's allocation_pct maps to its share of a RM 1,000/month commitment
+    (ringgit = allocation_pct * 10). A final Total row sums the actual allocations and
+    ringgit — never the hardcoded 100 / 1000 — so it stays correct for any portfolio.
+    Reuses the per-fund perf-table style for visual consistency.
+    """
+    body_rows = []
+    sum_alloc = 0.0
+    sum_ringgit = 0.0
+    for holding in portfolio:
+        abbr = holding["abbr"]
+        alloc = holding["allocation_pct"]
+        ringgit = alloc * 10
+        sum_alloc += alloc
+        sum_ringgit += ringgit
+        body_rows.append(
+            f"<tr><td>{abbr}</td><td>{alloc}%</td><td>RM {ringgit:.0f}</td></tr>"
+        )
+    total_row = (
+        f"<tr><td><strong>Total</strong></td>"
+        f"<td><strong>{sum_alloc:g}%</strong></td>"
+        f"<td><strong>RM {sum_ringgit:.0f}</strong></td></tr>"
+    )
+    rows = "\n".join([*body_rows, total_row])
+    return (
+        '<div class="table-wrap"><table class="perf-table">'
+        "<thead><tr><th>Fund</th><th>Allocation %</th><th>per RM 1,000 / mo</th></tr></thead>"
+        f"<tbody>{rows}</tbody>"
+        "</table></div>"
+    )
+
+
 # Holding role → portfolio-summary "Type" label; core/alpha holdings fall back to Equity.
 _ROLE_LABEL = {"structural:gold": "Gold", "structural:money_market": "Money Market"}
 
@@ -695,6 +729,10 @@ def generate_proposal(state: ConsultantState) -> dict:
     # never authors a citation.
     for _marker, _val in _source_facts(state).items():
         skeleton = skeleton.replace(_marker, _val)
+
+    # §7.1 Regular Savings Plan table is Python-owned too (pure allocation arithmetic):
+    # substitute before prose fill so the marker never reaches the LLM.
+    skeleton = skeleton.replace("<!--slot:strategy.rsp_table-->", _build_rsp_table(portfolio))
 
     # 4. Compute portfolio metrics
     portfolio_metrics = _compute_portfolio_metrics(portfolio, cfs_scores, eligible_funds)
