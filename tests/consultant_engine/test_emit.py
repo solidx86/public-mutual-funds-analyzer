@@ -1,27 +1,53 @@
-from consultant_engine.nodes.emit import emit
-import consultant_engine
+import re
+from pathlib import Path
 
-SKILL_VERSION = "1.27"  # extracted from proposal_html stamp
+from consultant_engine.nodes.emit import emit
+
+SKILL_VERSION = "1.27"  # extracted from the proposal_html stamp
 SAMPLE = ('<html><body><div>fund-consultant v' + SKILL_VERSION + '</div>'
           '<h4>AI-Generated Document</h4></body></html>')
 
-def test_emit_writes_versioned_file(tmp_path):
+
+def test_emit_generic_when_no_name(tmp_path):
     state = {"proposal_html": SAMPLE,
              "client_profile": {"risk_level": "Moderate"},
-             "fundmaster_path": "output/fundmasters/PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx",
              "output_dir": str(tmp_path)}
-    out = emit(state)
-    p = out["output_path"]
-    assert p.endswith("_v" + SKILL_VERSION + ".html")
-    assert "FundProposal_Moderate_Jun2026" in p
-    text = open(p).read()
-    assert ("fund-consultant v" + SKILL_VERSION) in text
-    assert "AI-Generated Document" in text
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(
+        r"FundProposal_generic_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
 
-def test_emit_includes_client_lastname(tmp_path):
+
+def test_emit_full_name_spaces_removed(tmp_path):
     state = {"proposal_html": SAMPLE,
-             "client_profile": {"risk_level": "Moderate", "client_name": "Tan Wei Ming"},
-             "fundmaster_path": "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx",
+             "client_profile": {"risk_level": "Aggressive", "client_name": "Tan Wei Ming"},
              "output_dir": str(tmp_path)}
-    out = emit(state)
-    assert "_Ming_v" in out["output_path"]
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(
+        r"FundProposal_TanWeiMing_Aggressive_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
+
+
+def test_emit_punctuation_only_name_falls_back_to_generic(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderate", "client_name": "!!!"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert name.startswith("FundProposal_generic_Moderate_"), name
+
+
+def test_emit_risk_spaces_removed(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderately Aggressive", "client_name": ""},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert "_ModeratelyAggressive_" in name, name
+
+
+def test_emit_writes_content_and_version_suffix(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderate"},
+             "output_dir": str(tmp_path)}
+    p = emit(state)["output_path"]
+    assert p.endswith("_v1.27.html")
+    text = open(p).read()
+    assert "AI-Generated Document" in text
+    assert "fund-consultant v1.27" in text
