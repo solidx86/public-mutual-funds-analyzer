@@ -31,7 +31,7 @@ def test_graph_runs_end_to_end_with_stubs(fundmaster_4fund, tmp_path):
         cfg,
     )
     assert out["output_path"]  # emit now produces a real versioned path
-    assert "FundProposal_Moderate_" in out["output_path"]
+    assert "FundProposal_generic_Moderate_" in out["output_path"]
     assert "_v0.1.0.html" in out["output_path"]  # version from proposal_html stamp
     assert out["proposal_html"]
 
@@ -47,7 +47,7 @@ def test_interrupt_pauses_then_resumes(fundmaster_4fund, tmp_path):
     assert "__interrupt__" in out                      # paused at review_gate
     out2 = app.invoke(Command(resume={"decision": "approve"}), cfg)
     assert out2["output_path"]  # emit now produces a real versioned path
-    assert "FundProposal_Moderate_" in out2["output_path"]
+    assert "FundProposal_generic_Moderate_" in out2["output_path"]
     assert "_v0.1.0.html" in out2["output_path"]  # version from proposal_html stamp
 
 

@@ -63,7 +63,7 @@ pip install -r requirements.txt pytest && pytest
 ## Outputs & versioning
 
 - `output/fundmasters/PublicMutual_FundMaster_<MonYYYY>_v<skill-version>.xlsx` — screener output
-- `output/fund_proposals/FundProposal_<RiskProfile>_<MonYYYY>[_<ClientName>]_v<skill-version>.html` — consultant output
+- `output/fund_proposals/FundProposal_<ClientName|generic>_<RiskProfile>_<YYYY-MM-DD>_v<consultant-version>.html` — consultant output. `<ClientName>` is the client name with non-alphanumerics removed (case preserved), or the literal `generic` when no name is given; `<YYYY-MM-DD>` is the generation date.
 
 For the **screener**, `<skill-version>` is parsed from the `version:` field in `fund-screener-skill/SKILL.md` frontmatter. Bump the skill's frontmatter version when changing the skill (semver: minor for backward-compatible, major for breaking).
 

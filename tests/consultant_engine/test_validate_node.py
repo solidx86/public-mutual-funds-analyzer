@@ -32,3 +32,15 @@ def test_broken_html_produces_violations(fundmaster_4fund):
     s["proposal_html"] = s["proposal_html"].replace("fund-consultant v", "fund-consultant vX")  # corrupt version stamp
     out = validate(s)
     assert out["violations"]
+
+
+def test_named_client_validates_clean(fundmaster_4fund):
+    s = {"client_profile": {"risk_level": "Moderate", "shariah": False,
+                            "client_name": "Tan Wei Ming"},
+         "fundmaster_path": fundmaster_4fund, "macro_context": {"source": "fixture"}}
+    for step in (load_profile, load_funds, filter_universe, score_cfs,
+                 macro_context, build_portfolio, generate_proposal):
+        s.update(step(s))
+    assert 'class="cover-prepared-for"' in s["proposal_html"]
+    out = validate(s)
+    assert out["violations"] == [], out["violations"]

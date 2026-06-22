@@ -769,6 +769,38 @@ def check_render_fidelity(html_text: str, state: Any) -> list[dict[str, str]]:
     )
 
 
+def check_prepared_for(html_text: str, client_name: str = "") -> list[dict[str, str]]:
+    """Verify the cover's 'Prepared for' line matches the client profile.
+
+    A named profile must render the escaped name inside a ``cover-prepared-for``
+    block; a generic profile (empty name) must not leak such a block. The block
+    is Python-owned, so a violation here signals a structural fill bug — a
+    fail-loud regression guard, not an LLM-repairable prose miss (mirrors
+    ``check_unfilled_slots``).
+
+    Args:
+        html_text: The rendered proposal HTML.
+        client_name: The normalized client name (``""`` = generic).
+
+    Returns:
+        A list with at most one violation:
+          * ``prepared_for_missing`` — named, but the escaped name's block is absent.
+          * ``prepared_for_unexpected`` — generic, but a prepared-for block leaked.
+    """
+    name = (client_name or "").strip()
+    has_block = 'class="cover-prepared-for"' in html_text
+    if name:
+        expected = f"Prepared for <strong>{_html.escape(name)}</strong>"
+        if expected not in html_text:
+            return [{"code": "prepared_for_missing",
+                     "msg": f"cover 'Prepared for {name}' line missing or mismatched"}]
+        return []
+    if has_block:
+        return [{"code": "prepared_for_unexpected",
+                 "msg": "generic proposal leaked a 'Prepared for' block"}]
+    return []
+
+
 # ── Composite runner ──────────────────────────────────────────────────────────
 
 
@@ -776,10 +808,19 @@ def validate_html(
     html_text: str,
     version: str,
     wb_index: dict[str, dict[str, Any]],
+    client_name: str = "",
 ) -> list[dict[str, str]]:
     """Run all validation rules and return the concatenated list of violations.
 
-    Returns ``[]`` for a clean proposal.
+    Args:
+        html_text: The rendered proposal HTML.
+        version: The expected version stamp.
+        wb_index: The FundMaster workbook index (see ``workbook_index``).
+        client_name: The normalized client name for the prepared-for check
+            (``""`` = generic). Optional so existing callers keep working.
+
+    Returns:
+        ``[]`` for a clean proposal, else the list of violation dicts.
     """
     return (
         check_sections(html_text)
@@ -792,4 +833,5 @@ def validate_html(
         + check_alpha_warning(html_text, wb_index)
         + check_retail_eligibility(html_text, wb_index)
         + check_unfilled_slots(html_text)
+        + check_prepared_for(html_text, client_name)
     )

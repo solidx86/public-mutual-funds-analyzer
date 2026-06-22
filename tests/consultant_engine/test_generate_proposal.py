@@ -344,3 +344,22 @@ class TestWeightedAlpha3Y:
         # The alpha figure must NOT carry a 'p.a.' annualization claim (the target
         # annual return elsewhere legitimately does — so scope the check to alpha).
         assert not re.search(r"3Y Alpha:</strong>\s*<span[^>]*>[\d.]+</span>%\s*p\.a\.", out)
+
+
+def test_prepared_for_renders_escaped_when_named(monkeypatch):
+    monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+    s = _state()
+    s["client_profile"]["client_name"] = "Tan <b>Wei</b> Ming"
+    html_out = generate_proposal(s)["proposal_html"]
+    assert 'class="cover-prepared-for"' in html_out
+    assert "Prepared for <strong>Tan &lt;b&gt;Wei&lt;/b&gt; Ming</strong>" in html_out
+    assert "<!--slot:cover.prepared_for_block-->" not in html_out
+
+
+def test_prepared_for_absent_when_generic(monkeypatch):
+    monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+    html_out = generate_proposal(_state())["proposal_html"]   # _state() has no client_name
+    # CSS embeds ".cover-prepared-for" always; check the *element* is absent, not the class name
+    assert '<div class="cover-prepared-for">' not in html_out
+    assert "Prepared for <strong>" not in html_out
+    assert "<!--slot:cover.prepared_for_block-->" not in html_out

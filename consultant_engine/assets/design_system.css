@@ -161,6 +161,13 @@ body {
   margin-bottom: 48px;
 }
 
+.cover-prepared-for {
+  font-size: 15px;
+  color: rgba(255,255,255,0.85);
+  margin-top: -32px;   /* tuck beneath the subtitle's 48px gap */
+  margin-bottom: 40px;
+}
+
 .cover-meta-grid {
   display: grid;
   grid-template-columns: repeat(3, auto);

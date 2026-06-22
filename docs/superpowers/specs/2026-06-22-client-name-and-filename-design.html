@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Spec — Client name + robust proposal filenaming</title>
+<style>
+  :root{
+    --ink:#1f2328; --muted:#57606a; --line:#d8dee4; --bg:#fbfcfd;
+    --accent:#9a3b2e; --accent-soft:#f3e7e4; --code-bg:#f4f1ea; --ok:#1a7f4b; --warn:#9a6700;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:56px 28px 96px}
+  header.doc{border-bottom:3px solid var(--accent); padding-bottom:22px; margin-bottom:8px}
+  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 14px; letter-spacing:-.01em}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--muted)}
+  .meta b{color:var(--ink); font-weight:600}
+  h2{font-size:21px; margin:42px 0 12px; padding-top:10px; letter-spacing:-.01em}
+  h3{font-size:16px; margin:26px 0 8px; color:var(--accent)}
+  p,li{color:var(--ink)}
+  .muted{color:var(--muted)}
+  code{background:var(--code-bg); padding:.12em .4em; border-radius:4px; font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre code{background:none; padding:0}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  tr:nth-child(even) td{background:#fff}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft); padding:12px 16px; border-radius:0 8px 8px 0; margin:18px 0}
+  .callout.ok{border-color:var(--ok); background:#e9f5ee}
+  .callout.warn{border-color:var(--warn); background:#fbf3da}
+  .pill{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:var(--accent); color:#fff; vertical-align:middle}
+  ul.tight{margin:8px 0; padding-left:22px}
+  ul.tight li{margin:4px 0}
+  hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+  footer.doc{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  .nowrap{white-space:nowrap}
+  s{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <p class="eyebrow">Design Specification</p>
+  <h1>Client name + robust proposal filenaming</h1>
+  <div class="meta">
+    <span><b>Project:</b> public-mutual-funds-analyzer</span>
+    <span><b>Component:</b> consultant_engine</span>
+    <span><b>Date:</b> 2026-06-22</span>
+    <span><b>Status:</b> Approved — ready for implementation plan</span>
+  </div>
+</header>
+
+<h2>Problem</h2>
+<p>The client's name is absent end-to-end:</p>
+<ul class="tight">
+  <li>It is <b>not a field</b> in the <code>ClientProfile</code> data structure (<code>consultant_engine/state.py</code>) nor in any <code>data/profiles/*.json</code> sample.</li>
+  <li>It is <b>never rendered</b> in the proposal — the cover page (<code>assets/proposal_skeleton.html</code>) shows Risk Profile, dates, and data source, but no recipient.</li>
+  <li><code>emit.py</code> half-handles it for the <em>filename</em> only, with two stale conventions: <b>last-name-only</b>, and a name segment ordered last after a date segment that is the <b>FundMaster workbook vintage</b> (<code>MonYYYY</code>) rather than the generation date.</li>
+</ul>
+<p>The documented naming convention (<code>CLAUDE.md</code>) is correspondingly stale, and the three tracked example proposals still carry the old name shape.</p>
+
+<h2>Goals</h2>
+<ol class="tight">
+  <li>Make <code>client_name</code> a first-class <b>optional</b> profile field (default <code>""</code> = generic).</li>
+  <li>Render the client's name on the proposal cover when present; omit cleanly when generic.</li>
+  <li>Adopt a robust, documented filename convention:
+    <ul class="tight">
+      <li>Named: <code>FundProposal_&lt;ClientName&gt;_&lt;RiskProfile&gt;_&lt;YYYY-MM-DD&gt;_v&lt;version&gt;.html</code></li>
+      <li>Generic: <code>FundProposal_generic_&lt;RiskProfile&gt;_&lt;YYYY-MM-DD&gt;_v&lt;version&gt;.html</code></li>
+    </ul>
+  </li>
+  <li>Validate post-generation that the name rendered correctly (or is correctly absent).</li>
+  <li>Update stale documentation and the tracked example filenames.</li>
+</ol>
+
+<h2>Non-goals</h2>
+<ul class="tight">
+  <li>No <code>--client-name</code> CLI flag. The profile JSON is the single owner of client facts; a name reaches the engine only through the profile.</li>
+  <li>No change to how the FundMaster vintage is displayed <em>inside</em> the proposal (the "Data Source" cover cell stays <code>FundMaster &lt;Mon YYYY&gt;</code>). The vintage simply stops being the filename's date segment.</li>
+  <li>No PII handling beyond HTML-escaping. Real (client-named) runs are already gitignored; only generic examples are public.</li>
+</ul>
+
+<h2>Design decisions (locked)</h2>
+<table>
+  <thead><tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr></thead>
+  <tbody>
+    <tr><td>Filename date segment</td><td>Generation date as <code>YYYY-MM-DD</code></td><td>Daily uniqueness, clean sort; the FundMaster vintage is still shown inside the proposal so no information is lost.</td></tr>
+    <tr><td>Name in filename</td><td>Full name, spaces <b>and</b> punctuation removed, case preserved</td><td>Keeps full identity; underscore stays an unambiguous field separator.</td></tr>
+    <tr><td>Render location</td><td>A single "Prepared for" line on the cover, under the subtitle</td><td>One prominent placement; omitted entirely when generic.</td></tr>
+    <tr><td>Name channel</td><td>Profile JSON only</td><td>Single owner; no CLI surface to keep in sync.</td></tr>
+  </tbody>
+</table>
+
+<h2>Architecture</h2>
+<p>The change touches one field and threads it through the existing pipeline stages. Each unit keeps its current single responsibility.</p>
+
+<h3>1. Data model — <code>client_name</code> as an optional profile field</h3>
+<ul class="tight">
+  <li><code>consultant_engine/state.py</code> — add <code>client_name: str</code> to the <code>ClientProfile</code> <code>TypedDict</code>. (<code>TypedDict</code> is a type hint, not runtime-enforced, so existing callers/tests that omit it keep working.)</li>
+  <li><code>consultant_engine/nodes/load_profile.py</code> — normalize and default the field, alongside the existing <code>experience</code>/<code>target_annual_return_pct</code> defaults. This is the <b>input-validation boundary</b> (concern A below): trim; collapse internal whitespace; strip control characters / newlines; cap length (100 chars); <code>setdefault(..., "")</code>; an all-whitespace value normalizes to <code>""</code> (generic). After this node every downstream node sees a guaranteed, render- and filename-safe <code>client_name</code>.</li>
+  <li><code>data/profiles/*.json</code> — add <code>"client_name": ""</code> to all four samples so the field is discoverable; the samples stay generic.</li>
+</ul>
+
+<h3>2. Render — "Prepared for" line on the cover (Python-owned)</h3>
+<ul class="tight">
+  <li><code>assets/proposal_skeleton.html</code> — insert one marker on its own line under the cover subtitle: <code>&lt;!--slot:cover.prepared_for_block--&gt;</code></li>
+  <li><code>consultant_engine/nodes/generate_proposal.py</code> — in the cover-facts block (substituted <em>before</em> prose fill, like the other deterministic facts), build:
+    <ul class="tight">
+      <li>has name → <code>&lt;div class="cover-prepared-for"&gt;Prepared for &lt;strong&gt;{html.escape(name)}&lt;/strong&gt;&lt;/div&gt;</code></li>
+      <li>generic → <code>""</code> (the whole block collapses — no empty div)</li>
+    </ul>
+    "Has name" = <code>bool(client_name.strip())</code>. The name is <b>HTML-escaped</b> — it is the one free-text user value reaching the DOM. The block is fully Python-owned: the LLM never authors it and so can never drift it.</li>
+  <li><code>assets/design_system.css</code> — a small <code>.cover-prepared-for</code> rule matching the cover's type scale.</li>
+</ul>
+
+<h3>3. Filename — <code>emit.py</code> rewritten</h3>
+<pre><code>FundProposal_&lt;NameOrGeneric&gt;_&lt;Risk&gt;_&lt;YYYY-MM-DD&gt;_v&lt;version&gt;.html</code></pre>
+<ul class="tight">
+  <li><code>&lt;NameOrGeneric&gt;</code> = <code>re.sub(r'[^A-Za-z0-9]', '', client_name)</code> (full name, spaces + punctuation stripped, case preserved); falls back to <code>generic</code> when the result is empty (empty/whitespace/all-punctuation input).</li>
+  <li><code>&lt;Risk&gt;</code> = <code>risk_level</code> with spaces removed (e.g. <code>ModeratelyAggressive</code>).</li>
+  <li><code>&lt;YYYY-MM-DD&gt;</code> = <code>datetime.now()</code> (generation date) — replaces the old FundMaster-vintage segment.</li>
+  <li><code>&lt;version&gt;</code> = unchanged (parsed from the <code>fund-consultant v…</code> HTML stamp, falling back to <code>__version__</code>).</li>
+</ul>
+<p>The stale docstring is rewritten Google-style to describe the new shape.</p>
+<p class="muted">Examples: <code>FundProposal_TanWeiMing_Aggressive_2026-06-22_v0.1.0.html</code> · <code>FundProposal_generic_Moderate_2026-06-22_v0.1.0.html</code></p>
+
+<h3>4. Validation — post-generation conformance (concern B)</h3>
+<p>Two validations, two places, split by concern:</p>
+<ul class="tight">
+  <li><b>(A) Input validation</b> lives at <code>load_profile</code> (§1) — fail/normalize fast at the boundary, before expensive LLM work, and feed a clean value to both the renderer and the filename builder.</li>
+  <li><b>(B) Output conformance</b> lives in the post-generation validate layer, as requested:
+    <ul class="tight">
+      <li><code>consultant_engine/rules/validation.py</code> — new pure rule <code>check_prepared_for(html_text, client_name)</code>: named → assert the <code>Prepared for &lt;strong&gt;{escaped}&lt;/strong&gt;</code> line is present and carries the expected escaped name (else <code>prepared_for_missing</code>); generic → assert no <code>cover-prepared-for</code> block leaked (else <code>prepared_for_unexpected</code>).</li>
+      <li><code>validate_html</code> gains an optional <code>client_name: str = ""</code> parameter and includes <code>check_prepared_for</code> in its composite run. The default keeps the legacy eval's positional calls (<code>validate_html(html, version, idx)</code>) working unchanged.</li>
+      <li><code>consultant_engine/nodes/validate.py</code> — pass <code>state["client_profile"].get("client_name", "")</code> into <code>validate_html</code>.</li>
+    </ul>
+  </li>
+</ul>
+<div class="callout warn">
+  <b>Caveat (by design):</b> the prepared-for block is Python-owned/deterministic, so a <code>check_prepared_for</code> violation cannot be meaningfully fixed by the LLM <code>repair</code> node — it would loop <code>MAX_REPAIR</code> times then <code>fail</code>. This mirrors the existing <code>check_unfilled_slots</code> rule (a surviving marker is a structural bug, not LLM prose). The rule's value is a <b>fail-loud regression guard</b>: it catches a future skeleton/marker edit or escaping bug that silently drops or mangles the name, guaranteeing the engine never emits a proposal where the recipient vanished.
+</div>
+
+<h3>5. Examples — rename to the new generic convention</h3>
+<p>The three tracked examples are generic (their source profiles have no name) and carry an internal <code>Prepared 12 Jun 2026</code> date. Rename them to:</p>
+<ul class="tight">
+  <li><code>FundProposal_generic_Aggressive_2026-06-12_v0.1.0.html</code></li>
+  <li><code>FundProposal_generic_Moderate_2026-06-12_v0.1.0.html</code></li>
+  <li><code>FundProposal_generic_ModeratelyAggressive_2026-06-12_v0.1.0.html</code></li>
+</ul>
+<p>Bodies are unchanged: being generic, they correctly show no prepared-for line (they demonstrate the generic path; the named path is covered by unit tests). The legacy eval discovers proposals by glob and resolves each workbook from the cover's "Data Source" cell, so renaming is safe; its only filename assertion (<code>endswith("_v0.1.0.html")</code>) still holds.</p>
+
+<h3>6. Documentation</h3>
+<ul class="tight">
+  <li><code>CLAUDE.md</code> — update the <em>Outputs &amp; versioning</em> line from the stale <code>FundProposal_&lt;RiskProfile&gt;_&lt;MonYYYY&gt;[_&lt;ClientName&gt;]_v&lt;skill-version&gt;.html</code> to the new named/generic convention with the generation-date segment.</li>
+  <li>Code docstrings are rewritten Google-style for every touched function (<code>emit</code>, <code>load_profile</code>, <code>check_prepared_for</code>, the <code>generate_proposal</code> cover-facts helper).</li>
+</ul>
+
+<h2>Testing</h2>
+<ul class="tight">
+  <li><code>tests/consultant_engine/test_emit.py</code> — new order/date segment; generic case; full-name-spaces-removed (<code>Tan Wei Ming</code> → <code>TanWeiMing</code>); punctuation/whitespace-only name → <code>generic</code> fallback.</li>
+  <li><code>tests/consultant_engine/test_generate_proposal.py</code> — the <code>Prepared for &lt;strong&gt;…&lt;/strong&gt;</code> line renders (escaped) when named; absent when generic.</li>
+  <li><code>tests/consultant_engine/</code> <code>load_profile</code> coverage — <code>client_name</code> defaults to <code>""</code>; normalization (trim, collapse whitespace, strip control chars, length cap, whitespace-only → <code>""</code>).</li>
+  <li><code>tests/consultant_engine/test_validation_rules.py</code> — <code>check_prepared_for</code> both directions (named present/missing/mismatched; generic clean/leaked).</li>
+  <li><code>tests/test_proposal_validation.py</code> (legacy eval) — confirm green against the renamed examples; <code>KNOWN_*</code> pin sets stay empty.</li>
+</ul>
+
+<h2>Risks &amp; mitigations</h2>
+<table>
+  <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+  <tbody>
+    <tr><td>HTML injection via client name</td><td><code>html.escape</code> at render; control chars stripped at <code>load_profile</code>.</td></tr>
+    <tr><td>Filename collisions (same client+profile, same day)</td><td>Acceptable — overwrite is intended for a regenerated same-day proposal; version segment differentiates across engine versions.</td></tr>
+    <tr><td>Deterministic-fact violation wastes repair cycles</td><td>Documented, accepted (mirrors <code>unfilled_slot</code>); the check is a fail-loud guard, not a repair trigger.</td></tr>
+    <tr><td>Legacy eval coupling to filenames</td><td>Verified: discovery is glob + cover-cell based, not filename-parsed.</td></tr>
+  </tbody>
+</table>
+
+<footer class="doc">
+  HTML companion to <code>2026-06-22-client-name-and-filename-design.md</code> (the markdown is the source of truth; regenerate this file whenever it changes).
+</footer>
+
+</div>
+</body>
+</html>
