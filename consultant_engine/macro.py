@@ -28,6 +28,9 @@ class MacroContext(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     events: list[MacroEvent] = []
+    # exposure_gaps is INJECTION-ONLY: the live web-search producer (fetch_live_macro)
+    # returns events only and never populates gaps, so the build_portfolio I2 branch
+    # that reads exposure_gaps is exercised solely via an injected macro contract.
     exposure_gaps: list[str] = []
 
 

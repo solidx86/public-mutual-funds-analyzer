@@ -188,6 +188,13 @@ def compute_geo_exposure(
     bucket). Output is normalized to sum to 100.0 and ordered Malaysia-first,
     surviving foreign countries by descending %, "Other" last.
     """
+    # NOTE (review M-c, 2026-06-22): structural sleeves are deliberately NOT
+    # role-overridden here (unlike the asset pie's _STRUCTURAL_ROLE_SLOT). A
+    # structural sleeve's underlying geography is real geographic exposure —
+    # e.g. the gold sleeve PeEMAS holds US-listed gold equities (USA 91% in the
+    # workbook), so it correctly contributes to the USA slice. The two pies
+    # measure different axes; this is intentional, not a leak.
+
     # Weighted raw exposures.
     malaysia = 0.0
     foreign: dict[str, float] = {c: 0.0 for c in _GEO_COLUMNS}

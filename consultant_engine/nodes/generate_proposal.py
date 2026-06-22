@@ -149,17 +149,14 @@ def _cfs_for(abbr: str, cfs_scores: list[dict]) -> dict | None:
     return None
 
 
-_DEFAULT_CFS_WEIGHTS = {"alpha": 28, "returnfit": 40, "efficiency": 20, "momentum": 12}
-
-
 def _cfs_card_values(cfs: dict | None) -> dict:
     """Scalar scores + dimension weights a fund card renders. No score → all zeros
     (an unscored card shows 0/100 at 0% weight, never the default weights)."""
     score_keys = ("composite", "alpha_n", "returnfit_n", "efficiency_n", "momentum_n")
     weight_keys = ("alpha_w", "returnfit_w", "efficiency_w", "momentum_w")
-    if not cfs:
+    if not cfs or "weights" not in cfs:
         return {k: 0 for k in (*score_keys, *weight_keys)}
-    weights = cfs.get("weights", _DEFAULT_CFS_WEIGHTS)
+    weights = cfs["weights"]   # always set by cfs.score_all; fail loud if a card lacks it
     return {
         **{k: cfs.get(k, 0) for k in score_keys},
         "alpha_w": weights.get("alpha", 28),

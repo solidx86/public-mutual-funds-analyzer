@@ -58,13 +58,10 @@ def _collect_proposals():
 
 PROPOSALS = _collect_proposals()
 
-# Pinned violations found in earlier published samples (a Step-1b "PB "-fund
-# recommendation, a renamed section, three CFS composites that didn't recompute).
-# Those samples were regenerated clean in June 2026 — the sets stay so any NEW
+# Pinned retail-eligibility violations found in earlier published samples.
+# Those samples were regenerated clean in June 2026 — the set stays so any NEW
 # drift fails loudly.
 KNOWN_ELIGIBILITY_VIOLATIONS = set()
-KNOWN_SECTION_DEVIATIONS = {}
-KNOWN_CFS_INCONSISTENCIES = set()
 
 
 def skill_version():

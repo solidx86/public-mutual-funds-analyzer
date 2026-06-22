@@ -170,6 +170,18 @@ def test_apply_resume_malformed_edit_does_not_crash():
     assert any(v["code"] == "malformed_edit" for v in out["violations"])
 
 
+def test_read_resume_payload_invalid_json_message(tmp_path, monkeypatch):
+    import pytest
+    from consultant_engine.nodes.review_gate import read_resume_payload
+    monkeypatch.chdir(tmp_path)
+    review = tmp_path / "data" / "review"
+    review.mkdir(parents=True)
+    (review / "bad.json").write_text("{not valid json")
+    with pytest.raises(ValueError) as ei:
+        read_resume_payload("bad")
+    assert "not valid JSON" in str(ei.value)
+
+
 def test_build_portfolio_persists_universe_for_structural_reapproval(fundmaster_4fund):
     from consultant_engine.nodes.load_profile import load_profile
     from consultant_engine.nodes.load_funds import load_funds

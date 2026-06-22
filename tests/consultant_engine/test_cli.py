@@ -104,6 +104,14 @@ def test_version_flag_reports_package_version():
     assert __version__ in r.stdout
 
 
+def test_thread_id_rejects_path_separators():
+    import argparse, pytest
+    from consultant_engine.cli import _thread_id
+    args = argparse.Namespace(resume="../../etc/passwd", profile=None)
+    with pytest.raises(SystemExit):
+        _thread_id(args)
+
+
 def test_missing_profile_without_resume_errors_cleanly():
     # No --profile and no --resume: argparse-style error (exit 2) + guidance,
     # not a Path(None) traceback.

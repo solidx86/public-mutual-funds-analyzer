@@ -267,4 +267,9 @@ def read_resume_payload(thread_id: str) -> dict[str, Any]:
     review_path = Path("data/review") / f"{thread_id}.json"
     if not review_path.exists():
         return {"decision": "approve"}
-    return json.loads(review_path.read_text())
+    try:
+        return json.loads(review_path.read_text())
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"review file is not valid JSON: {review_path} ({e})"
+        ) from e

@@ -54,11 +54,14 @@ def _latest_fundmaster(search_dirs=None) -> str:
 
 
 def _thread_id(args) -> str:
-    """Checkpoint thread id: the --resume value, else the profile filename stem."""
-    if args.resume:
-        return args.resume
-    stem = Path(args.profile).stem
-    return f"{stem}"
+    """Checkpoint thread id: the --resume value, else the profile filename stem.
+
+    Rejects path separators / traversal so the value is safe to interpolate into
+    data/review/<id>.json and the checkpoint key."""
+    tid = args.resume if args.resume else Path(args.profile).stem
+    if "/" in tid or "\\" in tid or ".." in tid:
+        raise SystemExit(f"invalid thread id {tid!r}: path separators are not allowed")
+    return tid
 
 
 _DESCRIPTION = """\

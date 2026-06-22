@@ -39,7 +39,12 @@ def derived_class(fund) -> str:
 
 
 def percentile_rank(value, population) -> float:
-    """Percentile rank of value within population (top→100, bottom→0, ties shared)."""
+    """Percentile rank of value within population (top→100, bottom→0, ties shared).
+
+    A population of <=1 returns 100.0 by design: a fund that is the only member of
+    its derived class has no peers to rank against, so it gets full marks on that
+    dimension rather than an undefined 0/0. Intended — do not "fix" to 0.0.
+    """
     pop = sorted(population)
     if len(pop) <= 1:
         return 100.0
@@ -83,8 +88,10 @@ def raw_alpha_penalised(fund, penalize=True) -> float:
     raw = weighted_blend(alpha_periods)
     if penalize:
         # Explicit None checks: a missing alpha is "no penalty", distinct from a
-        # genuine negative alpha. (None and 0.0 both fail `< 0`, so behaviour is
-        # unchanged — this just drops the `or 0` None-vs-0 trap.)
+        # genuine negative alpha. Dividing a negative blend by 2 moves it TOWARD
+        # zero (less negative) — that is the intended "halve the penalty magnitude"
+        # behaviour, NOT a sign bug. A future "fix" that negates instead would break
+        # the contract. (None and 0.0 both fail `< 0`, so behaviour is unchanged.)
         alpha_3y = fund["returns"].get("3y", {}).get("alpha")
         alpha_5y = fund["returns"].get("5y", {}).get("alpha")
         if alpha_3y is not None and alpha_3y < 0: raw /= 2

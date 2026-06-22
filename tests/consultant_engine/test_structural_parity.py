@@ -1,4 +1,4 @@
-"""tests/consultant_engine/test_golden.py — Task 5.3
+"""tests/consultant_engine/test_structural_parity.py — Task 5.3
 
 Golden structural-parity anchor.  Generates a proposal via the engine
 (fake-LLM) and asserts it shares the canonical golden's LOCKED structure —
