@@ -14,6 +14,49 @@ Allocation is profile-gradient, CFS-proportional for core, normalized to 100.0.
 from __future__ import annotations
 from typing import Any
 
+from consultant_engine.invariants import CAP
+
+# Roles that can absorb spilled overflow when a core exceeds the cap, in priority order.
+_SPILL_ROLES = ("structural:gold", "structural:money_market")
+
+
+def _clamp_and_spill(holdings: list, cap: float) -> None:
+    """Clamp every core holding at ``cap`` in place, spilling the overflow first to
+    the *other* core(s) (up to their own cap headroom), then to the structural
+    sleeves. Order-stable; assumes the sleeves have enough headroom (the 4-fund
+    template always leaves >=20pts on gold+MM combined for every profile cap).
+
+    ``exposure_gap`` holdings are treated as sources (they can be clamped if they
+    exceed cap) but NOT as destinations — they are already capped at 15 % by
+    ``exposure_gap_pick`` and must not receive additional spill."""
+    # Sources: core and exposure_gap (both must not exceed the profile cap).
+    # Destinations for spill step 1: only actual "core" holdings (exposure_gap
+    # already carries its own 15 % domain limit and must not receive overflow).
+    sources = [h for h in holdings if h.get("role") in ("core", "exposure_gap")]
+    core_dests = [h for h in holdings if h.get("role") == "core"]
+    sleeves = [h for h in holdings if h.get("role") in _SPILL_ROLES]
+    for src in sources:
+        overflow = round(src["allocation_pct"] - cap, 1)
+        if overflow <= 0:
+            continue
+        src["allocation_pct"] = cap
+        # 1) spill to other cores with headroom
+        for dst in core_dests:
+            if dst is src or overflow <= 0:
+                continue
+            room = round(cap - dst["allocation_pct"], 1)
+            take = min(room, overflow)
+            if take > 0:
+                dst["allocation_pct"] = round(dst["allocation_pct"] + take, 1)
+                overflow = round(overflow - take, 1)
+        # 2) spill remainder to structural sleeves (no per-fund cap on structurals)
+        for dst in sleeves:
+            if overflow <= 0:
+                break
+            dst["allocation_pct"] = round(dst["allocation_pct"] + overflow, 1)
+            overflow = 0.0
+
+
 # Sleeve midpoints from SKILL.md §4
 TEMPLATE: dict[str, dict[str, float]] = {
     "Conservative":          {"core": 63.5, "gold": 6.5,  "mm": 17.5},
@@ -89,6 +132,10 @@ def build(
         holdings[largest_idx]["allocation_pct"] = round(
             holdings[largest_idx]["allocation_pct"] + residual, 1
         )
+
+    # Clamp any core above the profile cap and spill the excess (deterministic,
+    # so the result satisfies check_invariants' concentration_cap by construction).
+    _clamp_and_spill(holdings, CAP[profile])
 
     return holdings
 
@@ -189,6 +236,10 @@ def exposure_gap_pick(
             **new_portfolio[largest_idx],
             "allocation_pct": round(new_portfolio[largest_idx]["allocation_pct"] + residual, 1),
         }
+
+    # Clamp any surviving core lifted over the profile cap by the redistribution,
+    # spilling the excess to structural sleeves (same rule as build()).
+    _clamp_and_spill(new_portfolio, CAP[profile])
 
     return new_portfolio
 

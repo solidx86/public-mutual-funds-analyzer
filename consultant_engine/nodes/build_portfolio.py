@@ -10,7 +10,7 @@ Outputs: state["portfolio"], state["proposed_allocation"]
 
 from __future__ import annotations
 
-from consultant_engine.invariants import check_invariants
+from consultant_engine.invariants import CAP, check_invariants
 from consultant_engine.portfolio import (
     build,
     dedup_overlap,
@@ -86,7 +86,10 @@ def build_portfolio(state: ConsultantState) -> dict:
     violations = check_invariants(portfolio_funds, profile, universe, rl_by_abbr)
     if violations:
         raise RuntimeError(
-            f"build_portfolio invariant violations (build-time bug): {violations}"
+            f"build_portfolio could not satisfy invariants for profile "
+            f"{profile!r} (cap {CAP[profile]}): {violations}. The deterministic "
+            f"clamp should make this unreachable for well-formed FundMaster data; "
+            f"if you see it, the FundMaster or profile constraints are infeasible."
         )
 
     return {

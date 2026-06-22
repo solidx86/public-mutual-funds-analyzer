@@ -1,4 +1,5 @@
 from consultant_engine.portfolio import build, dedup_overlap
+from consultant_engine.invariants import CAP, check_invariants
 
 
 def test_structural_always_present_and_sums_100():
@@ -196,3 +197,41 @@ def test_outlier_gate_a_fails_non_positive_3y_alpha():
     out = alpha_outlier(portfolio, scores, funds, "Moderate", shariah=None)
     # portfolio unchanged — gate A blocked (3Y alpha = 0 is not > 0)
     assert out is portfolio
+
+
+# ---------------------------------------------------------------------------
+# concentration-cap clamp tests (Task 1)
+# ---------------------------------------------------------------------------
+
+
+def test_build_clamps_skewed_core_to_cap_moderate():
+    # Composites ~95/5 → naive CFS-proportional split puts core A at ~70% of the
+    # 63.5 core budget, i.e. >50 (the Moderate cap). build() must clamp & spill.
+    scores = [
+        {"abbr": "BIG", "composite": 95.0, "alpha_n": 90},
+        {"abbr": "SMALL", "composite": 5.0, "alpha_n": 30},
+    ]
+    port = build(scores, "Moderate", shariah=False)
+    cap = CAP["Moderate"]
+    assert all(h["allocation_pct"] <= cap for h in port), port
+    assert sum(h["allocation_pct"] for h in port) == 100.0
+    # No invariant violation by construction.
+    universe = {h["abbr"] for h in port}
+    rl = {h["abbr"]: 3 for h in port}
+    assert check_invariants(port, "Moderate", universe, rl) == []
+
+
+def test_gap_pick_clamps_surviving_core_to_cap():
+    # Surviving core inherits freed share and would exceed the Conservative cap (50);
+    # the redistribution must clamp it and spill to structurals.
+    core = [
+        {"abbr": "BIG", "role": "core", "allocation_pct": 48.0, "alpha_n": 70},
+        {"abbr": "LO", "role": "core", "allocation_pct": 25.0, "alpha_n": 20},
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 17.0},
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10.0},
+    ]
+    cand = [{"abbr": "GAP", "returns": {"3y": {"alpha": 1.0}}}]
+    out = exposure_gap_pick(core, candidates=cand, gaps=["china"], profile="Conservative")
+    cap = CAP["Conservative"]
+    assert all(h["allocation_pct"] <= cap for h in out), out
+    assert sum(h["allocation_pct"] for h in out) == 100.0
