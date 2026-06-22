@@ -175,3 +175,33 @@ def test_unfilled_slot_surfaces_through_validate_html(good_html, wb_index):
     assert leaked != good_html, "fixture changed — update the injection anchor"
     codes = {v["code"] for v in validate_html(leaked, __version__, wb_index)}
     assert "unfilled_slot" in codes
+
+
+from consultant_engine.rules.validation import check_prepared_for
+
+_NAMED_BLOCK = ('<div class="cover-prepared-for">Prepared for '
+                '<strong>Tan Wei Ming</strong></div>')
+
+
+def test_prepared_for_named_present_is_clean():
+    assert check_prepared_for(_NAMED_BLOCK, "Tan Wei Ming") == []
+
+
+def test_prepared_for_named_missing_flags():
+    v = check_prepared_for("<div>no prepared-for here</div>", "Tan Wei Ming")
+    assert len(v) == 1 and v[0]["code"] == "prepared_for_missing"
+
+
+def test_prepared_for_escaped_name_matches():
+    safe = ('<div class="cover-prepared-for">Prepared for '
+            "<strong>A &amp; B</strong></div>")
+    assert check_prepared_for(safe, "A & B") == []
+
+
+def test_prepared_for_generic_no_block_is_clean():
+    assert check_prepared_for("<div class='cover'>nothing</div>", "") == []
+
+
+def test_prepared_for_generic_leaked_block_flags():
+    v = check_prepared_for(_NAMED_BLOCK, "")
+    assert len(v) == 1 and v[0]["code"] == "prepared_for_unexpected"
