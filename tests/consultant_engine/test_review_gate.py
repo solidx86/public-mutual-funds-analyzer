@@ -167,7 +167,11 @@ def test_apply_resume_malformed_edit_does_not_crash():
         {"allocation_pct": 40},                       # no abbr/abbrev key at all
         {"abbrev": "PeEMAS", "allocation_pct": 10}]}
     out = apply_resume(state, payload)            # must NOT raise KeyError
-    assert any(v["code"] == "malformed_edit" for v in out["violations"])
+    # Exactly one entry is malformed (the keyless dict); the valid PeEMAS edit must
+    # not add a spurious malformed_edit. Asserting the count, not just presence,
+    # catches a regression that double-logs or over-flags otherwise-valid edits.
+    malformed = [v for v in out["violations"] if v["code"] == "malformed_edit"]
+    assert len(malformed) == 1, out["violations"]
 
 
 def test_read_resume_payload_invalid_json_message(tmp_path, monkeypatch):

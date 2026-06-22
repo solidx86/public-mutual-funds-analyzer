@@ -108,8 +108,11 @@ def test_thread_id_rejects_path_separators():
     import argparse, pytest
     from consultant_engine.cli import _thread_id
     args = argparse.Namespace(resume="../../etc/passwd", profile=None)
-    with pytest.raises(SystemExit):
+    # Assert the rejection message names the cause, mirroring the invalid-JSON test:
+    # a bare SystemExit would pass even if the guard exited for an unrelated reason.
+    with pytest.raises(SystemExit) as ei:
         _thread_id(args)
+    assert "path separators are not allowed" in str(ei.value)
 
 
 def test_missing_profile_without_resume_errors_cleanly():

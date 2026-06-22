@@ -58,6 +58,7 @@ pip install -r requirements.txt pytest && pytest
 
 - `tests/test_pipeline.py` runs pipeline steps 3–4 offline from the tracked JSONs in a temp workspace — it never touches the repo's tracked outputs.
 - `tests/test_proposal_validation.py` is the eval layer for generated proposals (locked-template conformance; CFS / performance / exposure / portfolio-summary recomputation; disclosure rules; retail eligibility) cross-checked against the FundMaster workbook each proposal names. The `KNOWN_*` pin sets at the top must stay empty — if a regenerated proposal trips one, fix the proposal, don't pin it.
+- **The test suite is read-only over tracked outputs.** Running `pytest` must never modify the committed example proposals under `output/examples/fund_proposals/` — the eval layer only *reads* them. Only an explicit `consultant_engine` real-LLM run regenerates an example. If you change code that could alter proposal output, hash `output/examples/fund_proposals/*.html` before and after the run to confirm the suite left them byte-identical.
 - CI (`.github/workflows/ci.yml`) runs the same `pytest` on every push to main; keep it green.
 
 ## Outputs & versioning
@@ -79,6 +80,7 @@ Copyrighted source PDFs (`unit-trust/`, `private-retirement-scheme/`) and real o
 
 ## Repo conventions worth knowing
 
+- **Comments and docstrings follow Google Python style** — module/function docstrings in the Google format, inline comments as complete capitalized sentences explaining *why* (not restating the code), kept at least two spaces off the statement. Match the surrounding density; don't narrate obvious lines.
 - **Qualification rule is weighted alpha > 0%**, not a binary beat-rate. Legacy beat-rate columns (Beat %, period checkmarks) are kept for display only — do not reintroduce the old binary gate as the qualifier.
 - **Cached intermediate files** in `data/cache/`: `mfr_results.json`, `ath_results.json`, `fund_code_map.json` are **tracked** (so a fresh clone has working data without re-scraping). `data/cache/master_funds.csv` is **gitignored** (cheap to regenerate from the three JSONs).
 - **PRS PDFs** in `private-retirement-scheme/` are deliberately excluded by `extract_mfr.py` — the screener is UT-only.

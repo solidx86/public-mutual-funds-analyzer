@@ -215,7 +215,11 @@ def test_build_clamps_skewed_core_to_cap_moderate():
     cap = CAP["Moderate"]
     assert all(h["allocation_pct"] <= cap for h in port), port
     assert sum(h["allocation_pct"] for h in port) == 100.0
-    # No invariant violation by construction.
+    # Smoke check that the clamped portfolio is invariant-clean by construction.
+    # RL here is a uniform 3 (== the Moderate ceiling), so this asserts the cap and
+    # sum branches, not the RL-ceiling branch. RL-ceiling enforcement (core
+    # violation plus the satellite/gold/money-market exemptions) has dedicated
+    # coverage in test_invariants.py; it is intentionally not re-tested here.
     universe = {h["abbr"] for h in port}
     rl = {h["abbr"]: 3 for h in port}
     assert check_invariants(port, "Moderate", universe, rl) == []

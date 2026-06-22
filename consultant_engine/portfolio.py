@@ -55,6 +55,11 @@ def _clamp_and_spill(holdings: list, cap: float) -> None:
                 break
             dst["allocation_pct"] = round(dst["allocation_pct"] + overflow, 1)
             overflow = 0.0
+        # The template guarantees >=20pts of sleeve headroom for every profile cap,
+        # so every source's overflow must be fully absorbed. A non-zero remainder
+        # means an upstream invariant changed (e.g. a tighter template or a new
+        # per-sleeve cap); fail loud rather than emit a portfolio that sums != 100.
+        assert overflow == 0.0, f"unabsorbed overflow {overflow} for {src['abbr']}"
 
 
 # Sleeve midpoints from SKILL.md §4

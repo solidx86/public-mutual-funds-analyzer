@@ -58,9 +58,9 @@ def _collect_proposals():
 
 PROPOSALS = _collect_proposals()
 
-# Pinned retail-eligibility violations found in earlier published samples.
-# Those samples were regenerated clean in June 2026 — the set stays so any NEW
-# drift fails loudly.
+# Pinned retail-eligibility violations once found in the published example proposals.
+# Those example proposals were regenerated clean in June 2026 — the set stays empty
+# so any NEW drift fails loudly rather than being silently pinned.
 KNOWN_ELIGIBILITY_VIOLATIONS = set()
 
 
