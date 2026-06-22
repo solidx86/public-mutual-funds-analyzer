@@ -26,8 +26,9 @@ def emit(state: ConsultantState) -> dict:
     Filename: ``FundProposal_<NameOrGeneric>_<Risk>_<YYYY-MM-DD>_v<version>.html``
 
     Where:
-        NameOrGeneric: ``client_name`` with non-alphanumerics stripped (case
-            preserved), or ``generic`` when no usable name is present.
+        NameOrGeneric: ``client_name`` with spaces, punctuation, and underscore
+            stripped (unicode letters/digits preserved), or ``generic`` when no
+            usable name is present.
         Risk: the client's ``risk_level`` with spaces removed.
         YYYY-MM-DD: the generation date (today).
         version: parsed from the proposal's ``fund-consultant v<version>`` stamp,

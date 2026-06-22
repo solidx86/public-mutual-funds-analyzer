@@ -75,3 +75,12 @@ def test_emit_unicode_spaces_and_punctuation_stripped(tmp_path):
              "output_dir": str(tmp_path)}
     name = Path(emit(state)["output_path"]).name
     assert re.fullmatch(r"FundProposal_AnwarbinIsmail_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
+
+
+def test_emit_underscore_stripped(tmp_path):
+    """Underscores must not survive into the filename — they are field delimiters."""
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Aggressive", "client_name": "Jean_Luc"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_JeanLuc_Aggressive_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
