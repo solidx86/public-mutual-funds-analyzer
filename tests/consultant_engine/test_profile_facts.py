@@ -7,6 +7,8 @@ the corresponding ``[KEY narrative]`` placeholder is absent.
 
 Runs offline via the autouse fake-LLM fixture in tests/conftest.py.
 """
+import re
+
 import pytest
 
 from consultant_engine.nodes.load_profile import load_profile
@@ -67,6 +69,17 @@ def test_cover_and_exec_profile_render_risk_level(fundmaster_4fund):
     # No leftover prose-slot markers for either key.
     assert "slot:cover.profile" not in html
     assert "slot:exec_summary.profile" not in html
+
+
+def test_cover_title_separates_profile_and_month(fundmaster_4fund):
+    # Regression (review IMP-7): the <title> places cover.profile and
+    # cover.month_year either side of a literal " — " separator, so it renders
+    # "… — Moderate — Apr 2026", never the run-together "ModerateApr 2026".
+    html = _html(fundmaster_4fund)
+    m = re.search(r"<title>(.*?)</title>", html, re.S)
+    assert m, "no <title> in rendered proposal"
+    # profile and a non-empty month, separated by ' — '.
+    assert re.search(r"— Moderate — \S", m.group(1)), m.group(1)
 
 
 # The 4-fund fixture's cores are RL3, so only profiles with ceiling >= 3 build a
