@@ -18,7 +18,8 @@ def _usage():
 def test_blocks_substitute_and_fall_back_per_missing_key(monkeypatch):
     html = ('<p><!--slot:why.PIX--></p><ul><!--slot:watch.PIX--></ul>'
             '<p><!--slot:exec_summary.thesis--></p>')
-    # only 2 of the 3 keys returned → the third must degrade per-slot, not crash
+    # only 2 of the 3 keys returned, every time → even after the gap-2 retry the third
+    # must degrade per-slot to a flagged sentinel, not crash and not break the doc.
     reply = "@@@why.PIX@@@\nStrong manager alpha.\n@@@watch.PIX@@@\n<li>Rates</li>\n"
     monkeypatch.setattr(gp, "complete_with_usage", lambda *a, **k: (reply, _usage()))
     out = gp._fill_prose_slots_llm(html, _state())
@@ -26,15 +27,37 @@ def test_blocks_substitute_and_fall_back_per_missing_key(monkeypatch):
     assert "<!--slot:" not in out                       # every slot consumed
     assert "Strong manager alpha." in out
     assert "<li>Rates</li>" in out
-    assert "[exec_summary.thesis narrative]" in out      # missing key → placeholder, doc intact
+    assert "[UNFILLED:exec_summary.thesis]" in out       # missing key → leak sentinel, doc intact
 
 
-def test_no_markers_degrades_to_placeholders(monkeypatch):
+def test_missing_key_is_retried_once_then_filled(monkeypatch):
+    """Gap 2: a transient single-slot miss is re-asked (only the missing key) and
+    recovers on the retry, so no fallback sentinel reaches validation."""
+    html = ('<p><!--slot:why.PIX--></p><ul><!--slot:watch.PIX--></ul>'
+            '<p><!--slot:exec_summary.thesis--></p>')
+    replies = [
+        "@@@why.PIX@@@\nStrong manager alpha.\n@@@watch.PIX@@@\n<li>Rates</li>\n",  # 2/3
+        "@@@exec_summary.thesis@@@\nBalanced growth thesis.\n",                      # retry fills it
+    ]
+    calls = []
+    def fake(*a, **k):
+        calls.append(a)
+        return replies[len(calls) - 1], _usage()
+    monkeypatch.setattr(gp, "complete_with_usage", fake)
+    out = gp._fill_prose_slots_llm(html, _state())
+
+    assert len(calls) == 2                               # exactly one targeted retry
+    assert "Balanced growth thesis." in out              # retry recovered the missing key
+    assert "[UNFILLED:" not in out                       # no fallback needed
+    assert "<!--slot:" not in out
+
+
+def test_no_markers_degrades_to_sentinel(monkeypatch):
     html = '<p><!--slot:why.PIX--></p>'
     monkeypatch.setattr(gp, "complete_with_usage",
                         lambda *a, **k: ("sorry, no markers here", _usage()))
     out = gp._fill_prose_slots_llm(html, _state())
-    assert out == "<p>[why.PIX narrative]</p>"           # no crash, structure preserved
+    assert out == "<p>[UNFILLED:why.PIX]</p>"            # no crash, structure preserved
 
 
 def test_parse_blocks_survives_html_that_breaks_json():

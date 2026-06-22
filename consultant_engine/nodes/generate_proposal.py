@@ -15,7 +15,9 @@ Steps:
   7. Prose fill: replace each <!--slot:KEY--> marker with prose.
      - Fake-LLM mode (CONSULTANT_ENGINE_FAKE_LLM=1): replace each marker with a readable
        placeholder like "[KEY narrative]".
-     - Real-LLM mode: pass the numerically-filled document to llm.complete for prose authoring.
+     - Real-LLM mode: author prose via llm.complete, with one targeted retry for any
+       missing keys; whatever is still missing degrades to a "[UNFILLED:KEY]" sentinel
+       that the validator flags as ``unfilled_slot`` (never silently emitted).
   8. Return {"proposal_html": result}.
 """
 
@@ -29,7 +31,7 @@ from pathlib import Path
 import consultant_engine
 from consultant_engine import exposure
 from consultant_engine.cfs import derived_class
-from consultant_engine.llm import complete, complete_with_usage
+from consultant_engine.llm import complete_with_usage
 from consultant_engine.nodes.filter_universe import RISK_CEILING
 from consultant_engine.state import ConsultantState
 from consultant_engine.templates import fill_slots, render_alpha_warning, render_structural_card
@@ -359,7 +361,7 @@ def _compute_portfolio_metrics(portfolio: list[dict], cfs_scores: list[dict],
                                 eligible_funds: list[dict]) -> dict:
     """Compute weighted portfolio metrics from portfolio holdings + CFS scores."""
     weighted_cfs = 0.0
-    weighted_alpha = 0.0
+    weighted_alpha_3y = 0.0
     weighted_risk_level = 0.0
     for holding in portfolio:
         abbr = holding["abbr"]
@@ -369,17 +371,22 @@ def _compute_portfolio_metrics(portfolio: list[dict], cfs_scores: list[dict],
         fund_risk_level = fund.get("risk_level", 3)
         if cfs:
             weighted_cfs += cfs.get("composite", 0) * alloc
-            weighted_alpha += cfs.get("alpha_n", 0) * alloc
+        # The "3Y Alpha" the proposal reports is the allocation-weighted 3Y alpha
+        # *return* — NOT the alpha_n CFS score (a 0–100 percentile). A structural
+        # gold/MM sleeve with a flat or negative 3Y alpha correctly drags this down.
+        # Missing 3Y alpha (e.g. a fund < 3y old) contributes 0 to the blend.
+        alpha_3y = ((fund.get("returns") or {}).get("3y") or {}).get("alpha")
+        weighted_alpha_3y += (alpha_3y or 0.0) * alloc
         weighted_risk_level += fund_risk_level * alloc
     return {
         "weighted_cfs": f"{weighted_cfs:.1f}",
-        "weighted_alpha": f"{weighted_alpha:.1f}",
+        "weighted_alpha_3y": f"{weighted_alpha_3y:.1f}",
         "weighted_risk_level": f"{weighted_risk_level:.1f}",
     }
 
 
 def _build_slot_values(
-    state: ConsultantState, portfolio_metrics: dict, asset_exposure: dict[str, float]
+    state: ConsultantState, portfolio_metrics: dict
 ) -> dict:
     """Build the slot_values dict for fill_slots — covering all live data-slot keys
     in the cleaned skeleton."""
@@ -405,16 +412,12 @@ def _build_slot_values(
         "profile.target_annual_return_pct": str(target_annual_return_pct),
         # Portfolio (weighted)
         "portfolio.cfs_composite": portfolio_metrics["weighted_cfs"],
-        "portfolio.alpha_3y": portfolio_metrics["weighted_alpha"],
+        "portfolio.alpha_3y": portfolio_metrics["weighted_alpha_3y"],
         "portfolio.weighted_cfs": portfolio_metrics["weighted_cfs"],
-        "portfolio.weighted_alpha": portfolio_metrics["weighted_alpha"],
+        "portfolio.weighted_alpha": portfolio_metrics["weighted_alpha_3y"],
         "portfolio.weighted_risk_level": portfolio_metrics["weighted_risk_level"],
-        # Exposure — deterministic look-through (Python-owned, never the LLM's).
-        "exposure.asset.domestic_equity_pct": f"{asset_exposure['exposure.asset.domestic_equity_pct']}%",
-        "exposure.asset.foreign_equity_pct": f"{asset_exposure['exposure.asset.foreign_equity_pct']}%",
-        "exposure.asset.fixed_income_pct": f"{asset_exposure['exposure.asset.fixed_income_pct']}%",
-        "exposure.asset.money_market_pct": f"{asset_exposure['exposure.asset.money_market_pct']}%",
-        "exposure.asset.gold_pct": f"{asset_exposure['exposure.asset.gold_pct']}%",
+        # Exposure asset-class + geo legends are generated slots (render_asset_legend
+        # / render_geo_legend), substituted before fill_slots — not data-slots here.
     }
 
 
@@ -448,21 +451,13 @@ def _parse_prose_blocks(text: str) -> dict:
     return out
 
 
-def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
-    """Author prose via the LLM WITHOUT round-tripping the document.
+def _prose_instruction(keys: list[str], state: ConsultantState) -> str:
+    """Build the prose-authoring instruction for a given list of slot keys.
 
-    The model returns only a JSON map of slot-key -> prose; Python substitutes each
-    fragment into the skeleton it owns. The document structure is therefore never at
-    the model's mercy: a malformed or missing value degrades to a per-slot placeholder,
-    never a broken doc. (The old whole-document round-trip silently failed against a
-    real model — it truncated/paraphrased and dropped every section.)
+    Shared by the first fill pass and the targeted retry so both ask in exactly the
+    same shape — only the key list differs.
     """
-    keys = _collect_prose_keys(html)
-    if not keys:
-        return html
-
-    system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
-    instruction = (
+    return (
         "Author the prose for this Public Mutual investment proposal using the client "
         "context below. For EACH slot key, output a line containing exactly @@@<key>@@@ "
         "on its own line, then the slot's HTML prose on the following line(s). Fill EVERY "
@@ -476,20 +471,58 @@ def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
         f"Slot keys to fill ({len(keys)}):\n" + "\n".join(keys)
     )
 
-    text, usage = complete_with_usage(instruction, model=state.get("model") or "claude-sonnet-4-6",
+
+def _fill_prose_slots_llm(html: str, state: ConsultantState) -> str:
+    """Author prose via the LLM WITHOUT round-tripping the document.
+
+    The model returns only a delimited map of slot-key -> prose; Python substitutes
+    each fragment into the skeleton it owns. The document structure is therefore never
+    at the model's mercy: a malformed or missing value degrades to a per-slot sentinel,
+    never a broken doc. (The old whole-document round-trip silently failed against a
+    real model — it truncated/paraphrased and dropped every section.)
+
+    Any key still missing after the first pass gets ONE targeted retry asking for only
+    the gaps (gap 2 — most single-slot misses are transient). Whatever remains missing
+    after that degrades to a distinct ``[UNFILLED:KEY]`` sentinel that the validator
+    flags as ``unfilled_slot`` (gap 1) — so a leak is caught and repaired/fails loudly,
+    never silently emitted.
+    """
+    keys = _collect_prose_keys(html)
+    if not keys:
+        return html
+
+    system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
+    model = state.get("model") or "claude-sonnet-4-6"
+
+    text, usage = complete_with_usage(_prose_instruction(keys, state), model=model,
                                       system=system_prompt)
     filled = _parse_prose_blocks(text)
-
     missing = [k for k in keys if k not in filled]
     if usage.get("cost_usd"):
         print(f"  prose: {len(keys) - len(missing)}/{len(keys)} slots filled — "
               f"{usage['input_tokens']} in + {usage['output_tokens']} out tokens "
               f"≈ ${usage['cost_usd']:.4f}")
+
+    # Gap 2 — one targeted retry for just the missing keys before any fall back.
     if missing:
-        print(f"  prose: {len(missing)} slot(s) fell back to placeholder: {missing[:6]}")
+        before = len(missing)
+        print(f"  prose: retrying {before} missing slot(s): {missing[:6]}")
+        retry_text, retry_usage = complete_with_usage(
+            _prose_instruction(missing, state), model=model, system=system_prompt)
+        for k, v in _parse_prose_blocks(retry_text).items():
+            if k in missing:
+                filled[k] = v
+        missing = [k for k in keys if k not in filled]
+        if retry_usage.get("cost_usd"):
+            print(f"  prose: retry recovered {before - len(missing)}/{before} — "
+                  f"{retry_usage['output_tokens']} out tokens "
+                  f"≈ ${retry_usage['cost_usd']:.4f}")
+
+    if missing:
+        print(f"  prose: {len(missing)} slot(s) fell back to [UNFILLED:…] sentinel: {missing[:6]}")
 
     return _PROSE_SLOT_RE.sub(lambda m: filled.get(m.group(1).strip(),
-                                                    f"[{m.group(1).strip()} narrative]"), html)
+                                                   f"[UNFILLED:{m.group(1).strip()}]"), html)
 
 
 def _workbook_month_year(fundmaster_path: str) -> str:
@@ -720,8 +753,8 @@ def generate_proposal(state: ConsultantState) -> dict:
     # Portfolio Exposure (Section 6) — deterministic look-through. Python owns the
     # pies and the geo legend; the LLM never authors these numbers.
     funds_by_abbr = {f["abbr"]: f for f in eligible_funds if f.get("abbr")}
-    asset_exposure = exposure.compute_asset_exposure(portfolio, funds_by_abbr)
     asset_pie_html = exposure.render_pie(exposure.asset_pie_slices(portfolio, funds_by_abbr))
+    asset_legend_html = exposure.render_asset_legend(portfolio, funds_by_abbr)
     geo_slices = exposure.compute_geo_exposure(portfolio, funds_by_abbr)
     geo_pie_html = exposure.render_pie(exposure.geo_pie_pairs(geo_slices))
     geo_legend_html = exposure.render_geo_legend(geo_slices)
@@ -732,6 +765,7 @@ def generate_proposal(state: ConsultantState) -> dict:
     skeleton = skeleton.replace("<!--slot:portfolio_summary.fund_rows-->", portfolio_summary_rows)
     skeleton = skeleton.replace("<!--slot:macro.events_rows-->", macro_rows_html)
     skeleton = skeleton.replace("<!--slot:exposure.asset_class.pie_chart-->", asset_pie_html)
+    skeleton = skeleton.replace("<!--slot:exposure.asset_class.legend_items-->", asset_legend_html)
     skeleton = skeleton.replace("<!--slot:exposure.geo.pie_chart-->", geo_pie_html)
     skeleton = skeleton.replace("<!--slot:exposure.geo.legend_items-->", geo_legend_html)
 
@@ -770,7 +804,7 @@ def generate_proposal(state: ConsultantState) -> dict:
     portfolio_metrics = _compute_portfolio_metrics(portfolio, cfs_scores, eligible_funds)
 
     # 5. Numeric prefill via fill_slots (raises on any unfilled data-slot)
-    slot_values = _build_slot_values(state, portfolio_metrics, asset_exposure)
+    slot_values = _build_slot_values(state, portfolio_metrics)
     skeleton = fill_slots(skeleton, slot_values)
 
     # 6. Prose fill

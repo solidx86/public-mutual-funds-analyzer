@@ -128,6 +128,63 @@ def test_asset_exposure_handles_missing_assets_key():
     assert round(sum(result.values()), 1) == 100.0
 
 
+# ── Structural-role attribution (Bug 2) ───────────────────────────────────────
+
+
+def _structural_funds():
+    """A core equity fund + a structural-gold fund whose workbook breakdown is
+    ALL foreign-equity/mm (PeEMAS shape) — the gold sleeve must not leak there."""
+    return {
+        "CORE": {
+            "abbr": "CORE",
+            "assets": {"dom_equity": 90.0, "for_equity": 10.0,
+                       "fi": 0.0, "mm": 0.0, "deposits": 0.0, "other": 0.0},
+            "geo": {},
+        },
+        # PeEMAS-like: for_equity=91, mm=9, other=0 — its exposure IS gold.
+        "PeEMAS": {
+            "abbr": "PeEMAS",
+            "assets": {"dom_equity": 0.0, "for_equity": 91.0,
+                       "fi": 0.0, "mm": 9.0, "deposits": 0.0, "other": 0.0},
+            "geo": {},
+        },
+    }
+
+
+def test_structural_gold_full_weight_to_gold_not_foreign_equity():
+    funds = _structural_funds()
+    portfolio = [
+        {"abbr": "CORE", "role": "core", "allocation_pct": 90.0},
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 10.0},
+    ]
+    result = exposure.compute_asset_exposure(portfolio, funds)
+    # Gold gets PeEMAS's full 10% weight (not its for_equity/mm split).
+    assert result["exposure.asset.gold_pct"] == 10.0
+    # Foreign equity is ONLY the core's contribution (.9 * 10 = 9), no PeEMAS leak.
+    assert result["exposure.asset.foreign_equity_pct"] == 9.0
+    # PeEMAS's mm fraction must NOT leak into money market.
+    assert result["exposure.asset.money_market_pct"] == 0.0
+    assert round(sum(result.values()), 1) == 100.0
+
+
+def test_structural_money_market_full_weight_to_money_market():
+    funds = {
+        "CORE": {"abbr": "CORE",
+                 "assets": {"dom_equity": 100.0, "for_equity": 0.0, "fi": 0.0,
+                            "mm": 0.0, "deposits": 0.0, "other": 0.0}, "geo": {}},
+        "PeCDF-A": {"abbr": "PeCDF-A",
+                    "assets": {"dom_equity": 0.0, "for_equity": 0.0, "fi": 0.0,
+                               "mm": 100.0, "deposits": 0.0, "other": 0.0}, "geo": {}},
+    }
+    portfolio = [
+        {"abbr": "CORE", "role": "core", "allocation_pct": 80.0},
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 20.0},
+    ]
+    result = exposure.compute_asset_exposure(portfolio, funds)
+    assert result["exposure.asset.money_market_pct"] == 20.0
+    assert round(sum(result.values()), 1) == 100.0
+
+
 # ── Geographic exposure ───────────────────────────────────────────────────────
 
 
@@ -183,6 +240,28 @@ def test_geo_exposure_uses_canonical_hex_colors():
     assert by_label["Other"] == "#a0aec0"
 
 
+def test_geo_exposure_reads_suffixed_workbook_headers():
+    """Bug 1 regression: load_funds keys geo by the workbook's literal ' (%)'-
+    suffixed headers. The look-through must hit those, not collapse to 100% Other."""
+    funds = {
+        "X": {
+            "abbr": "X",
+            "assets": {"dom_equity": 50.0, "for_equity": 50.0,
+                       "fi": 0.0, "mm": 0.0, "deposits": 0.0, "other": 0.0},
+            # Real workbook header strings, with the suffix.
+            "geo": {"USA (%)": 30.0, "China (%)": 20.0, "Geo Other (%)": 0.0},
+        }
+    }
+    portfolio = [{"abbr": "X", "allocation_pct": 100.0}]
+    slices = exposure.compute_geo_exposure(portfolio, funds)
+    by_label = {label: pct for label, pct, _hex in slices}
+    assert by_label.get("USA", 0.0) > 0.0
+    assert by_label.get("China", 0.0) > 0.0
+    # Not collapsed to a lone Other slice.
+    assert by_label.get("Other", 100.0) < 50.0
+    assert round(sum(by_label.values()), 1) == 100.0
+
+
 def test_geo_exposure_zero_total_renders_neutral_other():
     funds = {"X": {"abbr": "X", "assets": {}, "geo": {}}}
     portfolio = [{"abbr": "X", "allocation_pct": 100.0}]
@@ -216,6 +295,28 @@ def test_render_geo_legend_items():
     assert '<span class="legend-pct">60.0%</span>' in out
     assert "background:#c53030;" in out
     assert "<!--slot:" not in out
+
+
+def test_render_geo_legend_omits_zero_pct_rows():
+    slices = [("Malaysia", 60.0, "#1a365d"), ("USA", 40.0, "#c53030"),
+              ("China", 0.0, "#c05621")]
+    out = exposure.render_geo_legend(slices)
+    assert ">Malaysia<" in out
+    assert ">China<" not in out          # truly-0% row omitted
+    assert ">0.0%<" not in out
+
+
+def test_render_asset_legend_omits_zero_pct_rows():
+    # A single fund that is 100% domestic equity → every other slice is 0%.
+    funds = {"X": {"abbr": "X",
+                   "assets": {"dom_equity": 100.0, "for_equity": 0.0, "fi": 0.0,
+                              "mm": 0.0, "deposits": 0.0, "other": 0.0}, "geo": {}}}
+    portfolio = [{"abbr": "X", "role": "core", "allocation_pct": 100.0}]
+    out = exposure.render_asset_legend(portfolio, funds)
+    assert ">Equity (Domestic)</span><span class=\"legend-pct\">100.0%<" in out
+    assert ">Gold / Other<" not in out      # truly-0% rows omitted
+    assert ">Fixed Income / Sukuk<" not in out
+    assert ">0.0%<" not in out
 
 
 def test_geo_pie_pairs_drops_labels_keeps_color_pct():

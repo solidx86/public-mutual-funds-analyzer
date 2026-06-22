@@ -423,6 +423,47 @@ def check_retail_eligibility(
     return violations
 
 
+# ── Unfilled prose slot guard ─────────────────────────────────────────────────
+
+# Two leak forms, both of which mean a prose slot never received real content.
+# The fake-LLM convention ``[KEY narrative]`` is deliberately NOT listed: offline/
+# eval runs fill every slot with that readable placeholder by design, so it must
+# stay valid. A genuine real-LLM miss degrades to the distinct ``[UNFILLED:KEY]``
+# sentinel instead, which is what we catch here.
+_UNFILLED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"<!--slot:([^>]+?)-->"),
+     "raw <!--slot:{key}--> marker survived prose fill"),
+    (re.compile(r"\[UNFILLED:([^\]]+)\]"),
+     "prose slot '{key}' fell back to an unfilled sentinel"),
+]
+
+
+def check_unfilled_slots(html_text: str) -> list[dict[str, str]]:
+    """Verify no prose slot leaked into the rendered proposal.
+
+    Catches two failure forms:
+      * a raw ``<!--slot:KEY-->`` marker that survived substitution (a structural
+        fill bug), and
+      * a ``[UNFILLED:KEY]`` sentinel emitted when the LLM prose fill — even after
+        its one targeted retry — never returned that key.
+
+    The fake-LLM convention ``[KEY narrative]`` is intentionally NOT matched: in
+    offline/eval runs every slot is a readable placeholder by design.
+
+    Violation code: ``unfilled_slot``
+    """
+    violations: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for pattern, template in _UNFILLED_PATTERNS:
+        for m in pattern.finditer(html_text):
+            msg = template.format(key=m.group(1).strip())
+            if msg in seen:
+                continue
+            seen.add(msg)
+            violations.append({"code": "unfilled_slot", "msg": msg})
+    return violations
+
+
 # ── Composite runner ──────────────────────────────────────────────────────────
 
 
@@ -445,4 +486,5 @@ def validate_html(
         + check_funds_in_workbook(html_text, wb_index)
         + check_alpha_warning(html_text, wb_index)
         + check_retail_eligibility(html_text, wb_index)
+        + check_unfilled_slots(html_text)
     )

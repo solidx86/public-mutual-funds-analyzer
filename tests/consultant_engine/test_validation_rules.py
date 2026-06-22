@@ -10,6 +10,7 @@ import pytest
 
 from consultant_engine.rules.validation import (
     check_exposure_consistency,
+    check_unfilled_slots,
     fund_cards,
     validate_html,
     workbook_index,
@@ -96,3 +97,39 @@ def test_corrupted_exposure_surfaces_through_validate_html(good_html, wb_index):
     )
     codes = {v["code"] for v in validate_html(corrupted, __version__, wb_index)}
     assert "exposure_sum" in codes
+
+
+# ── Unfilled prose slot guard ─────────────────────────────────────────────────
+
+def test_leftover_slot_marker_is_caught():
+    """A raw <!--slot:KEY--> marker that survived prose fill is a structural leak."""
+    codes = {v["code"] for v in check_unfilled_slots("<p><!--slot:why.PIX--></p>")}
+    assert "unfilled_slot" in codes
+
+
+def test_llm_fallback_sentinel_is_caught():
+    """The real-LLM fallback sentinel [UNFILLED:KEY] is a genuine leak → must flag."""
+    codes = {
+        v["code"]
+        for v in check_unfilled_slots("<p>[UNFILLED:strategy.dip_capture]</p>")
+    }
+    assert "unfilled_slot" in codes
+
+
+def test_fake_mode_narrative_placeholder_is_not_flagged():
+    """Fake-LLM mode fills EVERY slot with "[KEY narrative]" by design; that offline/
+    eval convention must stay valid (a real leak uses the [UNFILLED:KEY] sentinel)."""
+    assert check_unfilled_slots("<p>[strategy.dip_capture narrative]</p>") == []
+
+
+def test_clean_prose_has_no_unfilled_violation():
+    assert check_unfilled_slots("<p>Authored prose with no leftover slots.</p>") == []
+
+
+def test_unfilled_slot_surfaces_through_validate_html(good_html, wb_index):
+    leaked = good_html.replace(
+        "</body>", "<p>[UNFILLED:strategy.dip_capture]</p></body>", 1
+    )
+    assert leaked != good_html, "fixture changed — update the injection anchor"
+    codes = {v["code"] for v in validate_html(leaked, __version__, wb_index)}
+    assert "unfilled_slot" in codes

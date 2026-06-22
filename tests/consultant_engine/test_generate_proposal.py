@@ -8,7 +8,10 @@ import pytest
 
 from consultant_engine.nodes.build_portfolio import build_portfolio
 from consultant_engine.nodes.filter_universe import filter_universe
-from consultant_engine.nodes.generate_proposal import generate_proposal
+from consultant_engine.nodes.generate_proposal import (
+    _compute_portfolio_metrics,
+    generate_proposal,
+)
 from consultant_engine.nodes.load_funds import load_funds
 from consultant_engine.nodes.load_profile import load_profile
 from consultant_engine.nodes.macro_context import macro_context
@@ -179,6 +182,18 @@ def _engine_html(fundmaster_path: str) -> str:
     return s["proposal_html"]
 
 
+def _exposure_block(html: str, title: str) -> str:
+    """Isolate one ``.exposure-chart-block`` (Asset Class / Geographic) by title."""
+    m = re.search(
+        r'exposure-chart-title">' + re.escape(title) + r'<.*?'
+        r'(?=<div class="exposure-chart-block">|</div>\s*</div>\s*<!--|$)',
+        html,
+        re.DOTALL,
+    )
+    assert m, f"exposure block {title!r} not found"
+    return m.group(0)
+
+
 class TestPortfolioExposureSection:
     """Deterministic Portfolio Exposure (Section 6) — Python owns the numbers."""
 
@@ -195,14 +210,14 @@ class TestPortfolioExposureSection:
     def test_asset_class_pcts_are_real_numbers(self, monkeypatch, fundmaster_exposure):
         monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
         html = _engine_html(fundmaster_exposure)
-        # The 5 asset-class data-slot spans must be real "NN.N%" — never "—".
-        spans = re.findall(
-            r'data-slot="exposure\.asset\.[a-z_]+_pct"\s*>([^<]*)<', html
-        )
-        assert len(spans) == 5
-        for val in spans:
-            assert "—" not in val and "&mdash;" not in val, spans
-            assert re.fullmatch(r"\d+(?:\.\d+)?%", val.strip()), spans
+        # The asset-class legend (now a generated block) must carry real "NN.N%"
+        # percentages — never "—". Read from inside the Asset Class chart block.
+        block = _exposure_block(html, "Asset Class")
+        pcts = re.findall(r'class="legend-pct">([^<]*)<', block)
+        assert pcts, "Asset Class legend has no percentage rows"
+        for val in pcts:
+            assert "—" not in val and "&mdash;" not in val, pcts
+            assert re.fullmatch(r"\d+(?:\.\d+)?%", val.strip()), pcts
 
     def test_geo_legend_has_real_country_labels(self, monkeypatch, fundmaster_exposure):
         monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
@@ -210,6 +225,45 @@ class TestPortfolioExposureSection:
         # Malaysia (dom-equity proxy) and at least one foreign country must appear.
         assert ">Malaysia<" in html
         assert ">USA<" in html
+
+    def test_geo_not_collapsed_to_all_other(self, monkeypatch, fundmaster_exposure):
+        """Bug 1 regression: geo headers carry a ' (%)' suffix in the real workbook;
+        the look-through must still hit real country buckets, not dump 100% into
+        'Other'. (The bare-name lookup used to miss every suffixed key.)"""
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        block = _exposure_block(html, "Geographic")
+        rows = re.findall(
+            r'legend-label">([^<]*)</span><span class="legend-pct">([^<]*)<', block
+        )
+        by_label = {lbl: float(pct.rstrip("%")) for lbl, pct in rows}
+        # Real countries must be populated and 'Other' must not be ~100.
+        assert by_label.get("USA", 0.0) > 0.0, by_label
+        assert by_label.get("Other", 100.0) < 50.0, by_label
+        assert abs(sum(by_label.values()) - 100.0) <= 2.0, by_label
+
+    def test_gold_attributed_via_structural_role(self, monkeypatch, fundmaster_exposure):
+        """Bug 2 regression: PeEMAS (structural:gold) must contribute its full
+        weighted allocation to the Gold slice — not leak into foreign equity — and
+        the Gold slice must be non-zero."""
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        block = _exposure_block(html, "Asset Class")
+        rows = re.findall(
+            r'legend-label">([^<]*)</span><span class="legend-pct">([^<]*)<', block
+        )
+        by_label = {lbl: float(pct.rstrip("%")) for lbl, pct in rows}
+        assert by_label.get("Gold / Other", 0.0) > 0.0, by_label
+        assert abs(sum(by_label.values()) - 100.0) <= 2.0, by_label
+
+    def test_zero_pct_legend_rows_omitted(self, monkeypatch, fundmaster_exposure):
+        """Bug 3 regression: truly-0% rows must not render in either legend."""
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        html = _engine_html(fundmaster_exposure)
+        for title in ("Asset Class", "Geographic"):
+            block = _exposure_block(html, title)
+            pcts = re.findall(r'class="legend-pct">([^<]*)<', block)
+            assert "0.0%" not in pcts, (title, pcts)
 
     def test_exposure_blocks_pass_consistency_guard(self, monkeypatch, fundmaster_exposure):
         monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
@@ -223,3 +277,70 @@ class TestPortfolioExposureSection:
         html = _engine_html(fundmaster_4fund)
         assert html.count("conic-gradient(") >= 2
         assert check_exposure_consistency(html) == []
+
+
+class TestWeightedAlpha3Y:
+    """The reported '3Y Alpha' is the allocation-weighted 3Y alpha RETURN, not the
+    alpha_n CFS score (a 0–100 percentile) — guards a prior mislabel where the score
+    was rendered as '88.4% p.a.'."""
+
+    def _funds(self, pga_alpha, gold_alpha):
+        return [
+            {"abbr": "PGA", "name": "Public Growth A", "risk_level": 3,
+             "returns": {"3y": {"alpha": pga_alpha}}},
+            {"abbr": "PeEMAS", "name": "Public e-EMAS", "risk_level": 3,
+             "returns": {"3y": {"alpha": gold_alpha}}},
+        ]
+
+    def _portfolio(self):
+        return [
+            {"abbr": "PGA", "role": "core", "allocation_pct": 50.0},
+            {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 50.0},
+        ]
+
+    def test_uses_return_not_alpha_n_score(self):
+        cfs = [{"abbr": "PGA", "composite": 88.0, "alpha_n": 95}]  # score is high
+        m = _compute_portfolio_metrics(self._portfolio(), cfs, self._funds(10.0, -2.0))
+        # 0.5*10 + 0.5*(-2) = 4.0 — the structural gold sleeve's negative alpha drags it down.
+        assert m["weighted_alpha_3y"] == "4.0"
+        # NOT the alpha_n blend (0.5*95 = 47.5) nor the lone core score.
+        assert m["weighted_alpha_3y"] != "47.5"
+        assert "weighted_alpha" not in m  # old score key is gone
+
+    def test_missing_3y_alpha_contributes_zero(self):
+        funds = self._funds(12.0, None)
+        funds[1]["returns"] = {}  # gold sleeve has no 3y track record
+        m = _compute_portfolio_metrics(self._portfolio(), [], funds)
+        assert m["weighted_alpha_3y"] == "6.0"  # 0.5*12 + 0.5*0
+
+    def test_summary_alpha_is_plausible_return_not_percentile(self, monkeypatch, fundmaster_4fund):
+        """End-to-end: the rendered '3Y Alpha' must be a believable return (single-
+        digit-to-teens here), never an 80–100 percentile, and must not claim 'p.a.'."""
+        monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+        out = generate_proposal({
+            "client_profile": {"risk_level": "Moderate", "experience": "experienced",
+                               "shariah": False, "target_annual_return_pct": 5.0,
+                               "upfront_capital_rm": 50000},
+            "fundmaster_path": fundmaster_4fund,
+            "macro_context": {"events": []},
+            "portfolio": [
+                {"abbr": "PGA", "role": "core", "allocation_pct": 60.0},
+                {"abbr": "PBA", "role": "core", "allocation_pct": 40.0},
+            ],
+            "cfs_scores": [
+                {"abbr": "PGA", "composite": 88.0, "alpha_n": 95, "returnfit_n": 90,
+                 "efficiency_n": 80, "momentum_n": 95, "derived_class": "Equity-equivalent",
+                 "weights": {"alpha": 28, "returnfit": 40, "efficiency": 20, "momentum": 12}},
+                {"abbr": "PBA", "composite": 80.0, "alpha_n": 70, "returnfit_n": 85,
+                 "efficiency_n": 60, "momentum_n": 90, "derived_class": "Equity-equivalent",
+                 "weights": {"alpha": 28, "returnfit": 40, "efficiency": 20, "momentum": 12}},
+            ],
+            "eligible_funds": load_funds({"fundmaster_path": fundmaster_4fund})["eligible_funds"],
+        })["proposal_html"]
+        # 3y alphas in the 4-fund fixture: PGA=4.0, PBA=3.0 → 0.6*4 + 0.4*3 = 3.6
+        m = re.search(r"3Y Alpha:</strong>\s*<span[^>]*>([\d.]+)</span>%", out)
+        assert m, "summary 3Y Alpha line not found"
+        assert float(m.group(1)) == 3.6
+        # The alpha figure must NOT carry a 'p.a.' annualization claim (the target
+        # annual return elsewhere legitimately does — so scope the check to alpha).
+        assert not re.search(r"3Y Alpha:</strong>\s*<span[^>]*>[\d.]+</span>%\s*p\.a\.", out)

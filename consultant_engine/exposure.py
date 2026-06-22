@@ -24,11 +24,32 @@ _ASSET_SLICES: list[tuple[str, list[str], str]] = [
     ("exposure.asset.gold_pct", ["other"], "var(--gold)"),
 ]
 
+# Legend labels per asset slot (mirror the skeleton's fixed swatch labels).
+_ASSET_LABELS: dict[str, str] = {
+    "exposure.asset.domestic_equity_pct": "Equity (Domestic)",
+    "exposure.asset.foreign_equity_pct": "Equity (Foreign)",
+    "exposure.asset.fixed_income_pct": "Fixed Income / Sukuk",
+    "exposure.asset.money_market_pct": "Money Market &amp; Cash",
+    "exposure.asset.gold_pct": "Gold / Other",
+}
+
+# Structural roles (set on each Holding by build_portfolio) override the workbook
+# asset breakdown: a structural gold/MM sleeve's exposure IS gold / money market,
+# so its full weighted allocation lands on a single slice rather than being split
+# by its for_equity/mm cells. Maps role → target asset slot key.
+_STRUCTURAL_ROLE_SLOT: dict[str, str] = {
+    "structural:gold": "exposure.asset.gold_pct",
+    "structural:money_market": "exposure.asset.money_market_pct",
+}
+
 # The neutral fallback slice (used when a pie's group total is 0).
 _NEUTRAL_COLOR = "#a0aec0"
 
 # ── Geographic columns + colors ───────────────────────────────────────────────
 # Canonical foreign-geo column order load_funds reads back (cols 41-52).
+# load_funds keys each fund's ``geo`` dict by the workbook's LITERAL header
+# strings, which carry a " (%)" suffix (e.g. "USA (%)"). We strip that suffix on
+# read (see _geo_value) so these BARE names match.
 _GEO_COLUMNS: list[str] = [
     "USA", "Taiwan", "Korea", "Japan", "France", "Germany",
     "China", "Singapore", "Netherlands", "Indonesia", "Australia", "Geo Other",
@@ -70,6 +91,18 @@ def _num(value) -> float:
     return float(value) if value is not None else 0.0
 
 
+def _geo_value(geo: dict, column: str) -> float:
+    """Read a bare-named geo column out of a fund's ``geo`` dict.
+
+    load_funds keys ``geo`` by the workbook's literal headers ("USA (%)", …),
+    so we accept either the suffixed key or the bare name. The suffix is stripped
+    on read for robustness; an absent column reads 0.0.
+    """
+    if column in geo:
+        return _num(geo[column])
+    return _num(geo.get(f"{column} (%)"))
+
+
 def _normalize_to_100(values: list[float]) -> list[float]:
     """Scale ``values`` so they sum to exactly 100.0 (1-dp display), nudging the
     largest slice to absorb the rounding residual. An all-zero input returns
@@ -93,16 +126,28 @@ def compute_asset_exposure(
     """Weighted asset-class look-through, normalized to sum to 100.0.
 
     Returns a dict keyed by the 5 ``exposure.asset.*_pct`` data-slot keys.
-    If the portfolio holds no asset data at all, the "Gold / Other" slice
-    absorbs a neutral 100% so the legend still sums to 100.
+    Structural sleeves bypass the workbook breakdown: a ``structural:gold``
+    holding contributes its full weighted allocation to Gold and a
+    ``structural:money_market`` holding contributes its full weighted allocation
+    to Money Market (the sleeve's exposure IS that asset class, so the fund's own
+    for_equity/mm cells are not split out). Every other holding uses its workbook
+    asset breakdown. If the portfolio holds no asset data at all, the "Gold /
+    Other" slice absorbs a neutral 100% so the legend still sums to 100.
     """
-    raw: list[float] = []
-    for _slot_key, asset_keys, _color in _ASSET_SLICES:
-        slice_total = 0.0
-        for weight, fund in _holding_weights(portfolio, funds_by_abbr):
-            assets = fund.get("assets") or {}
-            slice_total += weight * sum(_num(assets.get(k)) for k in asset_keys)
-        raw.append(slice_total)
+    by_slot: dict[str, float] = {slot_key: 0.0 for slot_key, _k, _c in _ASSET_SLICES}
+    for holding in portfolio:
+        weight = holding.get("allocation_pct", 0.0) / 100.0
+        target_slot = _STRUCTURAL_ROLE_SLOT.get(holding.get("role", ""))
+        if target_slot is not None:
+            # Structural sleeve: full weight to its single asset slice.
+            by_slot[target_slot] += weight * 100.0
+            continue
+        fund = funds_by_abbr.get(holding.get("abbr"), {})
+        assets = fund.get("assets") or {}
+        for slot_key, asset_keys, _color in _ASSET_SLICES:
+            by_slot[slot_key] += weight * sum(_num(assets.get(k)) for k in asset_keys)
+
+    raw = [by_slot[slot_key] for slot_key, _k, _c in _ASSET_SLICES]
 
     if sum(raw) <= 0:
         # Neutral fallback: 100% on the last slice ("Gold / Other").
@@ -151,7 +196,7 @@ def compute_geo_exposure(
         malaysia += weight * _num(assets.get("dom_equity"))
         geo = fund.get("geo") or {}
         for col in _GEO_COLUMNS:
-            foreign[col] += weight * _num(geo.get(col))
+            foreign[col] += weight * _geo_value(geo, col)
 
     # Merge: "Geo Other" plus every foreign country below the threshold.
     other = foreign.pop("Geo Other", 0.0)
@@ -216,13 +261,44 @@ def render_pie(slices: list[tuple[str, float]]) -> str:
 
 
 def render_geo_legend(slices: list[tuple[str, float, str]]) -> str:
-    """Render the geographic legend items from ``(label, pct, hex)`` slices."""
+    """Render the geographic legend items from ``(label, pct, hex)`` slices.
+
+    Truly-0% rows (no allocation) are omitted; the surviving rows still carry the
+    determinism-owned percentages and sum to ~100.
+    """
     items = []
     for label, pct, hex_ in slices:
+        if pct <= 0:
+            continue
         items.append(
             '<div class="legend-item">'
             f'<span class="legend-swatch" style="background:{hex_};"></span>'
             f'<span class="legend-label">{label}</span>'
+            f'<span class="legend-pct">{pct}%</span>'
+            "</div>"
+        )
+    return "\n".join(items)
+
+
+def render_asset_legend(
+    portfolio: list[dict], funds_by_abbr: dict[str, dict]
+) -> str:
+    """Render the asset-class legend items in fixed swatch order.
+
+    Reads from ``compute_asset_exposure`` (the single source of truth). Truly-0%
+    rows (no allocation) are omitted; the surviving rows carry the
+    determinism-owned percentages and sum to ~100.
+    """
+    by_slot = compute_asset_exposure(portfolio, funds_by_abbr)
+    items = []
+    for slot_key, _keys, color in _ASSET_SLICES:
+        pct = by_slot[slot_key]
+        if pct <= 0:
+            continue
+        items.append(
+            '<div class="legend-item">'
+            f'<span class="legend-swatch" style="background:{color};"></span>'
+            f'<span class="legend-label">{_ASSET_LABELS[slot_key]}</span>'
             f'<span class="legend-pct">{pct}%</span>'
             "</div>"
         )

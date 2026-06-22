@@ -30,6 +30,18 @@ def _f(value):
     return float(value) if value is not None else None
 
 
+# Truthy encodings the Shariah column may carry. The live screener workbook stores
+# the literal class name ("Shariah" / "Conventional") in col 3, not a Yes/No flag —
+# so a bare ``== "yes"`` test silently marked EVERY fund conventional. Accept both
+# encodings; anything else (incl. "Conventional", "No", None) is conventional.
+_SHARIAH_TRUTHY = {"yes", "y", "true", "shariah", "shariah-compliant"}
+
+
+def _parse_shariah(raw) -> bool:
+    """Excel Shariah cell → bool. True iff the value names a Shariah-compliant class."""
+    return str(raw).strip().lower() in _SHARIAH_TRUTHY if raw is not None else False
+
+
 def _s(value):
     """Excel cell → stripped str, preserving None."""
     return str(value).strip() if value is not None else None
@@ -80,8 +92,7 @@ def load_funds(state: ConsultantState) -> dict:
             row += 1
             continue
 
-        shariah_raw = ws.cell(row, 3).value
-        shariah = True if str(shariah_raw).strip().lower() == "yes" else False
+        shariah = _parse_shariah(ws.cell(row, 3).value)
 
         fund_type = ws.cell(row, 4).value
         risk_level_raw = ws.cell(row, 6).value

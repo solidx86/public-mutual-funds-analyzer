@@ -118,7 +118,7 @@
       <ul>
         <li><strong>Profile:</strong> <!--slot:exec_summary.profile--></li>
         <li><strong>Composition:</strong> <!--slot:exec_summary.composition--></li>
-        <li><strong>Weighted CFS:</strong> <span data-slot="portfolio.cfs_composite"></span> / 100 &middot; <strong>3Y Alpha:</strong> <span data-slot="portfolio.alpha_3y"></span>% p.a.</li>
+        <li><strong>Weighted CFS:</strong> <span data-slot="portfolio.cfs_composite"></span> / 100 &middot; <strong>3Y Alpha:</strong> <span data-slot="portfolio.alpha_3y"></span>%</li>
         <li><strong>Thesis:</strong> <!--slot:exec_summary.thesis--></li>
       </ul>
     </div>
@@ -257,31 +257,7 @@
         <!--slot:exposure.asset_class.pie_chart-->
 
         <div class="legend">
-          <div class="legend-item">
-            <span class="legend-swatch" style="background:var(--equity);"></span>
-            <span class="legend-label">Equity (Domestic)</span>
-            <span class="legend-pct" data-slot="exposure.asset.domestic_equity_pct"></span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-swatch" style="background:var(--teal);"></span>
-            <span class="legend-label">Equity (Foreign)</span>
-            <span class="legend-pct" data-slot="exposure.asset.foreign_equity_pct"></span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-swatch" style="background:var(--fixed-income);"></span>
-            <span class="legend-label">Fixed Income / Sukuk</span>
-            <span class="legend-pct" data-slot="exposure.asset.fixed_income_pct"></span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-swatch" style="background:var(--money-market);"></span>
-            <span class="legend-label">Money Market &amp; Cash</span>
-            <span class="legend-pct" data-slot="exposure.asset.money_market_pct"></span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-swatch" style="background:var(--gold);"></span>
-            <span class="legend-label">Gold / Other</span>
-            <span class="legend-pct" data-slot="exposure.asset.gold_pct"></span>
-          </div>
+          <!--slot:exposure.asset_class.legend_items-->
         </div>
       </div>
 

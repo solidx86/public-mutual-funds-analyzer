@@ -1,5 +1,26 @@
-from consultant_engine.nodes.load_funds import load_funds
+import pytest
+
+from consultant_engine.nodes.load_funds import _parse_shariah, load_funds
 from consultant_engine.portfolio import dedup_overlap
+
+
+@pytest.mark.parametrize("raw,expected", [
+    # The live screener workbook stores the class NAME, not a Yes/No flag.
+    ("Shariah", True),
+    ("shariah", True),
+    ("Shariah-compliant", True),
+    ("Conventional", False),     # the bug: this used to be the only non-"yes" value seen
+    ("conventional", False),
+    # Legacy / defensive encodings.
+    ("Yes", True),
+    ("No", False),
+    (None, False),
+    ("", False),
+])
+def test_parse_shariah_handles_class_name_and_flag_encodings(raw, expected):
+    """Regression: col 3 holds 'Shariah'/'Conventional', not 'Yes'/'No' — the old
+    ``== "yes"`` test silently marked every fund conventional."""
+    assert _parse_shariah(raw) is expected
 
 
 def test_step1b_exclusions(tiny_fundmaster):

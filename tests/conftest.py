@@ -198,13 +198,16 @@ def fundmaster_exposure(tmp_path):
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
     ws.cell(3, 1, "Fund Name")
 
-    # Geo header row (cols 41-52) — canonical order load_funds reads back by key.
+    # Geo header row (cols 41-52) — written with the real workbook's " (%)" suffix
+    # (e.g. "USA (%)"), exactly as build_xlsx emits them, so the look-through
+    # exercises the same header strings load_funds keys geo dicts by. Bare-name
+    # _GEO_COLUMNS in exposure.py must still match these (the suffix is stripped).
     geo_headers = [
         "USA", "Taiwan", "Korea", "Japan", "France", "Germany",
         "China", "Singapore", "Netherlands", "Indonesia", "Australia", "Geo Other",
     ]
     for i, h in enumerate(geo_headers):
-        ws.cell(3, 41 + i, h)
+        ws.cell(3, 41 + i, f"{h} (%)")
 
     # Equity fund 1 — heavy USA + Taiwan; Japan tiny (<2% after weighting → Other).
     _row(ws, 4, "Public Growth A", "PGA", "No", "Equity", 3, "Qualified", 4.0,
