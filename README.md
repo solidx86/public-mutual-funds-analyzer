@@ -104,7 +104,7 @@ Data files live under `data/` — cache files in `data/cache/` (all tracked so a
 
 ## Roadmap
 
-Planned enhancements and follow-up work are tracked in [`docs/tasks.md`](docs/tasks.md). The deterministic consultant engine — ENH-1's CFS / allocation / exposure core — has **shipped** as `consultant_engine` (a headless LangGraph generate→validate→repair graph with a Python-owned determinism boundary). Open follow-ups include deterministic PHS fee extraction (the remaining half of ENH-1), a canonical single-source-of-truth data store the workbook renders from (ENH-2), a macro-researcher agent + persistent macro store (ENH-6 / ENH-4), and small-capital fund selection + deployment planning (ENH-7 / ENH-8).
+Planned enhancements and follow-up work are tracked in [`docs/tasks.md`](docs/tasks.md). The deterministic consultant engine — ENH-1's CFS / allocation / exposure core — has **shipped** as `consultant_engine` (a headless LangGraph generate→validate→repair graph with a Python-owned determinism boundary). Open follow-ups include deterministic PHS fee extraction (the remaining half of ENH-1), a canonical single-source-of-truth data store the workbook renders from (ENH-2), a macro-researcher agent + persistent macro store (ENH-6 / ENH-4), and small-capital fund selection + deployment planning (ENH-7 / ENH-8). Numbers the engine must guarantee live in Python-owned `data-slot` / table cells and are reconciled by the validator; figures embedded in narrative prose are LLM-authored and intentionally unverified.
 
 ## Public / private split
 

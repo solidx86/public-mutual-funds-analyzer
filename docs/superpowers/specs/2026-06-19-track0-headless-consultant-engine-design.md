@@ -21,6 +21,11 @@ Track 0 also folds in the deterministic core that ENH-1/ENH-2 described — thos
 
 1. **Role:** full headless re-implementation that replaces interactive skill execution (not a thin wrapper, not a reduced demonstrator). Full-parity end goal across every branch.
 2. **Determinism boundary:** Python owns **all numbers** (load, eligibility, filter, CFS, allocation) as deterministic ground truth; the **LLM writes prose AND assembles the HTML** by filling a **locked, slotted skeleton** (semantic placeholder slots / `data-*` numeric slots), *not* free-form markup — it transcribes computed numbers into fixed slots. The validate→repair loop therefore guards: number-transcription (HTML slots vs state), template/section conformance, disclosure rules, version stamp.
+  Figures the LLM embeds in narrative prose (e.g. inside `why.*`, `watch.*`,
+  `macro.impact.*`, `thesis`) are **LLM-authored and intentionally unverified** —
+  the validator guards numbers only where they live in a Python-owned `data-slot`
+  or table cell. Any number that must be guaranteed is rendered into such a slot,
+  never left to prose.
 3. **Macro acquisition:** **outside the graph** — macro enters as a **contract-bound structured input** (option A). A fixture (tests) or a small producer script fills it now; the ENH-6 macro-researcher agent fills the same contract later, with the graph unchanged.
 4. **Build order:** **horizontal by layer** (all compute → LLM → loop), with a **Layer 0 graph-skeleton + stubs** standing up first so each layer slots into a runnable shell (mitigates horizontal's deferred-integration risk).
 5. **Checkpointer + interrupt:** **in scope** — a SQLite checkpointer + an `interrupt()` on the **main path, after `build_portfolio`**, implements a "Proposed Allocation — for Consultant Review" human-in-the-loop gate (generalised from the old Step-4e shortlist gate). Review is **on by default**; a `--no-review` / auto-approve path lets evals, CI, and batch runs proceed without the pause. **Streaming is deferred** (Phase 2 / UI).

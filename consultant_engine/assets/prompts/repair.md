@@ -13,21 +13,19 @@ You are given:
 
 1. **`violations`** — a list of validation failures, each with:
    - `rule`: the rule identifier that was violated (e.g. `"SECTION_COUNT"`, `"DISCLOSURE_HEADING"`,
-     `"SLOT_UNRESOLVED"`, `"NUMERIC_TRANSCRIPTION"`)
+     `"SLOT_UNRESOLVED"`)
    - `detail`: a plain-English description of what is wrong
-   - `expected` (optional): the correct value that should appear (provided for numeric transcription
-     errors and unresolved slot keys)
+   - `expected` (optional): the correct value that should appear (provided for unresolved slot keys)
    - `location` (optional): CSS selector, slot key, or section number where the violation occurs
 
 2. **`proposal_html`** — the current (failing) HTML proposal document
 
 Fix **only** the violations listed. Change nothing else in the document.
 
-**Do not alter numeric slots** unless the violation rule is `"NUMERIC_TRANSCRIPTION"` and the
-`expected` field supplies the correct value. In that case, correct the transcription error by
-replacing the wrong value with the provided `expected` value at the identified location — and only
-at that location. Every other `data-slot` element and every other number in the document must
-remain exactly as-is.
+**Do not alter numeric slots.** Every `data-slot` value — CFS scores, alpha
+percentages, allocation weights, fees, VF figures, return percentages — is
+Python-owned and locked. The repair pass fixes structure, prose, and disclosure
+only; it never edits a number.
 
 ---
 
@@ -37,7 +35,6 @@ remain exactly as-is.
 |---|---|---|
 | `SLOT_UNRESOLVED` | A `<!--slot:KEY-->` comment was not replaced with prose | Write appropriate prose for the identified slot key, following the content guidance in the `generate_proposal` prompt. Replace only that comment marker. |
 | `unfilled_slot` | A `<!--slot:KEY-->` marker survived, or a `[UNFILLED:KEY]` sentinel was emitted because prose fill never returned that key | Write appropriate prose for that slot key (per the `generate_proposal` content guidance) and replace the surviving marker or `[UNFILLED:KEY]` sentinel with it. Change nothing else. |
-| `NUMERIC_TRANSCRIPTION` | A number in a prose section does not match the value in the corresponding `data-slot` element | Replace the wrong number in the prose with the `expected` value. Do not alter the `data-slot` element itself — it is already correct. Do not alter numeric slots beyond correcting this specific flagged error. |
 | `DISCLOSURE_HEADING` | A required `<h4>` sub-heading is missing from the Section 9 disclaimer block | Insert the missing `<h4>` heading in the correct order. The four required sub-headings in order are: (1) AI-Generated Document, (2) Regulatory Disclaimer, (3) Cooling-Off Right, (4) Conflict of Interest. |
 | `SECTION_COUNT` | The number of `<div class="section">` elements does not match the required count (9 for proposal, 7 for shortlist) | Identify which section is missing or duplicated and correct the structure. Do not alter section content beyond re-adding or removing the wrapping `<div class="section">`. |
 | `SECTION_ORDER` | Section titles are out of order relative to the template | Re-order sections to match the prescribed order. Do not alter section content. |
@@ -54,8 +51,7 @@ remain exactly as-is.
 1. **Minimal diff.** Change only what is necessary to resolve each listed violation. Do not
    rewrite prose that is not flagged, do not improve phrasing, do not alter layout.
 
-2. **Do not alter numeric slots** beyond correcting a flagged `NUMERIC_TRANSCRIPTION` error to
-   match the provided `expected` value. All other numbers — CFS scores, alpha percentages,
+2. **Do not alter numeric slots.** All numbers — CFS scores, alpha percentages,
    allocation weights, fees, VF figures, return percentages — are locked.
 
 3. **Idempotent.** Applying this repair prompt to an already-passing proposal must produce no
