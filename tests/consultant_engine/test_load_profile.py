@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from consultant_engine.nodes.load_profile import load_profile
 
 
@@ -20,10 +23,6 @@ def test_target_mismatch_note():
         "risk_level": "Conservative", "experience": "experienced",
         "shariah": None, "upfront_capital_rm": 100000, "target_annual_return_pct": 9.0}})
     assert "exceeds" in out["client_profile"]["target_note"].lower()
-
-
-import json
-from pathlib import Path
 
 
 def test_client_name_defaults_to_empty_when_absent():
