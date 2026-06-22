@@ -61,6 +61,12 @@ def test_cli_runs_with_no_review(tmp_path, fundmaster_4fund):
         capture_output=True, text=True,
     )
     assert r.returncode == 0, r.stderr
+    # A clean exit must have produced a real proposal carrying the version stamp.
+    from consultant_engine import __version__
+    produced = list(Path(tmp_path).glob("FundProposal_*.html"))
+    assert produced, f"no FundProposal_*.html written to {tmp_path}; stdout={r.stdout}"
+    text = produced[0].read_text(encoding="utf-8")
+    assert f"fund-consultant v{__version__}" in text, "proposal missing version stamp"
 
 
 def test_latest_fundmaster_default_search_dirs_resolve_a_real_workbook():

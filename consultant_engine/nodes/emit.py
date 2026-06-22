@@ -9,17 +9,14 @@ from consultant_engine.state import ConsultantState
 def _name_segment(client_name: str) -> str:
     """Build the filename's name segment from a client name.
 
-    Strips every non-alphanumeric character (spaces, punctuation) while
-    preserving case, and falls back to the literal ``"generic"`` when nothing
+    Strips spaces, punctuation, and the underscore while preserving every unicode
+    word character (Python 3 ``\\w`` is unicode-aware for ``str``, so accented and
+    CJK names survive), and falls back to the literal ``"generic"`` when nothing
     usable remains.
-
-    Args:
-        client_name: The (already normalized) client name, possibly ``""``.
-
-    Returns:
-        The alphanumeric name segment, or ``"generic"``.
     """
-    segment = re.sub(r"[^A-Za-z0-9]", "", client_name or "")
+    # \w keeps unicode letters/digits but also the underscore; strip the underscore
+    # explicitly so it never leaks into a filename.
+    segment = re.sub(r"[^\w]", "", client_name or "", flags=re.UNICODE).replace("_", "")
     return segment or "generic"
 
 

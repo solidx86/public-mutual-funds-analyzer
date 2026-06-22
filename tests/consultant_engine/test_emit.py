@@ -51,3 +51,27 @@ def test_emit_writes_content_and_version_suffix(tmp_path):
     text = open(p).read()
     assert "AI-Generated Document" in text
     assert "fund-consultant v1.27" in text
+
+
+def test_emit_accented_name_preserved(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderate", "client_name": "José"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_José_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
+
+
+def test_emit_cjk_name_preserved(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Aggressive", "client_name": "陈伟明"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_陈伟明_Aggressive_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
+
+
+def test_emit_unicode_spaces_and_punctuation_stripped(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderate", "client_name": "Anwar bin Ismail!"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_AnwarbinIsmail_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
