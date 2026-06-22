@@ -23,6 +23,7 @@ Steps:
 
 from __future__ import annotations
 
+from html import escape as _html_escape
 import os
 import re
 from datetime import datetime
@@ -781,6 +782,18 @@ def generate_proposal(state: ConsultantState) -> dict:
         ("<!--slot:cover.prepared_date-->", _today),
     ):
         skeleton = skeleton.replace(_marker, _val)
+
+    # Cover "Prepared for" line is Python-owned (never LLM): rendered from the
+    # normalized, HTML-escaped client_name. A blank/generic name collapses the
+    # marker to nothing so no empty block is emitted.
+    _client_name = state["client_profile"].get("client_name", "").strip()
+    _prepared_for = (
+        f'<div class="cover-prepared-for">Prepared for '
+        f"<strong>{_html_escape(_client_name)}</strong></div>"
+        if _client_name
+        else ""
+    )
+    skeleton = skeleton.replace("<!--slot:cover.prepared_for_block-->", _prepared_for)
 
     # Profile facts are Python-owned too (risk level, Shariah/experience labels, RL
     # ceiling, name description, target note, composition, macro vintage). Substituted
