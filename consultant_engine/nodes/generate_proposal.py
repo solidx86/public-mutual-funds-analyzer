@@ -23,10 +23,10 @@ Steps:
 
 from __future__ import annotations
 
-from html import escape as _html_escape
 import os
 import re
 from datetime import datetime
+from html import escape as _html_escape
 from pathlib import Path
 
 import consultant_engine

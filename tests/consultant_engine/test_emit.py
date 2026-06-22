@@ -31,7 +31,7 @@ def test_emit_punctuation_only_name_falls_back_to_generic(tmp_path):
              "client_profile": {"risk_level": "Moderate", "client_name": "!!!"},
              "output_dir": str(tmp_path)}
     name = Path(emit(state)["output_path"]).name
-    assert name.startswith("FundProposal_generic_Moderate_"), name
+    assert re.fullmatch(r"FundProposal_generic_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
 
 
 def test_emit_risk_spaces_removed(tmp_path):
@@ -39,7 +39,7 @@ def test_emit_risk_spaces_removed(tmp_path):
              "client_profile": {"risk_level": "Moderately Aggressive", "client_name": ""},
              "output_dir": str(tmp_path)}
     name = Path(emit(state)["output_path"]).name
-    assert "_ModeratelyAggressive_" in name, name
+    assert re.fullmatch(r"FundProposal_generic_ModeratelyAggressive_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
 
 
 def test_emit_writes_content_and_version_suffix(tmp_path):

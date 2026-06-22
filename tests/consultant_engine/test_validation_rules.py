@@ -11,6 +11,7 @@ import pytest
 from consultant_engine.rules.validation import (
     check_cfs_consistency,
     check_exposure_consistency,
+    check_prepared_for,
     check_unfilled_slots,
     fund_cards,
     validate_html,
@@ -176,8 +177,6 @@ def test_unfilled_slot_surfaces_through_validate_html(good_html, wb_index):
     codes = {v["code"] for v in validate_html(leaked, __version__, wb_index)}
     assert "unfilled_slot" in codes
 
-
-from consultant_engine.rules.validation import check_prepared_for
 
 _NAMED_BLOCK = ('<div class="cover-prepared-for">Prepared for '
                 '<strong>Tan Wei Ming</strong></div>')
