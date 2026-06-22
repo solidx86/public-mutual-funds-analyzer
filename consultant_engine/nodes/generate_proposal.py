@@ -156,13 +156,13 @@ def _cfs_card_values(cfs: dict | None) -> dict:
     weight_keys = ("alpha_w", "returnfit_w", "efficiency_w", "momentum_w")
     if not cfs or "weights" not in cfs:
         return {k: 0 for k in (*score_keys, *weight_keys)}
-    weights = cfs["weights"]   # always set by cfs.score_all; fail loud if a card lacks it
+    weights = cfs["weights"]   # guaranteed present here — unscored cards returned above
     return {
         **{k: cfs.get(k, 0) for k in score_keys},
-        "alpha_w": weights.get("alpha", 28),
-        "returnfit_w": weights.get("returnfit", 40),
-        "efficiency_w": weights.get("efficiency", 20),
-        "momentum_w": weights.get("momentum", 12),
+        "alpha_w": weights["alpha"],
+        "returnfit_w": weights["returnfit"],
+        "efficiency_w": weights["efficiency"],
+        "momentum_w": weights["momentum"],
     }
 
 
