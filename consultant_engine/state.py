@@ -76,3 +76,5 @@ class ConsultantState(TypedDict, total=False):
     repair_iterations: int
     # output
     output_path: str
+    # HITL resume
+    _universe: set

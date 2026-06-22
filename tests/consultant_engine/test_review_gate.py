@@ -145,3 +145,50 @@ def test_bare_approve_returns_empty():
              "_universe": set()}
     out = apply_resume(state, {"decision": "approve"})
     assert out == {}
+
+
+def test_apply_resume_accepts_abbrev_key():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [], "_universe": {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}}
+    payload = {"allocation": [
+        {"abbrev": "PIX", "allocation_pct": 40},
+        {"abbrev": "PeDiv", "allocation_pct": 40},
+        {"abbrev": "PeEMAS", "allocation_pct": 10},
+        {"abbrev": "PeCDF-A", "allocation_pct": 10}]}
+    out = apply_resume(state, payload)
+    assert out.get("violations", []) == []
+    assert {h["abbr"] for h in out["portfolio"]} == {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}
+
+
+def test_apply_resume_malformed_edit_does_not_crash():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [], "_universe": {"PIX", "PeEMAS", "PeCDF-A"}}
+    payload = {"allocation": [
+        {"allocation_pct": 40},                       # no abbr/abbrev key at all
+        {"abbrev": "PeEMAS", "allocation_pct": 10}]}
+    out = apply_resume(state, payload)            # must NOT raise KeyError
+    assert any(v["code"] == "malformed_edit" for v in out["violations"])
+
+
+def test_build_portfolio_persists_universe_for_structural_reapproval(fundmaster_4fund):
+    from consultant_engine.nodes.load_profile import load_profile
+    from consultant_engine.nodes.load_funds import load_funds
+    from consultant_engine.nodes.filter_universe import filter_universe
+    from consultant_engine.nodes.score_cfs import score_cfs
+    from consultant_engine.nodes.build_portfolio import build_portfolio
+
+    s = {"client_profile": {"risk_level": "Moderate", "shariah": False},
+         "fundmaster_path": fundmaster_4fund, "macro_context": {"source": "fixture"}}
+    for step in (load_profile, load_funds, filter_universe, score_cfs, build_portfolio):
+        s.update(step(s))
+
+    # build_portfolio must have published the universe it validated against.
+    assert "_universe" in s and s["_universe"], "build_portfolio must persist _universe"
+
+    # A plain re-approval of the engine's own portfolio must be violation-free,
+    # even though the structural sleeves are outside eligible_funds.
+    payload = {"allocation": [
+        {"abbrev": h["abbr"], "allocation_pct": h["allocation_pct"]}
+        for h in s["portfolio"]]}
+    out = apply_resume(s, payload)
+    assert out.get("violations", []) == [], out

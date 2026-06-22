@@ -210,16 +210,31 @@ def apply_resume(state: dict[str, Any], resume_payload: dict[str, Any]) -> dict[
     if "allocation" not in resume_payload:
         return {}
 
-    # Step 2: extract only abbr + allocation_pct from payload; derive the rest
+    # Step 2: extract abbr (accept the spec key 'abbrev' or the legacy 'abbr')
+    # + allocation_pct from payload; derive role. Never crash on a malformed edit —
+    # surface it as a re-validation violation so the gate re-pauses instead.
     allocation_entries = resume_payload["allocation"]
-    holdings = [
-        {
-            "abbr": e["abbr"],
-            "role": _role_for(e["abbr"]),
+    holdings: list[dict[str, Any]] = []
+    malformed: list[dict[str, str]] = []
+    for e in allocation_entries:
+        abbr = e.get("abbrev") or e.get("abbr")
+        if not abbr or "allocation_pct" not in e:
+            malformed.append({
+                "code": "malformed_edit",
+                "msg": (
+                    f"edit entry {e!r} is missing an 'abbrev'/'abbr' identifier or "
+                    f"'allocation_pct'"
+                ),
+            })
+            continue
+        holdings.append({
+            "abbr": abbr,
+            "role": _role_for(abbr),
             "allocation_pct": e["allocation_pct"],
-        }
-        for e in allocation_entries
-    ]
+        })
+
+    if malformed:
+        return {"violations": malformed}
 
     # Step 4: re-derive validation inputs from state (NOT from payload)
     profile = state["client_profile"]["risk_level"]

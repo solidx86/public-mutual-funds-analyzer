@@ -148,7 +148,12 @@ At `interrupt()` the engine writes `data/review/<thread_id>.json` (editable) plu
 | `review.decision` | **editable** | `approve` / `revise` (resume re-validates either way) |
 
 - **No change is required** — the default file is already a valid, approvable allocation; save and `--resume` to accept it. Edits are optional overrides.
-- **Intent vs facts:** the consultant edits only `abbrev` and `allocation_pct`. The computed fields (`cfs`, `rank`, `risk_level`, `eligible`) are **display-only** — on resume the engine re-derives them from state/workbook and ignores anything typed there. You cannot fake a CFS, and you can only pick from the scored eligible universe.
+- **Intent vs facts:** the consultant edits only `abbrev` and `allocation_pct` (the
+  legacy key `abbr` is also accepted; an entry missing both — or missing
+  `allocation_pct` — surfaces as a `malformed_edit` re-validation violation rather
+  than crashing the resume). The computed fields (`cfs`, `rank`, `risk_level`,
+  `eligible`) are **display-only** — on resume the engine re-derives them from
+  state/workbook and ignores anything typed there.
 - **Add/swap a fund:** add `{ "abbrev": "PISTF", "allocation_pct": 15 }` and rebalance to 100. On resume the engine backfills its facts and checks it's in the eligible universe; an ineligible or over-ceiling pick produces a re-validation violation.
 
 ## 8. Validate→repair loop

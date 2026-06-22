@@ -98,4 +98,7 @@ def build_portfolio(state: ConsultantState) -> dict:
             "profile": profile,
             "holdings": portfolio_funds,
         },
+        # Persist the universe the gate re-validates against, so a re-approved
+        # structural sleeve (outside eligible_funds) is not a spurious violation.
+        "_universe": universe,
     }
