@@ -15,6 +15,7 @@ class ClientProfile(TypedDict):
     upfront_capital_rm: float
     target_annual_return_pct: float          # percent p.a., e.g. 5.0
     goals: Optional[str]
+    client_name: str         # optional; load_profile normalizes + defaults to "" (generic)
 
 class Fund(TypedDict, total=False):
     abbr: str
