@@ -85,6 +85,28 @@ Each of these three slots is wrapped by a `<ul>…</ul>` in the skeleton — ret
 | `strategy.rebalancing` | Rebalancing triggers as 2–4 `<li>` items: time-based, drift-based, and event-based triggers for this profile |
 | `strategy.dip_capture` | Dip capture / reserve deployment guidance as 2–4 `<li>` items: when and how to deploy cash reserves, appropriate dip threshold for this risk profile |
 
+**Bullet shape (all three strategy slots).** Make each `<li>` scannable — a short term
+anchor with an optional type chip on the first line, then ONE tight sentence:
+
+```html
+<li><span class="bullet-head"><strong>TERM</strong><span class="chip">TYPE</span></span>One tight sentence of guidance.</li>
+```
+
+- **`TERM`** — a 1–3 word anchor, never a full clause (e.g. `Annual review`, `Drift band`,
+  `Deep correction`, `Reinvest distributions`).
+- **`TYPE`** — a one-word category chip. Use it only when the bullet has a natural type:
+  rebalancing → `time-based` / `drift-based` / `event-based`; dip-capture → `threshold` /
+  `staged` / `reserve`; distribution → `reinvest` / `payout`. If no clean type fits, **omit
+  the entire `<span class="chip">…</span>`** but keep the `<span class="bullet-head">` wrapper.
+- **Description** — exactly one sentence of **no more than 22 words**: the action and its
+  rationale, no preamble, no sub-clauses stacked with em-dashes. Bold any figure with
+  `<strong>` (e.g. `<strong>15%</strong>`). **Be concise** — keep it tight, this is a
+  scannable bullet, not a paragraph.
+- Do not restate the term inside the description, and do not put a colon after the term.
+
+Use this same `bullet-head`/`chip` shape for the **"What to Watch"** items too (that section
+gives the risk-type chip vocabulary), so the proposal's bullet lists read consistently.
+
 ---
 
 ## Per-Fund "Why We Chose It" Guidance
@@ -115,6 +137,20 @@ monitoring triggers specific to this fund:
 - Any manager or structural risk specific to this fund
 
 Do not list generic risks that apply equally to all funds.
+
+Format each `watch.PIX` `<li>` with the **same `bullet-head`/`chip` shape as the strategy
+bullets** (term anchor + optional type chip on line one, concise description below):
+
+```html
+<li><span class="bullet-head"><strong>TERM</strong><span class="chip">TYPE</span></span>One concise sentence.</li>
+```
+
+- **`TERM`** — a 1–3 word risk name (e.g. `Sector concentration`, `Currency exposure`,
+  `Short track record`).
+- **`TYPE`** — a one-word risk-category chip, used when one fits: `concentration`,
+  `drawdown`, `macro`, `currency`, `liquidity`, `track-record`, or `single-factor`. Omit the
+  `<span class="chip">…</span>` (but keep the `bullet-head` wrapper) if none fits.
+- **Description** — one concise sentence; apply the Layer-1 jargon rule as usual.
 
 ---
 
