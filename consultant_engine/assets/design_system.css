@@ -72,7 +72,7 @@ body {
 .page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 40px;
+  padding: 24px 40px;
 }
 
 /* ── Cover Page ── */
@@ -161,6 +161,13 @@ body {
   margin-bottom: 48px;
 }
 
+.cover-prepared-for {
+  font-size: 15px;
+  color: rgba(255,255,255,0.85);
+  margin-top: -32px;   /* tuck beneath the subtitle's 48px gap */
+  margin-bottom: 40px;
+}
+
 .cover-meta-grid {
   display: grid;
   grid-template-columns: repeat(3, auto);
@@ -197,8 +204,8 @@ body {
 
 /* ── Section Headers ── */
 .section {
-  margin-bottom: var(--space-2xl);
-  padding-top: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  padding-top: var(--space-md);
   page-break-inside: avoid;
 }
 
@@ -349,7 +356,7 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
 .fund-card-body { padding: 16px 20px; }
 
 .fund-card-body h4 {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--navy);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -473,7 +480,65 @@ tr:nth-child(even) td { background: var(--bg-subtle); }
   margin: 12px 0;
 }
 
-.strategy-card h4 { color: var(--navy); margin-bottom: 8px; }
+.strategy-card h4 { color: var(--navy); margin-bottom: 8px; font-size: 16px; font-weight: 700; }
+
+/* Term-anchored prose lists — standardized across the proposal: the Section 8 strategy
+   cards AND the per-fund "What to Watch" lists. Each <li> leads with a term anchor (+ an
+   optional type chip) on its own line, then a concise description below; a capped measure
+   and dividers keep them scannable instead of a wall of text. */
+.strategy-card ul, .fund-card ul { list-style: none; padding: 0; margin: 0; }
+.strategy-card li, .fund-card ul li {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  max-width: 68ch;              /* hold the line to ~60-75 chars for readability */
+  color: var(--text-mid);       /* description sits in muted text */
+}
+.strategy-card li:first-child, .fund-card ul li:first-child { border-top: none; padding-top: 4px; }
+
+/* Preferred form: a <span class="bullet-head"> packs the term anchor and an optional type
+   chip onto one line; the description follows on the next line. */
+li > .bullet-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+li > .bullet-head > strong { color: var(--navy); font-weight: 600; font-size: 15px; }
+
+/* Determinism guard: a bullet-head that is NOT a direct <li> child still reads cleanly as
+   an inline bold lead-in (hard space included) — never term text touching description text. */
+.bullet-head { display: inline; }
+.bullet-head > strong { color: var(--navy); font-weight: 600; }
+.bullet-head::after { content: "\00a0"; }
+li > .bullet-head::after { content: none; }   /* flex gap handles spacing in the list form */
+
+.chip {                           /* type tag: time-based / drift-based / concentration … */
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--navy);
+  background: var(--bg-page, #fff);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+/* Fallback form: a bare leading <strong> still reads as a term anchor on its own line. */
+.strategy-card li > strong:first-child, .fund-card ul li > strong:first-child {
+  display: block;
+  color: var(--navy);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.strategy-card li strong, .fund-card ul li strong {  /* inline figures: medium navy */
+  color: var(--navy);
+  font-weight: 600;
+}
 
 /* ── Pie Charts ── */
 .exposure-chart-wrap {

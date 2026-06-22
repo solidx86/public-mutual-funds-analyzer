@@ -30,3 +30,14 @@ fetch_ath.py
 # (no trailing slash so the patterns also match the symlinks, not just real dirs)
 /unit-trust
 /private-retirement-scheme
+
+# Headless consultant engine runtime artifacts
+data/review/
+
+# Secrets — never commit. Real key lives here locally; .env.example is the tracked template.
+.env
+.env.*
+!.env.example
+
+# Live macro pull (regenerable, time-sensitive; fixture is the offline/CI source of truth)
+data/cache/macro_results.json

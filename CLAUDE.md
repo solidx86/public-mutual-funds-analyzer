@@ -9,16 +9,31 @@ A two-stage system for a Public Mutual unit trust consultant (Malaysia):
 1. **Screening pipeline** — ingests Public Mutual Monthly Fund Report (MFR) PDFs + scrapes ATH NAV from publicmutual.com.my, produces a formatted Excel "FundMaster" workbook.
 2. **Consulting layer** — reads the latest FundMaster workbook + a client's risk profile, generates an HTML client proposal.
 
-Both stages are driven by skills. The skills' `SKILL.md` files are the source of truth for procedure — read them before doing pipeline or proposal work, and don't duplicate their content here.
+The screener stage is driven by a skill; the consultant stage is a headless Python package.
 
 ## Where the logic lives
 
 | Skill | Trigger phrases | Path |
 |---|---|---|
 | `fund-screener` | "screen the new MFR", "run the fund screener", "new MFR is out" | `fund-screener-skill/SKILL.md` |
-| `fund-consultant` | "recommend funds for a moderate investor", "build a portfolio for…" | `fund-consultant-skill/SKILL.md` |
 
-Each skill bundle has a `references/` directory (templates, framework docs, design system CSS) and, for the screener, a `scripts/` directory with the pipeline.
+The screener skill bundle has a `references/` directory (templates, framework docs, design system CSS) and a `scripts/` directory with the pipeline.
+
+### Consultant engine
+
+The consulting layer is the `consultant_engine/` LangGraph package — a headless CLI, not a Claude Code skill. Invoke it from the repo root:
+
+```bash
+python -m consultant_engine --profile <p.json> [--fundmaster <wb.xlsx>] [-o <dir>] [--no-review] [--resume <thread_id>]
+```
+
+`--fundmaster` is **optional**: omit it to use the newest `PublicMutual_FundMaster_*.xlsx` under `output/fundmasters/` (else `output/examples/fundmasters/`). Ready-to-run sample profiles — one per risk level, all `experience: "new"` — live in `data/profiles/`. Run `python -m consultant_engine --help` for the full flag/profile-field reference.
+
+**HITL review gate** — by default the engine pauses after drafting, writes `data/review/<thread_id>.json` + a preview `.html`, and exits. Run `--resume <thread_id>` to continue after consultant review. Pass `--no-review` to auto-approve (evals, CI, batch runs).
+
+**Offline mode** — set `CONSULTANT_ENGINE_FAKE_LLM=1` to stub all LLM calls for fast local testing.
+
+> ⚠️ **Always run verification / fake-LLM proposals into a throwaway dir** (e.g. `-o /tmp/ce-check`), never the default output dir. Fake-LLM fills prose slots with readable `[KEY narrative]` stubs, so a verification run launched without `-o` will **overwrite the real client proposal** in `output/fund_proposals/` (a gitignored private-mount artifact with no backup). Only do a real-LLM run into the default dir when you intend to (re)produce the actual client artifact.
 
 ## Pipeline at a glance
 
@@ -42,15 +57,18 @@ pip install -r requirements.txt pytest && pytest
 ```
 
 - `tests/test_pipeline.py` runs pipeline steps 3–4 offline from the tracked JSONs in a temp workspace — it never touches the repo's tracked outputs.
-- `tests/test_proposal_validation.py` is the eval layer for generated proposals (locked-template conformance, CFS recomputation, disclosure rules, retail eligibility) cross-checked against the FundMaster workbook each proposal names. The `KNOWN_*` pin sets at the top must stay empty — if a regenerated proposal trips one, fix the proposal, don't pin it.
+- `tests/test_proposal_validation.py` is the eval layer for generated proposals (locked-template conformance; CFS / performance / exposure / portfolio-summary recomputation; disclosure rules; retail eligibility) cross-checked against the FundMaster workbook each proposal names. The `KNOWN_*` pin sets at the top must stay empty — if a regenerated proposal trips one, fix the proposal, don't pin it.
+- **The test suite is read-only over tracked outputs.** Running `pytest` must never modify the committed example proposals under `output/examples/fund_proposals/` — the eval layer only *reads* them. Only an explicit `consultant_engine` real-LLM run regenerates an example. If you change code that could alter proposal output, hash `output/examples/fund_proposals/*.html` before and after the run to confirm the suite left them byte-identical.
 - CI (`.github/workflows/ci.yml`) runs the same `pytest` on every push to main; keep it green.
 
 ## Outputs & versioning
 
 - `output/fundmasters/PublicMutual_FundMaster_<MonYYYY>_v<skill-version>.xlsx` — screener output
-- `output/fund_proposals/FundProposal_<RiskProfile>_<MonYYYY>[_<ClientName>]_v<skill-version>.html` — consultant output
+- `output/fund_proposals/FundProposal_<ClientName|generic>_<RiskProfile>_<YYYY-MM-DD>_v<consultant-version>.html` — consultant output. `<ClientName>` is the client name with non-alphanumerics removed (case preserved), or the literal `generic` when no name is given; `<YYYY-MM-DD>` is the generation date.
 
-The `<skill-version>` is parsed from the `version:` field in the corresponding `SKILL.md` frontmatter and stamped automatically into output filenames and footers. Bump the skill's frontmatter version when changing the skill (semver: minor for backward-compatible, major for breaking).
+For the **screener**, `<skill-version>` is parsed from the `version:` field in `fund-screener-skill/SKILL.md` frontmatter. Bump the skill's frontmatter version when changing the skill (semver: minor for backward-compatible, major for breaking).
+
+For the **consultant**, the version comes from `consultant_engine.__version__` (currently `0.1.0`). The stamp label in filenames and footers is the literal `fund-consultant v<ver>` — kept as-is for proposal-validator continuity. Bump `consultant_engine/__init__.py` when changing the engine (same semver convention).
 
 The live `output/fundmasters/` and `output/fund_proposals/` dirs are **gitignored** — real (possibly client-named) runs stay local and are never committed.
 
@@ -58,12 +76,14 @@ The live `output/fundmasters/` and `output/fund_proposals/` dirs are **gitignore
 
 Copyrighted source PDFs (`unit-trust/`, `private-retirement-scheme/`) and real outputs (`output/fund_proposals/`, `output/fundmasters/`) are **not** in this public repo — they are gitignored symlinks mounting the private repo `public-mutual-funds-analyzer-private` (see README → *Public / private split*). Only `output/examples/` is public.
 
-**After** `fund-consultant` writes a proposal, or `fund-screener` writes a FundMaster workbook, run `scripts/sync-private.sh` to commit + push the new/updated file to the private repo. The script resolves the private repo through the symlink mount (no hardcoded path) and no-ops on a public-only clone.
+**After** `consultant_engine` writes a proposal, or `fund-screener` writes a FundMaster workbook, run `scripts/sync-private.sh` to commit + push the new/updated file to the private repo. The script resolves the private repo through the symlink mount (no hardcoded path) and no-ops on a public-only clone.
 
 ## Repo conventions worth knowing
 
+- **Comments and docstrings follow Google Python style** — module/function docstrings in the Google format, inline comments as complete capitalized sentences explaining *why* (not restating the code), kept at least two spaces off the statement. Match the surrounding density; don't narrate obvious lines.
 - **Qualification rule is weighted alpha > 0%**, not a binary beat-rate. Legacy beat-rate columns (Beat %, period checkmarks) are kept for display only — do not reintroduce the old binary gate as the qualifier.
 - **Cached intermediate files** in `data/cache/`: `mfr_results.json`, `ath_results.json`, `fund_code_map.json` are **tracked** (so a fresh clone has working data without re-scraping). `data/cache/master_funds.csv` is **gitignored** (cheap to regenerate from the three JSONs).
 - **PRS PDFs** in `private-retirement-scheme/` are deliberately excluded by `extract_mfr.py` — the screener is UT-only.
 - **MFR parsing edge cases** (abbreviations with spaces like `P SmallCap`, casing mismatches like `PSMALLCAP` vs `P SmallCap` in the API code map) are handled inside the pipeline. If a fund goes missing from ATH output, the escape hatch is `fetch_ath.py --refresh-codes`.
 - `data/reference/funds_risk_level.xlsx` is the authoritative risk-level lookup (1–5 scale) keyed by fund abbreviation, joined in `build_sheet_data.py`.
+- **Specs and plans always ship an HTML companion.** Every design spec (`docs/superpowers/specs/*.md`) and implementation plan must have a standalone, self-contained HTML copy alongside it (same basename, `.html`) for easy browser review — regenerate it whenever the markdown changes so the two never drift. Markdown remains the source of truth.

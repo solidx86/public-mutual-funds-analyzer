@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal Polish + LLM-Responsibility Audit</title>
+<style>
+  body{margin:0;background:#f6f8fc;color:#1a1f2b;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:28px 22px 70px}
+  h1{font-size:25px;margin:.2em 0}
+  h2{font-size:19px;margin:1.6em 0 .3em;border-top:3px solid #2d5bd7;padding-top:12px;display:inline-block}
+  h3{font-size:15px;margin:1.2em 0 .3em;color:#475067;text-transform:uppercase;letter-spacing:.04em}
+  .meta{color:#6b7385;font-size:13px}
+  code{background:#eef1f7;color:#243;padding:1px 5px;border-radius:5px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:13.5px}
+  th,td{border:1px solid #e3e7ef;padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f3fa;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#475067}
+  tr:nth-child(even){background:#fafbfe}
+  .py{color:#1c8a4e;font-weight:700}
+  .llm{color:#b25d00;font-weight:700}
+  .partial{color:#2d5bd7;font-weight:700}
+  .fact{background:#fdecea;color:#c0392b;font-weight:700;font-size:11px;padding:1px 5px;border-radius:4px}
+  .sec{font-weight:700;background:#eef2fb}
+  .call{border-left:4px solid #2d5bd7;background:#eaf0ff;padding:10px 15px;margin:14px 0;border-radius:0 8px 8px 0}
+  ol,ul{margin:.4em 0;padding-left:22px}li{margin:.3em 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Proposal Polish + LLM-Responsibility Audit</h1>
+<p class="meta">2026-06-21 · branch <code>track0-headless-consultant-engine-spec</code> · <strong>EXECUTED 2026-06-21 (commits 7612bfb…cada934, 301 tests green)</strong>. Captured for fresh execution; source of truth is the <code>.md</code> alongside this file.</p>
+
+<h2>Part 1 — LLM-responsibility audit</h2>
+<p>Legend: <span class="py">PY</span> Python-owned · <span class="llm">LLM</span> free prose · <span class="partial">PARTIAL</span> Python structure + LLM prose · <span class="fact">⚠FACT</span> currently LLM but a fact Python already knows (determinism gap).</p>
+<div class="call"><code>fund_cards</code>, <code>fee_table.fund_rows</code>, <code>portfolio_summary.fund_rows</code>, <code>macro.events_rows</code>, exposure pies/legend, and (2026-06-21) the 4 cover facts use <code>&lt;!--slot:--&gt;</code> syntax but are <strong>Python-substituted before prose fill</strong> → they are PY, not LLM.</div>
+<table>
+<tr><th>Section</th><th>Field / slot</th><th>Owner</th><th>Notes</th></tr>
+<tr><td class="sec" rowspan="5">Cover</td><td><code>cover.profile</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>risk level — Python knows it</td></tr>
+<tr><td><code>cover.subtitle</code></td><td class="llm">LLM</td><td>tagline — genuine prose, OK</td></tr>
+<tr><td><code>cover.shariah</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>Shariah pref — fact</td></tr>
+<tr><td>fundmaster_month_year / month_year / proposal_date / prepared_date</td><td class="py">PY</td><td>fixed 2026-06-21 (<code>3157df0</code>)</td></tr>
+<tr><td>target_annual_return_pct / funds_selected_n / funds_screened_m</td><td class="py">PY</td><td>data-slots</td></tr>
+<tr><td class="sec">Foundation</td><td>Unit Trust / Returns / Cooling-Off</td><td class="py">PY (static)</td><td>new-investor block; no slots</td></tr>
+<tr><td class="sec" rowspan="4">1 · Executive Summary</td><td><code>exec_summary.profile</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>"Moderate" — derivable</td></tr>
+<tr><td><code>exec_summary.composition</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>derivable from portfolio</td></tr>
+<tr><td><code>exec_summary.thesis</code></td><td class="llm">LLM</td><td>genuine prose, OK</td></tr>
+<tr><td>CFS / 3Y Alpha numbers + bold labels (PY) · <code>portfolio.volatility_class</code> + <code>portfolio.volatility_factor</code></td><td class="py">PY / <strong>OMIT</strong></td><td>CFS+Alpha real; VF surface display-only (uncomputed <code>—</code>) → drop the clause</td></tr>
+<tr><td class="sec" rowspan="3">2 · Macro Context</td><td><code>macro.month_year</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>report month — Python should own</td></tr>
+<tr><td>Event + Date columns · <code>macro.impact.N</code></td><td class="partial">PARTIAL</td><td>event/date PY, implication LLM — <strong>needs bolding</strong></td></tr>
+<tr><td><code>macro.themes</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
+<tr><td class="sec" rowspan="6">3 · Client Risk Profile</td><td><code>profile.name_description</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td rowspan="6"><strong>Biggest gap: almost all facts Python computes (load_profile rules).</strong></td></tr>
+<tr><td><code>profile.target_note</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.shariah</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.experience_level</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.rl_ceiling</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td></tr>
+<tr><td><code>profile.target_vf_range</code></td><td class="py"><strong>OMIT</strong></td></tr>
+<tr><td class="sec" rowspan="3">4 · Fund Recommendations</td><td>card structure (meta, CFS, perf, exposure)</td><td class="py">PY</td><td>all numbers Python-owned</td></tr>
+<tr><td><code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code></td><td class="llm">LLM</td><td>prose — <strong>needs bolding</strong></td></tr>
+<tr><td><code>alpha_warning.&lt;FUND&gt;</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>div is PY-gated; prose is boilerplate PY knows → static PY string</td></tr>
+<tr><td class="sec">5 · Portfolio Summary</td><td>rows + weighted CFS/Alpha (PY) · <code>volatility_class</code></td><td class="py">PY / <strong>OMIT</strong></td><td>CFS+Alpha real; VF clause dropped (same as §1)</td></tr>
+<tr><td class="sec">6 · Portfolio Exposure</td><td>asset + geo pies, legends, %</td><td class="py">PY</td><td>deterministic look-through</td></tr>
+<tr><td class="sec" rowspan="4">7 · Investment Strategy</td><td><code>strategy.rsp</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td>holds allocation split → <strong>RSP table (PY)</strong></td></tr>
+<tr><td><code>strategy.distribution</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
+<tr><td><code>strategy.rebalancing</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
+<tr><td><code>strategy.dip_capture</code></td><td class="llm">LLM</td><td>→ <strong>bullets</strong></td></tr>
+<tr><td class="sec">8 · Fee Disclosure</td><td>fee table structure</td><td class="py">PY</td><td>values <code>—</code> (deferred, ENH-1)</td></tr>
+<tr><td class="sec" rowspan="2">9 · Disclaimer / Sources</td><td>AI-Gen / Regulatory / Cooling-Off / Conflict</td><td class="py">PY (static)</td><td>locked disclosure text</td></tr>
+<tr><td><code>sources.fundmaster</code> · <code>sources.web_urls</code> · <code>sources.phs_list</code></td><td class="llm">LLM <span class="fact">⚠FACT</span></td><td><strong>fix in this pass</strong></td></tr>
+</table>
+
+<h2>Part 2 — Combined implementation scope (this pass)</h2>
+<div class="call"><strong>Scope decision (2026-06-21):</strong> the Part-3 determinism hardening is <strong>folded into this pass</strong> — one combined commit (or a short ordered series), not a deferred follow-up. Only <strong>fees (§8, ENH-1)</strong> remain out of scope. After this pass the LLM authors <em>only</em> genuine-synthesis prose (see "Remaining LLM-owned").<br><br><strong>Review-pass addendum &amp; self-corrections (trail):</strong> a second review re-classified three slots and found one bug. (i) <code>name_description</code> is a PY candidate because it is generic per-profile boilerplate with no client-specific input — <em>not</em> because the prompt mandates exact wording (that mandate is the jargon table's). (ii) <code>target_note</code> is PY in <strong>both</strong> branches — first understated as "leave the empty case to the LLM."</div>
+
+<h3>Group 1 — Profile / cover / exec facts → Python data-substitution</h3>
+<p>Extend the existing "substitute before prose fill" block in <code>generate_proposal</code> (same mechanism that already fills the 4 cover facts). Each slot gets a <strong>named authoritative source</strong>:</p>
+<table>
+<tr><th>Slot (incl. duplicates)</th><th>Python source</th></tr>
+<tr><td><code>cover.profile</code>, <code>exec_summary.profile</code></td><td><code>client_profile["risk_level"]</code></td></tr>
+<tr><td><code>cover.shariah</code>, <code>profile.shariah</code></td><td><code>client_profile["shariah"]</code> — <strong>3-way</strong>: <code>True</code>→"Shariah-compliant", <code>False</code>→"Conventional", <code>None</code>→"No preference (both)". <span class="fact">⚠</span> today <code>null</code> is mislabeled "Conventional" — fix here.</td></tr>
+<tr><td><code>profile.experience_level</code></td><td><code>client_profile["experience"]</code> → "New investor" / "Experienced investor"</td></tr>
+<tr><td><code>profile.rl_ceiling</code></td><td><strong>reuse</strong> <code>filter_universe.RISK_CEILING[risk_level]</code> (Cons=2, Mod=3, MA=4, Agg=5) — do <strong>not</strong> duplicate</td></tr>
+<tr><td><code>exec_summary.composition</code></td><td>count built-portfolio holdings by fund type → "2 bond, 1 gold, 1 MM" (format helper)</td></tr>
+<tr><td><code>profile.name_description</code></td><td><code>risk_level</code> label + a <strong>new</strong> static 4-row description lookup</td></tr>
+<tr><td><code>profile.target_note</code></td><td>PY both branches: <code>load_profile</code> warning when <code>target&gt;ceiling</code>, else static qualifier. <strong>Remove LLM.</strong></td></tr>
+<tr><td><code>macro.month_year</code></td><td>derive from the macro-context snapshot date</td></tr>
+</table>
+
+<h3>Group 2 — Portfolio-VF surface → OMIT entirely <span class="py">decided 2026-06-21</span></h3>
+<p><strong>VF is display-only — it does not drive portfolio construction.</strong> Confirmed: <code>volatility_factor</code>/VF appears nowhere in the selection/allocation/scoring path (<code>cfs.py</code>, <code>portfolio.py</code>, <code>filter_universe.py</code>, <code>build_portfolio.py</code>, <code>score_cfs.py</code> — zero references). Construction's risk control is the <strong>RL 1–5 ceiling</strong> (<code>filter_universe.RISK_CEILING</code>), not VF. And the portfolio-level VF is <strong>not even computed</strong> — <code>portfolio.volatility_factor</code> is hardcoded <code>"—"</code> (<code>generate_proposal.py:363</code>); the class label + target range are LLM-invented on top of that dash.</p>
+<p>So rather than invent locked band boundaries, <strong>remove the portfolio-VF surface</strong> (no new mapping, no decision):</p>
+<ul>
+<li>§1 Executive Summary: drop the <code>Portfolio VF: — (volatility_class)</code> clause (keep CFS + 3Y Alpha — both real).</li>
+<li>§5 Portfolio Summary footer: drop the <code>Weighted Portfolio VF: — (volatility_class)</code> clause.</li>
+<li>§3 Client Risk Profile: remove the <strong>Target Portfolio VF</strong> row entirely.</li>
+<li><strong>Keep</strong> the per-fund VF on each fund card — a real workbook value (<code>load_funds</code>, cell 65).</li>
+</ul>
+<p>Deletes <code>portfolio.volatility_class</code>, <code>portfolio.volatility_factor</code>, and <code>profile.target_vf_range</code> from the skeleton + prose keys. Group 2 is now a <em>deletion</em>, not a new rule.</p>
+
+<h3>Group 3 — <code>alpha_warning.&lt;FUND&gt;</code> → PY static templated string</h3>
+<p>Render in the card template (<code>templates.py</code>), not as a prose slot. Remove from collected prose keys; update the FAKE_LLM fill + the determinism-guard test (it already asserts the div is PY-emitted — extend it to assert the <em>text</em> is Python's).</p>
+
+<h3>Group 4 — Sources → Python-owned</h3>
+<ul>
+<li><code>sources.fundmaster</code> = source workbook basename.</li>
+<li><code>sources.web_urls</code> = live macro events' <code>source_url</code>s (dedup, <code>&lt;li&gt;</code>).</li>
+<li><code>sources.phs_list</code> = <code>&lt;Abbr&gt;_PHS.pdf</code> per portfolio fund (<code>&lt;li&gt;</code>).</li>
+</ul>
+
+<h3>Group 5 — Investment Strategy readability</h3>
+<ul>
+<li><code>strategy.rsp</code> → <strong>Python RSP table</strong> (Fund · Allocation % · per RM 1,000) from allocations. Optional one-line LLM intro.</li>
+<li><code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code> → <code>&lt;ul&gt;&lt;li&gt;</code> bullets (prompt returns bullets, not a paragraph).</li>
+</ul>
+
+<h3>Group 6 — Prompt + emphasis (LAST — after the slot set is final)</h3>
+<ul>
+<li><strong>Trim</strong> <code>assets/prompts/generate_proposal.md</code> to <strong>only</strong> the slots still LLM-owned (it still instructs PY/deferred slots: <code>cover.fundmaster_month_year</code>, <code>cover.proposal_date</code>/<code>prepared_date</code>, <code>macro.events_rows</code>, <code>portfolio_summary.fund_rows</code>, <code>fee_table.fund_rows</code>, <code>fees.PIX.phs_date</code>, plus everything moved to PY above). A stale prompt invites re-emitting markup for already-filled slots.</li>
+<li><strong>Bolding:</strong> wrap key figures, %, fund names in <code>&lt;strong&gt;</code> in <code>macro.impact.N</code>, <code>macro.themes</code>, <code>why.&lt;FUND&gt;</code>, <code>watch.&lt;FUND&gt;</code>.</li>
+<li><code>cover.subtitle</code>: keep LLM framing, <strong>omit numbers</strong>.</li>
+<li><strong>Bullets:</strong> instruct <code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code> to return <code>&lt;li&gt;</code> items.</li>
+</ul>
+
+<h3>Remaining LLM-owned after this pass (genuine-synthesis surface)</h3>
+<p><code>cover.subtitle</code> (no numbers) · <code>exec_summary.thesis</code> · <code>macro.impact.N</code> · <code>macro.themes</code> · <code>why.&lt;FUND&gt;</code> · <code>watch.&lt;FUND&gt;</code> · <code>strategy.distribution</code>/<code>rebalancing</code>/<code>dip_capture</code>.</p>
+
+<h3>Deferred (still out of scope)</h3>
+<ul><li>Fees (§8) — ENH-1 PHS extraction.</li></ul>
+
+<h3>Suggested order &amp; verify</h3>
+<p>Group 1 → 3 → 4 → 5 (mechanical) → Group 2 (skeleton deletion) → Group 6 (prompt last). Each PY slot lands a test; a live e2e must converge AND pass <code>tests/test_proposal_validation.py</code> (29/29); keep bare-<code>pytest</code> green.</p>
+
+<h2>Execution outcome (2026-06-21)</h2>
+<p>Landed in 6 groups (commits <code>7612bfb</code> … <code>cada934</code>, pushed; whole suite 301 green):</p>
+<ul>
+<li><strong>Group 1</strong> — profile/cover/exec facts → Python (incl. allocation-based composition via <code>derived_class</code>, 3-way Shariah).</li>
+<li><strong>Group 3</strong> — alpha-warning disclosure text → static role-aware Python string.</li>
+<li><strong>Group 4</strong> — §9 Sources list (workbook + PHS filenames + deduped macro URLs) → Python.</li>
+<li><strong>Group 5</strong> — §7 RSP table → Python; distribution/rebalancing/dip_capture → <code>&lt;ul&gt;</code> bullets.</li>
+<li><strong>Group 2</strong> — deleted the display-only portfolio-VF surface (§1/§3/§5).</li>
+<li><strong>Group 6</strong> — trimmed the system prompt to LLM-only slots; added bolding/bullets; fixed the stale "return whole document" output-format; added <code>test_llm_prose_surface_is_locked_to_genuine_synthesis</code> locking the boundary.</li>
+</ul>
+<p>The LLM now authors <strong>only</strong> 9 genuine-synthesis prose slots: <code>cover.subtitle</code>, <code>exec_summary.thesis</code>, <code>macro.impact.N</code>, <code>macro.themes</code>, <code>why.&lt;FUND&gt;</code>, <code>watch.&lt;FUND&gt;</code>, <code>strategy.{distribution,rebalancing,dip_capture}</code>. Everything else is Python-owned or deleted.</p>
+<p>Still deferred: deterministic PHS <strong>fee</strong> extraction (ENH-1 remainder) and per-fund-card top-5 holdings + country-exposure chart (ENH-9).</p>
+</div>
+</body>
+</html>

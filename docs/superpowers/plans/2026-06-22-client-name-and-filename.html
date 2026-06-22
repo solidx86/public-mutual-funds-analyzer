@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Implementation Plan — Client name + robust proposal filenaming</title>
+<style>
+  :root{
+    --ink:#1f2328; --muted:#57606a; --line:#d8dee4; --bg:#fbfcfd;
+    --accent:#9a3b2e; --accent-soft:#f3e7e4; --code-bg:#f4f1ea; --ok:#1a7f4b; --warn:#9a6700;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:56px 28px 96px}
+  header.doc{border-bottom:3px solid var(--accent); padding-bottom:22px; margin-bottom:8px}
+  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 14px; letter-spacing:-.01em}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--muted)}
+  .meta b{color:var(--ink); font-weight:600}
+  h2{font-size:21px; margin:42px 0 12px; padding-top:10px; letter-spacing:-.01em; border-top:1px solid var(--line)}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--accent)}
+  p,li{color:var(--ink)}
+  .muted{color:var(--muted)}
+  code{background:var(--code-bg); padding:.12em .4em; border-radius:4px; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre code{background:none; padding:0}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft); padding:12px 16px; border-radius:0 8px 8px 0; margin:18px 0}
+  .callout.warn{border-color:var(--warn); background:#fbf3da}
+  ul.tight{margin:8px 0; padding-left:22px}
+  ul.tight li{margin:4px 0}
+  .step{font-weight:600}
+  .task{background:#fff; border:1px solid var(--line); border-radius:10px; padding:4px 20px 14px; margin:20px 0}
+  hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+  footer.doc{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <p class="eyebrow">Implementation Plan</p>
+  <h1>Client name + robust proposal filenaming</h1>
+  <div class="meta">
+    <span><b>Project:</b> public-mutual-funds-analyzer</span>
+    <span><b>Component:</b> consultant_engine</span>
+    <span><b>Date:</b> 2026-06-22</span>
+    <span><b>Branch:</b> client-name-filename</span>
+  </div>
+</header>
+
+<div class="callout">
+  <b>For agentic workers:</b> REQUIRED SUB-SKILL — use <code>superpowers:subagent-driven-development</code> (recommended) or <code>superpowers:executing-plans</code> to implement this plan task-by-task. The markdown source (<code>2026-06-22-client-name-and-filename.md</code>) is authoritative; this HTML is a review companion.
+</div>
+
+<p><b>Goal:</b> Make the client's name a first-class optional profile field that renders on the proposal cover, drives a robust filename convention, and is verified post-generation.</p>
+<p><b>Architecture:</b> <code>client_name</code> enters via the profile JSON, is normalized once at the <code>load_profile</code> node (the input boundary), is rendered as a Python-owned (never LLM-authored) HTML-escaped "Prepared for" line on the cover, drives the <code>emit</code> filename, and is checked post-generation by a new pure rule in the validate layer. No new CLI surface.</p>
+<p><b>Tech Stack:</b> Python 3, LangGraph pipeline, pytest, <code>openpyxl</code>. Offline tests run under <code>CONSULTANT_ENGINE_FAKE_LLM=1</code> (autouse fixture in <code>tests/conftest.py</code>).</p>
+
+<h2>Global Constraints</h2>
+<ul class="tight">
+  <li><b>Work in the worktree</b> <code>/Users/solid/Code/pmfa-client-name</code> on branch <code>client-name-filename</code>. Never edit the shared checkout (another session is active there). The shell cwd resets between commands — prefix every shell command with <code>cd /Users/solid/Code/pmfa-client-name &amp;&amp;</code>.</li>
+  <li>Named filename: <code>FundProposal_&lt;ClientName&gt;_&lt;RiskProfile&gt;_&lt;YYYY-MM-DD&gt;_v&lt;version&gt;.html</code></li>
+  <li>Generic filename: <code>FundProposal_generic_&lt;RiskProfile&gt;_&lt;YYYY-MM-DD&gt;_v&lt;version&gt;.html</code></li>
+  <li><code>&lt;ClientName&gt;</code> = client name with <b>every non-alphanumeric removed</b>, case preserved; <code>generic</code> when empty.</li>
+  <li><code>&lt;RiskProfile&gt;</code> = <code>risk_level</code> with spaces removed. <code>&lt;YYYY-MM-DD&gt;</code> = generation date. <code>&lt;version&gt;</code> = parsed from the <code>fund-consultant v…</code> stamp, else <code>__version__</code>.</li>
+  <li><code>client_name</code> default is <code>""</code>; it is <b>HTML-escaped</b> wherever it reaches the DOM. The prepared-for block is deterministic / Python-owned.</li>
+  <li>Google-style docstrings on every new/rewritten function. TDD: failing test → watch fail → minimal impl → watch pass → commit.</li>
+</ul>
+
+<h2>Task 1 — <code>client_name</code> profile field + normalization + sample profiles</h2>
+<div class="task">
+  <p><b>Files:</b> modify <code>consultant_engine/state.py</code>, <code>consultant_engine/nodes/load_profile.py</code>, <code>data/profiles/*.json</code>; test <code>tests/consultant_engine/test_load_profile.py</code>.</p>
+  <p><b>Produces:</b> after <code>load_profile</code>, <code>state["client_profile"]["client_name"]</code> is always a present, normalized <code>str</code> (<code>""</code> when absent/blank). All later tasks rely on this.</p>
+  <ul class="tight">
+    <li><span class="step">Step 1:</span> add failing tests — defaults to <code>""</code>; trim + collapse whitespace; whitespace-only → <code>""</code>; control chars stripped; length capped at 100; non-string → <code>""</code>; shipped profiles declare <code>client_name: ""</code>.</li>
+    <li><span class="step">Step 2:</span> run → FAIL (<code>KeyError: 'client_name'</code>).</li>
+    <li><span class="step">Step 3:</span> add <code>client_name: str</code> to the <code>ClientProfile</code> TypedDict.</li>
+    <li><span class="step">Step 4:</span> add <code>_normalize_client_name()</code> + <code>p["client_name"] = _normalize_client_name(p.get("client_name"))</code> to <code>load_profile</code>.</li>
+    <li><span class="step">Step 5:</span> add <code>"client_name": ""</code> to all four sample profiles.</li>
+    <li><span class="step">Step 6:</span> run → PASS. <span class="step">Step 7:</span> commit.</li>
+  </ul>
+  <pre><code>def _normalize_client_name(raw) -> str:
+    if not isinstance(raw, str):
+        return ""
+    collapsed = " ".join(raw.split())          # trim + collapse all whitespace runs
+    cleaned = _CONTROL_CHARS_RE.sub("", collapsed)
+    return cleaned[:_MAX_NAME_LEN]</code></pre>
+</div>
+
+<h2>Task 2 — Render the "Prepared for" line on the cover</h2>
+<div class="task">
+  <p><b>Files:</b> modify <code>assets/proposal_skeleton.html</code> (marker after the cover subtitle), <code>nodes/generate_proposal.py</code> (<code>import html</code>; substitute in the cover-facts area), <code>assets/design_system.css</code> (<code>.cover-prepared-for</code>); test <code>test_generate_proposal.py</code>.</p>
+  <p><b>Produces:</b> named → HTML contains <code>&lt;div class="cover-prepared-for"&gt;Prepared for &lt;strong&gt;{escaped}&lt;/strong&gt;&lt;/div&gt;</code>; generic → no <code>cover-prepared-for</code> substring. Task 4 depends on this exact format.</p>
+  <ul class="tight">
+    <li><span class="step">Step 1:</span> add failing tests — escaped render when named; absent when generic; marker fully substituted.</li>
+    <li><span class="step">Step 2:</span> run → FAIL. <span class="step">Step 3:</span> insert <code>&lt;!--slot:cover.prepared_for_block--&gt;</code> between the subtitle and meta-grid.</li>
+    <li><span class="step">Step 4:</span> build + substitute the block before prose fill (see snippet). <span class="step">Step 5:</span> add the CSS rule.</li>
+    <li><span class="step">Step 6:</span> run → PASS (incl. <code>test_no_prose_slot_markers_remain</code>). <span class="step">Step 7:</span> commit.</li>
+  </ul>
+  <pre><code>_client_name = state["client_profile"].get("client_name", "").strip()
+_prepared_for = (
+    f'&lt;div class="cover-prepared-for"&gt;Prepared for '
+    f"&lt;strong&gt;{html.escape(_client_name)}&lt;/strong&gt;&lt;/div&gt;"
+    if _client_name else ""
+)
+skeleton = skeleton.replace("&lt;!--slot:cover.prepared_for_block--&gt;", _prepared_for)</code></pre>
+</div>
+
+<h2>Task 3 — Rewrite <code>emit</code> for the new filename convention</h2>
+<div class="task">
+  <p><b>Files:</b> modify <code>nodes/emit.py</code> (full rewrite); replace <code>tests/consultant_engine/test_emit.py</code>.</p>
+  <p><b>Produces:</b> <code>{"output_path": str}</code> named per the Global Constraints. No longer reads <code>fundmaster_path</code>.</p>
+  <ul class="tight">
+    <li><span class="step">Step 1:</span> replace tests — generic; full-name-spaces-removed; punctuation-only → generic; risk spaces removed; content + version suffix.</li>
+    <li><span class="step">Step 2:</span> run → FAIL (old order/date). <span class="step">Step 3:</span> rewrite <code>emit.py</code> with <code>_name_segment()</code> + generation-date filename.</li>
+    <li><span class="step">Step 4:</span> run → PASS. <span class="step">Step 5:</span> commit.</li>
+  </ul>
+  <pre><code>def _name_segment(client_name: str) -> str:
+    segment = re.sub(r"[^A-Za-z0-9]", "", client_name or "")
+    return segment or "generic"
+
+filename = f"FundProposal_{name_seg}_{risk}_{date_seg}_v{version}.html"</code></pre>
+</div>
+
+<h2>Task 4 — Post-generation <code>check_prepared_for</code> conformance rule</h2>
+<div class="task">
+  <p><b>Files:</b> modify <code>rules/validation.py</code> (add <code>check_prepared_for</code>; add <code>client_name</code> kwarg to <code>validate_html</code>), <code>nodes/validate.py</code> (thread it through); test <code>test_validation_rules.py</code>, <code>test_validate_node.py</code>.</p>
+  <p><b>Produces:</b> <code>check_prepared_for(html_text, client_name="") -&gt; list[dict]</code> with codes <code>prepared_for_missing</code> / <code>prepared_for_unexpected</code>; <code>validate_html(html_text, version, wb_index, client_name="")</code>.</p>
+  <ul class="tight">
+    <li><span class="step">Step 1:</span> add failing tests — named present/missing/escaped; generic clean/leaked; named pipeline validates clean.</li>
+    <li><span class="step">Step 2:</span> run → FAIL (<code>ImportError</code>). <span class="step">Step 3:</span> add <code>check_prepared_for</code> (reuses module's <code>_html.escape</code>).</li>
+    <li><span class="step">Step 4:</span> add <code>client_name=""</code> kwarg + the new check to <code>validate_html</code>. <span class="step">Step 5:</span> thread it through the <code>validate</code> node.</li>
+    <li><span class="step">Step 6:</span> run → PASS. <span class="step">Step 7:</span> commit.</li>
+  </ul>
+  <div class="callout warn"><b>By design:</b> the prepared-for block is Python-owned, so a violation here can't be LLM-repaired — it loops to <code>fail</code>. This mirrors <code>check_unfilled_slots</code>; the rule is a fail-loud regression guard, not a repair trigger.</div>
+</div>
+
+<h2>Task 5 — Rename tracked examples + fix stale documentation</h2>
+<div class="task">
+  <p><b>Files:</b> <code>git mv</code> the 3 files under <code>output/examples/fund_proposals/</code>; modify <code>CLAUDE.md</code>; verify <code>tests/test_proposal_validation.py</code> (no edit expected).</p>
+  <ul class="tight">
+    <li><span class="step">Step 1:</span> <code>git mv</code> to <code>FundProposal_generic_&lt;Risk&gt;_2026-06-12_v0.1.0.html</code> (date matches each file's internal "Prepared 12 Jun 2026"; generic → no prepared-for line).</li>
+    <li><span class="step">Step 2:</span> run the legacy eval → PASS (glob + cover-cell discovery; <code>endswith("_v0.1.0.html")</code> holds; <code>KNOWN_*</code> stay empty).</li>
+    <li><span class="step">Step 3:</span> update the <em>Outputs &amp; versioning</em> naming line in <code>CLAUDE.md</code> to the new named/generic convention with the generation-date segment.</li>
+    <li><span class="step">Step 4:</span> commit.</li>
+  </ul>
+</div>
+
+<h2>Task 6 — Full-suite verification</h2>
+<div class="task">
+  <ul class="tight">
+    <li><span class="step">Step 1:</span> <code>pytest tests/consultant_engine -q</code> → PASS.</li>
+    <li><span class="step">Step 2:</span> <code>pytest tests/test_proposal_validation.py tests/test_pipeline.py -q</code> → PASS.</li>
+    <li><span class="step">Step 3:</span> offline smoke-test a named run; confirm filename <code>FundProposal_TanWeiMing_Moderate_&lt;today&gt;_v&lt;ver&gt;.html</code> and the cover contains <code>Prepared for &lt;strong&gt;Tan Wei Ming&lt;/strong&gt;</code>.</li>
+    <li><span class="step">Step 4:</span> <code>git status</code> clean; Tasks 1–5 commits present.</li>
+  </ul>
+</div>
+
+<h2>Notes for the implementer</h2>
+<div class="callout warn">
+  <b>Merge coordination:</b> the other active session is editing <code>consultant_engine/nodes/validate.py</code> and <code>consultant_engine/rules/validation.py</code> on <code>track0-headless-consultant-engine-spec</code>. Task 4 touches both. Expect conflicts when the branches converge; resolve by keeping both their changes and the <code>check_prepared_for</code> addition / <code>validate_html</code> <code>client_name</code> kwarg.
+</div>
+
+<footer class="doc">
+  HTML companion to <code>2026-06-22-client-name-and-filename.md</code> (the markdown is the source of truth; regenerate this file whenever it changes).
+</footer>
+
+</div>
+</body>
+</html>

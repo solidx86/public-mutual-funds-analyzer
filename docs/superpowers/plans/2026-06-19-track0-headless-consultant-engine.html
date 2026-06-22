@@ -1,0 +1,1257 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Track 0 — Headless Consultant Engine (implementation plan)</title>
+<style>
+:root{--bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
+--line:#2d3a47;--accent:#4ea1ff;--good:#56d364;--warn:#ffb454;--kw:#d2a8ff;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 26px 90px;}
+h1{font-size:27px;letter-spacing:-.3px;margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:16px}
+h2{font-size:20px;margin:40px 0 12px;padding:10px 0 8px;border-bottom:1px solid var(--line);color:#fff}
+h2.phase{color:var(--good);border-bottom:2px solid rgba(86,211,100,.35)}
+h3{font-size:16px;margin:26px 0 10px;color:var(--accent)}
+h4{font-size:14px;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+p{margin:10px 0}
+a{color:var(--accent)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#cdd9e5}
+pre{background:#10161d;border:1px solid var(--line);border-left:3px solid var(--kw);border-radius:8px;
+padding:14px 16px;overflow-x:auto;margin:12px 0}
+pre code{background:none;border:none;padding:0;font-size:12.5px;line-height:1.5;color:#cdd9e5}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+ul,ol{margin:10px 0;padding-left:24px}
+li{margin:5px 0}
+li.task{list-style:none;margin-left:-18px}
+li.task::before{content:"☐  ";color:var(--warn);font-weight:700}
+blockquote{margin:14px 0;padding:10px 16px;border-left:3px solid var(--accent);
+background:var(--panel);border-radius:0 8px 8px 0;color:var(--muted)}
+hr{border:none;border-top:1px solid var(--line);margin:26px 0}
+strong{color:#fff}
+.banner{background:linear-gradient(0deg,rgba(78,161,255,.08),rgba(78,161,255,.08)),var(--panel);
+border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin:14px 0;font-size:13.5px}
+</style></head><body><div class="wrap"><h1>Track 0 — Headless Consultant Engine Implementation Plan</h1>
+<blockquote><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</blockquote>
+<p><strong>Goal:</strong> Rebuild the <code>fund-consultant</code> generate→validate→repair procedure as a runnable, headless LangGraph <code>StateGraph</code> (Python package <code>consultant_engine/</code>) that emits a version-stamped HTML proposal passing <code>tests/test_proposal_validation.py</code>, then retire the skill bundle.</p>
+<p><strong>Architecture:</strong> One linear graph — <code>load_profile → load_funds(+1b) → filter_universe → score_cfs → build_portfolio → [interrupt: consultant review] → macro_context → generate_proposal → validate ⇄ repair → emit</code>. Python owns all numbers (deterministic ground truth); the LLM writes prose and fills a locked, slotted HTML skeleton. Built horizontally in four layers — L0 skeleton+stubs, L1 deterministic compute, L2 LLM generation, L3 validate/repair + HITL — each green before the next.</p>
+<p><strong>Tech Stack:</strong> Python 3 · LangGraph <code>StateGraph</code> + SQLite checkpointer (<code>langgraph-checkpoint-sqlite</code>) · Anthropic SDK · pydantic (contracts) · openpyxl (FundMaster read) · pytest. Source spec: <code>docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md</code>.</p>
+<hr>
+<h2>Conventions for every task</h2>
+<ul>
+<li><strong>Run from the repo root.</strong> All paths below are repo-root-relative.</li>
+<li><strong>TDD:</strong> write the failing test, run it red, implement minimal code, run it green, commit.</li>
+<li><strong>Test command base:</strong> <code>python3 -m pytest &lt;path&gt; -v</code> (the repo uses bare <code>pytest</code> in CI; <code>python3 -m pytest</code> is equivalent and venv-safe).</li>
+<li><strong>Commit style:</strong> <code>git commit -m &quot;feat(engine): &lt;what&gt;&quot;</code> (or <code>test(engine):</code>, <code>chore(engine):</code>). Co-author line not required for local commits.</li>
+<li><strong>Never touch</strong> the live gitignored dirs (<code>output/fund_proposals/</code>, <code>output/fundmasters/</code>) — tests and runs write under temp dirs or <code>output/examples/</code>.</li>
+</ul>
+<h2>File structure (locked here)</h2>
+<pre><code>consultant_engine/
+  __init__.py            # __version__ = &quot;0.1.0&quot;  (the new version source)
+  __main__.py            # `python -m consultant_engine` → cli.main()
+  cli.py                 # argparse: --profile --fundmaster --macro -o --no-review --resume --model
+  state.py               # TypedDict state schema + sub-types
+  graph.py               # build_graph(checkpointer) → compiled StateGraph
+  llm.py                 # Anthropic wrapper, stub-able via env/inject
+  cfs.py                 # pure CFS math (dims, weights, normalize, compose)
+  portfolio.py           # pure allocation (templates, structural, diversification, exposure-gap, satellite)
+  invariants.py          # deterministic invariant checks (sum, ceiling, concentration, structural, eligibility, count)
+  macro.py               # macro contract (pydantic) + fixture/producer
+  templates.py           # slot-fill + deterministic structural-card render
+  nodes/
+    __init__.py
+    load_profile.py  load_funds.py  filter_universe.py  score_cfs.py
+    build_portfolio.py  review_gate.py  macro_context.py
+    generate_proposal.py  validate.py  repair.py  emit.py
+  rules/
+    __init__.py
+    validation.py        # SHARED rule module — the checks as pure fns → violations[]
+  assets/
+    design_system.css            # moved verbatim from fund-consultant-skill/references/
+    proposal_skeleton.html       # slotted skeleton derived from proposal_template.md
+    prompts/generate_proposal.md
+    prompts/repair.md
+tests/consultant_engine/
+  conftest.py            # tiny FundMaster fixture builder, profile + macro fixtures
+  test_*.py              # one per module
+  fixtures/proposal_good.html  proposal_bad_section.html  proposal_bad_cfs.html
+data/review/             # runtime artifacts (gitignored)</code></pre>
+<p><code>data/review/</code> and the engine&#x27;s runtime outputs are gitignored — add to <code>.gitignore</code> in Task 0.1.</p>
+<hr>
+<h2 class="phase">Phase L0 — Graph skeleton + stubs (runs end-to-end)</h2>
+<p>Goal: a compiled graph with every node stubbed, a CLI that runs it start→finish, the SQLite checkpointer wired, and the interrupt present as a no-op. No real logic yet.</p>
+<h3>Task 0.1: Dependencies + package scaffold</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>requirements.txt</code></li>
+<li>Create: <code>consultant_engine/__init__.py</code>, <code>consultant_engine/nodes/__init__.py</code>, <code>consultant_engine/rules/__init__.py</code></li>
+<li>Modify: <code>.gitignore</code></li>
+</ul>
+<ul>
+<li class="task"><strong>Step 1: Add dependencies</strong></li>
+</ul>
+<p>Append to <code>requirements.txt</code>:</p>
+<pre><code>langgraph&gt;=0.2
+langgraph-checkpoint-sqlite&gt;=2.0
+anthropic&gt;=0.40
+pydantic&gt;=2.7</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Install</strong></li>
+</ul>
+<p>Run: <code>pip install -r requirements.txt</code> Expected: installs langgraph, anthropic, pydantic without error.</p>
+<ul>
+<li class="task"><strong>Step 3: Create package files</strong></li>
+</ul>
+<p><code>consultant_engine/__init__.py</code>:</p>
+<pre><code>&quot;&quot;&quot;Headless Public Mutual fund-consultant engine (Track 0).&quot;&quot;&quot;
+
+__version__ = &quot;0.1.0&quot;</code></pre>
+<p><code>consultant_engine/nodes/__init__.py</code> and <code>consultant_engine/rules/__init__.py</code>: empty files.</p>
+<ul>
+<li class="task"><strong>Step 4: Gitignore runtime artifacts</strong></li>
+</ul>
+<p>Append to <code>.gitignore</code>:</p>
+<pre><code>data/review/</code></pre>
+<ul>
+<li class="task"><strong>Step 5: Verify import</strong></li>
+</ul>
+<p>Run: <code>python3 -c &quot;import consultant_engine; print(consultant_engine.__version__)&quot;</code> Expected: prints <code>0.1.0</code></p>
+<ul>
+<li class="task"><strong>Step 6: Commit</strong></li>
+</ul>
+<pre><code>git add requirements.txt consultant_engine/ .gitignore
+git commit -m &quot;chore(engine): scaffold consultant_engine package + deps&quot;</code></pre>
+<h3>Task 0.2: State schema</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>consultant_engine/state.py</code></li>
+<li>Test: <code>tests/consultant_engine/test_state.py</code></li>
+</ul>
+<ul>
+<li class="task"><strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p><code>tests/consultant_engine/test_state.py</code>:</p>
+<pre><code>from consultant_engine.state import ConsultantState, ClientProfile
+
+def test_state_is_constructable_with_partial_keys():
+    # TypedDict total=False → partial construction is legal at runtime
+    s: ConsultantState = {&quot;thread_id&quot;: &quot;t1&quot;, &quot;repair_iterations&quot;: 0}
+    assert s[&quot;thread_id&quot;] == &quot;t1&quot;
+
+def test_client_profile_keys():
+    p: ClientProfile = {
+        &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: False, &quot;experience&quot;: &quot;experienced&quot;,
+        &quot;upfront_capital_rm&quot;: 50000.0, &quot;target_annual_return_pct&quot;: 5.0, &quot;goals&quot;: None,
+    }
+    assert p[&quot;risk_level&quot;] == &quot;Moderate&quot;</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Run red</strong></li>
+</ul>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_state.py -v</code> Expected: FAIL — <code>ModuleNotFoundError: consultant_engine.state</code></p>
+<ul>
+<li class="task"><strong>Step 3: Implement</strong></li>
+</ul>
+<p><code>consultant_engine/state.py</code>:</p>
+<pre><code>from typing import TypedDict, Literal, Optional
+
+class ClientProfile(TypedDict):
+    risk_level: str          # Conservative|Moderate|Moderately Aggressive|Aggressive
+    shariah: Optional[bool]  # True | False | None (no preference)
+    experience: Literal[&quot;new&quot;, &quot;experienced&quot;]
+    upfront_capital_rm: float
+    target_annual_return_pct: float          # percent p.a., e.g. 5.0
+    goals: Optional[str]
+
+class Fund(TypedDict, total=False):
+    abbr: str
+    name: str
+    shariah: bool
+    fund_type: str
+    risk_level: int
+    status: str              # &quot;Qualified&quot; | &quot;Disqualified&quot;
+    weighted_alpha: float
+    returns: dict            # {&quot;ytd&quot;:{&quot;fund&quot;,&quot;bench&quot;,&quot;alpha&quot;}, &quot;1y&quot;:..., &quot;3y&quot;:..., &quot;5y&quot;:..., &quot;10y&quot;:...}
+    ae: dict                 # {&quot;ytd&quot;,&quot;1y&quot;,&quot;3y&quot;,&quot;5y&quot;,&quot;10y&quot;}
+    assets: dict             # {&quot;dom_equity&quot;,&quot;for_equity&quot;,&quot;fi&quot;,&quot;mm&quot;,&quot;deposits&quot;,&quot;other&quot;}
+    geo: dict                # %/country, exact FundMaster headers: {&quot;USA&quot;,&quot;Taiwan&quot;,&quot;Korea&quot;,&quot;Japan&quot;,&quot;France&quot;,&quot;Germany&quot;,&quot;China&quot;,&quot;Singapore&quot;,&quot;Netherlands&quot;,&quot;Indonesia&quot;,&quot;Australia&quot;,&quot;Geo Other&quot;}
+    top5: list
+    vf: float
+    lipper_class: str
+    benchmark: str
+    drawdown: Optional[float]
+    days_from_ath: Optional[int]
+
+class CFSScore(TypedDict):
+    abbr: str
+    alpha_n: float
+    returnfit_n: float
+    efficiency_n: float
+    momentum_n: float
+    composite: float
+    weights: dict            # {&quot;alpha&quot;,&quot;returnfit&quot;,&quot;efficiency&quot;,&quot;momentum&quot;}
+    derived_class: str       # Equity-equivalent | Balanced | Defensive
+
+class Holding(TypedDict):
+    abbr: str
+    role: str                # core | structural:gold | structural:money_market | satellite | exposure_gap
+    allocation_pct: float
+
+class ConsultantState(TypedDict, total=False):
+    # inputs
+    client_profile: ClientProfile
+    macro_context: dict
+    fundmaster_path: str
+    thread_id: str
+    no_review: bool
+    model: str
+    output_dir: str
+    # computed
+    eligible_funds: list
+    filtered_funds: list
+    cfs_scores: list
+    portfolio: list
+    fees: dict
+    # review
+    proposed_allocation: dict
+    resume_payload: dict
+    # generation
+    proposal_html: str
+    # validation
+    violations: list
+    repair_iterations: int
+    # output
+    output_path: str</code></pre>
+<ul>
+<li class="task"><strong>Step 4: Run green</strong></li>
+</ul>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_state.py -v</code> Expected: PASS (2 tests)</p>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code>git add consultant_engine/state.py tests/consultant_engine/test_state.py
+git commit -m &quot;feat(engine): typed state schema&quot;</code></pre>
+<h3>Task 0.3: Stub all nodes</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>consultant_engine/nodes/{load_profile,load_funds,filter_universe,score_cfs,build_portfolio,review_gate,macro_context,generate_proposal,validate,repair,emit}.py</code></li>
+<li>Test: <code>tests/consultant_engine/test_nodes_stub.py</code></li>
+</ul>
+<p>Each node is a function <code>def &lt;name&gt;(state: ConsultantState) -&gt; dict:</code> returning a partial state update. Stubs return a sentinel so the skeleton test can prove the node ran.</p>
+<ul>
+<li class="task"><strong>Step 1: Write the failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.nodes import load_profile, score_cfs, emit
+
+def test_stub_nodes_return_dict():
+    assert isinstance(load_profile.load_profile({}), dict)
+    assert isinstance(score_cfs.score_cfs({}), dict)
+    assert &quot;output_path&quot; in emit.emit({&quot;proposal_html&quot;: &quot;&lt;html&gt;&lt;/html&gt;&quot;})</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Run red</strong></li>
+</ul>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_nodes_stub.py -v</code> Expected: FAIL — import errors.</p>
+<ul>
+<li class="task"><strong>Step 3: Implement stubs</strong></li>
+</ul>
+<p>Pattern for each file (example <code>consultant_engine/nodes/score_cfs.py</code>):</p>
+<pre><code>from consultant_engine.state import ConsultantState
+
+def score_cfs(state: ConsultantState) -&gt; dict:
+    return {&quot;cfs_scores&quot;: []}</code></pre>
+<p>Per-node stub return values:</p>
+<ul>
+<li><code>load_profile</code> → <code>{&quot;client_profile&quot;: {&quot;experience&quot;: &quot;experienced&quot;}}</code></li>
+<li><code>load_funds</code> → <code>{&quot;eligible_funds&quot;: []}</code></li>
+<li><code>filter_universe</code> → <code>{&quot;filtered_funds&quot;: []}</code></li>
+<li><code>score_cfs</code> → <code>{&quot;cfs_scores&quot;: []}</code></li>
+<li><code>build_portfolio</code> → <code>{&quot;portfolio&quot;: [], &quot;proposed_allocation&quot;: {}}</code></li>
+<li><code>review_gate</code> → <code>{}</code>  (interrupt wired in graph, not here, at L0)</li>
+<li><code>macro_context</code> → <code>{&quot;macro_context&quot;: {&quot;events&quot;: []}}</code></li>
+<li><code>generate_proposal</code> → <code>{&quot;proposal_html&quot;: &quot;&lt;html&gt;&lt;body&gt;stub&lt;/body&gt;&lt;/html&gt;&quot;}</code></li>
+<li><code>validate</code> → <code>{&quot;violations&quot;: []}</code></li>
+<li><code>repair</code> → <code>{&quot;repair_iterations&quot;: state.get(&quot;repair_iterations&quot;, 0) + 1}</code></li>
+<li><code>emit</code> → writes nothing yet, returns <code>{&quot;output_path&quot;: &quot;STUB&quot;}</code></li>
+</ul>
+<ul>
+<li class="task"><strong>Step 4: Run green</strong></li>
+</ul>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_nodes_stub.py -v</code> Expected: PASS</p>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code>git add consultant_engine/nodes/ tests/consultant_engine/test_nodes_stub.py
+git commit -m &quot;feat(engine): stub all graph nodes&quot;</code></pre>
+<h3>Task 0.4: Graph wiring + checkpointer + interrupt (no-op)</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>consultant_engine/graph.py</code></li>
+<li>Test: <code>tests/consultant_engine/test_graph_skeleton.py</code></li>
+</ul>
+<ul>
+<li class="task"><strong>Step 1: Write the failing test</strong></li>
+</ul>
+<pre><code>from langgraph.checkpoint.memory import MemorySaver
+from consultant_engine.graph import build_graph
+
+def test_graph_runs_end_to_end_with_stubs():
+    app = build_graph(MemorySaver())
+    cfg = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;t1&quot;}}
+    # no_review=True skips the interrupt so a single invoke runs to emit
+    out = app.invoke(
+        {&quot;thread_id&quot;: &quot;t1&quot;, &quot;no_review&quot;: True, &quot;fundmaster_path&quot;: &quot;x&quot;, &quot;client_profile&quot;: {}},
+        cfg,
+    )
+    assert out[&quot;output_path&quot;] == &quot;STUB&quot;
+    assert out[&quot;proposal_html&quot;]</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Run red</strong></li>
+</ul>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_graph_skeleton.py -v</code> Expected: FAIL — no <code>build_graph</code>.</p>
+<ul>
+<li class="task"><strong>Step 3: Implement the graph</strong></li>
+</ul>
+<p><code>consultant_engine/graph.py</code>:</p>
+<pre><code>from langgraph.graph import StateGraph, START, END
+from langgraph.types import interrupt
+from consultant_engine.state import ConsultantState
+from consultant_engine.nodes import (
+    load_profile, load_funds, filter_universe, score_cfs, build_portfolio,
+    review_gate, macro_context, generate_proposal, validate, repair, emit,
+)
+
+MAX_REPAIR = 3
+
+def _review(state: ConsultantState) -&gt; dict:
+    if state.get(&quot;no_review&quot;):
+        return {}                       # auto-approve path (evals / CI / batch)
+    decision = interrupt(state.get(&quot;proposed_allocation&quot;, {}))  # pauses; resumed value returned here
+    return {&quot;resume_payload&quot;: decision} if decision else {}
+
+def _after_validate(state: ConsultantState) -&gt; str:
+    if not state.get(&quot;violations&quot;):
+        return &quot;emit&quot;
+    if state.get(&quot;repair_iterations&quot;, 0) &gt;= MAX_REPAIR:
+        return &quot;fail&quot;
+    return &quot;repair&quot;
+
+def build_graph(checkpointer):
+    g = StateGraph(ConsultantState)
+    g.add_node(&quot;load_profile&quot;, load_profile.load_profile)
+    g.add_node(&quot;load_funds&quot;, load_funds.load_funds)
+    g.add_node(&quot;filter_universe&quot;, filter_universe.filter_universe)
+    g.add_node(&quot;score_cfs&quot;, score_cfs.score_cfs)
+    g.add_node(&quot;build_portfolio&quot;, build_portfolio.build_portfolio)
+    g.add_node(&quot;review_gate&quot;, _review)
+    g.add_node(&quot;macro_context&quot;, macro_context.macro_context)
+    g.add_node(&quot;generate_proposal&quot;, generate_proposal.generate_proposal)
+    g.add_node(&quot;validate&quot;, validate.validate)
+    g.add_node(&quot;repair&quot;, repair.repair)
+    g.add_node(&quot;emit&quot;, emit.emit)
+    g.add_node(&quot;fail&quot;, _fail_loudly)
+
+    g.add_edge(START, &quot;load_profile&quot;)
+    g.add_edge(&quot;load_profile&quot;, &quot;load_funds&quot;)
+    g.add_edge(&quot;load_funds&quot;, &quot;filter_universe&quot;)
+    g.add_edge(&quot;filter_universe&quot;, &quot;score_cfs&quot;)
+    g.add_edge(&quot;score_cfs&quot;, &quot;build_portfolio&quot;)
+    g.add_edge(&quot;build_portfolio&quot;, &quot;review_gate&quot;)
+    g.add_edge(&quot;review_gate&quot;, &quot;macro_context&quot;)
+    g.add_edge(&quot;macro_context&quot;, &quot;generate_proposal&quot;)
+    g.add_edge(&quot;generate_proposal&quot;, &quot;validate&quot;)
+    g.add_conditional_edges(&quot;validate&quot;, _after_validate,
+                            {&quot;repair&quot;: &quot;repair&quot;, &quot;emit&quot;: &quot;emit&quot;, &quot;fail&quot;: &quot;fail&quot;})
+    g.add_edge(&quot;repair&quot;, &quot;validate&quot;)
+    g.add_edge(&quot;emit&quot;, END)
+    g.add_edge(&quot;fail&quot;, END)
+    return g.compile(checkpointer=checkpointer)
+
+def _fail_loudly(state: ConsultantState) -&gt; dict:
+    raise RuntimeError(f&quot;validation did not converge: {state.get(&#x27;violations&#x27;)}&quot;)</code></pre>
+<p>Note: the <strong>experience branch</strong> is handled *inside* <code>generate_proposal</code> (prompt selection, keyed on <code>client_profile[&quot;experience&quot;]</code>), not as a graph edge — keeps topology to one conditional (the validate loop) plus the interrupt, per spec §4.</p>
+<ul>
+<li class="task"><strong>Step 4: Run green</strong></li>
+</ul>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_graph_skeleton.py -v</code> Expected: PASS</p>
+<ul>
+<li class="task"><strong>Step 5: Add the interrupt/resume test</strong></li>
+</ul>
+<p>Append:</p>
+<pre><code>import pytest
+from langgraph.types import Command
+
+def test_interrupt_pauses_then_resumes():
+    app = build_graph(MemorySaver())
+    cfg = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;t2&quot;}}
+    out = app.invoke({&quot;thread_id&quot;: &quot;t2&quot;, &quot;client_profile&quot;: {}, &quot;fundmaster_path&quot;: &quot;x&quot;}, cfg)
+    assert &quot;__interrupt__&quot; in out                      # paused at review_gate
+    out2 = app.invoke(Command(resume={&quot;decision&quot;: &quot;approve&quot;}), cfg)
+    assert out2[&quot;output_path&quot;] == &quot;STUB&quot;               # resumed to completion</code></pre>
+<p>Run: <code>python3 -m pytest tests/consultant_engine/test_graph_skeleton.py -v</code> Expected: PASS (both tests)</p>
+<ul>
+<li class="task"><strong>Step 6: Commit</strong></li>
+</ul>
+<pre><code>git add consultant_engine/graph.py tests/consultant_engine/test_graph_skeleton.py
+git commit -m &quot;feat(engine): wire graph + checkpointer + review interrupt&quot;</code></pre>
+<h3>Task 0.5: CLI entry (invoke + resume)</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>consultant_engine/cli.py</code>, <code>consultant_engine/__main__.py</code></li>
+<li>Test: <code>tests/consultant_engine/test_cli.py</code></li>
+</ul>
+<ul>
+<li class="task"><strong>Step 1: Write the failing test</strong></li>
+</ul>
+<pre><code>import json, subprocess, sys
+from pathlib import Path
+
+def test_cli_runs_with_no_review(tmp_path):
+    prof = tmp_path / &quot;p.json&quot;
+    prof.write_text(json.dumps({
+        &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: False, &quot;experience&quot;: &quot;experienced&quot;,
+        &quot;upfront_capital_rm&quot;: 50000, &quot;target_annual_return_pct&quot;: 5.0
+    }))
+    r = subprocess.run(
+        [sys.executable, &quot;-m&quot;, &quot;consultant_engine&quot;,
+         &quot;--profile&quot;, str(prof), &quot;--fundmaster&quot;, &quot;x.xlsx&quot;,
+         &quot;--macro&quot;, &quot;none&quot;, &quot;--no-review&quot;, &quot;-o&quot;, str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stderr</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Run red</strong> → FAIL (no CLI).</li>
+</ul>
+<ul>
+<li class="task"><strong>Step 3: Implement</strong></li>
+</ul>
+<p><code>consultant_engine/cli.py</code>:</p>
+<pre><code>import argparse, json, sqlite3, sys
+from pathlib import Path
+from langgraph.checkpoint.sqlite import SqliteSaver
+from consultant_engine.graph import build_graph
+
+def _thread_id(args) -&gt; str:
+    if args.resume:
+        return args.resume
+    stem = Path(args.profile).stem
+    return f&quot;{stem}&quot;
+
+def main(argv=None) -&gt; int:
+    ap = argparse.ArgumentParser(&quot;consultant_engine&quot;)
+    ap.add_argument(&quot;--profile&quot;)
+    ap.add_argument(&quot;--fundmaster&quot;)
+    ap.add_argument(&quot;--macro&quot;, default=&quot;none&quot;)
+    ap.add_argument(&quot;-o&quot;, &quot;--output&quot;, default=&quot;output/fund_proposals&quot;)
+    ap.add_argument(&quot;--no-review&quot;, action=&quot;store_true&quot;)
+    ap.add_argument(&quot;--resume&quot;)
+    ap.add_argument(&quot;--model&quot;, default=&quot;claude-sonnet-4-6&quot;)
+    args = ap.parse_args(argv)
+
+    Path(&quot;data/review&quot;).mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(&quot;data/review/checkpoints.sqlite&quot;, check_same_thread=False)
+    saver = SqliteSaver(conn)
+    app = build_graph(saver)
+    cfg = {&quot;configurable&quot;: {&quot;thread_id&quot;: _thread_id(args)}}
+
+    if args.resume:
+        from langgraph.types import Command
+        from consultant_engine.nodes.review_gate import read_resume_payload
+        out = app.invoke(Command(resume=read_resume_payload(args.resume)), cfg)
+    else:
+        profile = json.loads(Path(args.profile).read_text())
+        out = app.invoke({
+            &quot;thread_id&quot;: cfg[&quot;configurable&quot;][&quot;thread_id&quot;],
+            &quot;client_profile&quot;: profile,
+            &quot;fundmaster_path&quot;: args.fundmaster,
+            &quot;macro_context&quot;: {&quot;source&quot;: args.macro},
+            &quot;no_review&quot;: args.no_review,
+            &quot;model&quot;: args.model,
+            &quot;output_dir&quot;: args.output,
+        }, cfg)
+
+    if &quot;__interrupt__&quot; in out:
+        tid = cfg[&quot;configurable&quot;][&quot;thread_id&quot;]
+        print(f&quot;  ⏸  Paused for consultant review.\n&quot;
+              f&quot;      Edit  data/review/{tid}.json\n&quot;
+              f&quot;      Resume: python -m consultant_engine --resume {tid}&quot;)
+        return 0
+    print(f&quot;  ✓  Proposal written to {out.get(&#x27;output_path&#x27;)}&quot;)
+    return 0</code></pre>
+<p><code>consultant_engine/__main__.py</code>:</p>
+<pre><code>import sys
+from consultant_engine.cli import main
+sys.exit(main())</code></pre>
+<p>For L0, add a temporary <code>read_resume_payload</code> stub in <code>review_gate.py</code> returning <code>{&quot;decision&quot;: &quot;approve&quot;}</code>; Task 2.2 replaces it.</p>
+<ul>
+<li class="task"><strong>Step 4: Run green</strong> → <code>python3 -m pytest tests/consultant_engine/test_cli.py -v</code> → PASS.</li>
+</ul>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code>git add consultant_engine/cli.py consultant_engine/__main__.py consultant_engine/nodes/review_gate.py tests/consultant_engine/test_cli.py
+git commit -m &quot;feat(engine): CLI entry with invoke + resume wiring&quot;</code></pre>
+<p><strong>L0 exit check:</strong> <code>python3 -m pytest tests/consultant_engine/ -v</code> all green; <code>python -m consultant_engine --profile &lt;p&gt; --fundmaster x --no-review -o /tmp</code> exits 0.</p>
+<hr>
+<h2 class="phase">Phase L1 — Deterministic compute (full parity)</h2>
+<p>Goal: real Python for every compute node, unit-TDD&#x27;d against the formulas in <code>fund-consultant-skill/SKILL.md</code>. The LLM nodes stay stubbed. <strong>e-Series / shortlist is OUT</strong> (spec decision 6) — one linear build for all clients.</p>
+<h3>Task 1.1: <code>load_profile</code> node</h3>
+<p>Parses the client-profile dict, <strong>normalizes <code>experience</code> in-place</strong> (defaults to <code>&quot;experienced&quot;</code> when absent — <code>client_profile</code> is the single owner of the tier; there is no separate <code>experience_tier</code> channel), defaults <code>target_annual_return_pct</code> from the profile midpoint when absent, attaches a mismatch note when <code>target_annual_return_pct</code> exceeds the profile ceiling.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/load_profile.py</code>, <code>tests/consultant_engine/test_load_profile.py</code></p>
+<p>Reference (SKILL.md Step 0): midpoints Conservative 3.5, Moderate 5, Moderately Aggressive 7, Aggressive 9; ceilings 4/6/8/10; &gt;10% always &quot;unrealistic&quot;.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.nodes.load_profile import load_profile
+
+def test_experience_normalized_and_default_target():
+    out = load_profile({&quot;client_profile&quot;: {
+        &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;experience&quot;: &quot;new&quot;, &quot;shariah&quot;: None,
+        &quot;upfront_capital_rm&quot;: 5000}})
+    assert out[&quot;client_profile&quot;][&quot;experience&quot;] == &quot;new&quot;      # profile is the sole owner of the tier
+    assert out[&quot;client_profile&quot;][&quot;target_annual_return_pct&quot;] == 5.0          # midpoint default
+
+def test_experience_defaults_to_experienced_when_absent():
+    out = load_profile({&quot;client_profile&quot;: {
+        &quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: None, &quot;upfront_capital_rm&quot;: 5000}})
+    assert out[&quot;client_profile&quot;][&quot;experience&quot;] == &quot;experienced&quot;
+
+def test_target_mismatch_note():
+    out = load_profile({&quot;client_profile&quot;: {
+        &quot;risk_level&quot;: &quot;Conservative&quot;, &quot;experience&quot;: &quot;experienced&quot;,
+        &quot;shariah&quot;: None, &quot;upfront_capital_rm&quot;: 100000, &quot;target_annual_return_pct&quot;: 9.0}})
+    assert &quot;exceeds&quot; in out[&quot;client_profile&quot;][&quot;target_note&quot;].lower()</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Run red.</strong></li>
+<li class="task"><strong>Step 3: Implement</strong></li>
+</ul>
+<pre><code>from consultant_engine.state import ConsultantState
+
+MIDPOINT = {&quot;Conservative&quot;: 3.5, &quot;Moderate&quot;: 5.0,
+            &quot;Moderately Aggressive&quot;: 7.0, &quot;Aggressive&quot;: 9.0}
+CEILING = {&quot;Conservative&quot;: 4.0, &quot;Moderate&quot;: 6.0,
+           &quot;Moderately Aggressive&quot;: 8.0, &quot;Aggressive&quot;: 10.0}
+
+def load_profile(state: ConsultantState) -&gt; dict:
+    p = dict(state[&quot;client_profile&quot;])
+    rl = p[&quot;risk_level&quot;]
+    p.setdefault(&quot;experience&quot;, &quot;experienced&quot;)   # normalize the tier into the profile (single owner)
+    p.setdefault(&quot;target_annual_return_pct&quot;, MIDPOINT[rl])
+    note = &quot;&quot;
+    if p[&quot;target_annual_return_pct&quot;] &gt; CEILING[rl]:
+        note = (f&quot;Target {p[&#x27;target_annual_return_pct&#x27;]}% p.a. exceeds the realistic ceiling &quot;
+                f&quot;for a {rl} profile ({CEILING[rl]}%).&quot;)
+    p[&quot;target_note&quot;] = note
+    return {&quot;client_profile&quot;: p}</code></pre>
+<ul>
+<li class="task"><strong>Step 4: Run green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): load_profile node (target defaulting + mismatch note)</code></li>
+</ul>
+<h3>Task 1.2: <code>load_funds</code> + Step 1b retail-eligibility</h3>
+<p>Reads the FundMaster <code>Master</code> sheet (header row 3, data from row 4) into normalized <code>Fund</code> dicts and drops Step-1b-excluded rows. Column map from SKILL.md Step 1 (1-indexed): 1 Name, 2 Abbr, 3 Shariah, 4 Type, 6 Risk Level, 8 Size, 10 Status, 14 Weighted Alpha; returns block cols 15–29 (YTD/1Y/3Y/5Y/10Y × fund/bench/alpha); AE cols 30–34; assets cols 35–40; geo cols 41–52; top5 col 64; VF col 65; Lipper col 67; benchmark col 68; ATH drawdown col 72; days-from-ATH col 73.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/load_funds.py</code>, <code>tests/consultant_engine/conftest.py</code> (tiny workbook builder), <code>tests/consultant_engine/test_load_funds.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Build a tiny-workbook fixture in conftest</strong></li>
+</ul>
+<pre><code>import openpyxl, pytest
+
+def _row(ws, r, name, abbr, shariah, ftype, rl, status, walpha, **kw):
+    ws.cell(r, 1, name); ws.cell(r, 2, abbr); ws.cell(r, 3, shariah)
+    ws.cell(r, 4, ftype); ws.cell(r, 6, rl); ws.cell(r, 10, status); ws.cell(r, 14, walpha)
+    for col, val in kw.items():
+        ws.cell(r, int(col[1:]), val)         # pass c35=.. style overrides
+
+@pytest.fixture
+def tiny_fundmaster(tmp_path):
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = &quot;Master&quot;
+    ws.cell(3, 1, &quot;Fund Name&quot;)                 # header marker on row 3
+    _row(ws, 4, &quot;Public Index Fund&quot;, &quot;PIX&quot;, &quot;No&quot;, &quot;Equity&quot;, 3, &quot;Qualified&quot;, 2.1,
+         c72=-3.0, c73=20)
+    _row(ws, 5, &quot;PB Growth Fund&quot;, &quot;PBGF&quot;, &quot;No&quot;, &quot;Equity&quot;, 4, &quot;Qualified&quot;, 1.0)   # PB → excluded
+    _row(ws, 6, &quot;Public e-Cash Deposit&quot;, &quot;PeCDF-B&quot;, &quot;No&quot;, &quot;Money Market&quot;, 1, &quot;Qualified&quot;, 0.1)  # -B → excluded
+    _row(ws, 7, &quot;Public Wholesale&quot;, &quot;PWSIF&quot;, &quot;No&quot;, &quot;Equity&quot;, 5, &quot;Qualified&quot;, 3.0)  # wholesale → excluded
+    _row(ws, 8, &quot;Public e-Cash Deposit&quot;, &quot;PeCDF-A&quot;, &quot;No&quot;, &quot;Money Market&quot;, 1, &quot;Qualified&quot;, 0.1)
+    p = tmp_path / &quot;PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx&quot;; wb.save(p)
+    return str(p)</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.nodes.load_funds import load_funds
+
+def test_step1b_exclusions(tiny_fundmaster):
+    out = load_funds({&quot;fundmaster_path&quot;: tiny_fundmaster})
+    abbrs = {f[&quot;abbr&quot;] for f in out[&quot;eligible_funds&quot;]}
+    assert abbrs == {&quot;PIX&quot;, &quot;PeCDF-A&quot;}           # PB / -B / wholesale dropped
+    pix = next(f for f in out[&quot;eligible_funds&quot;] if f[&quot;abbr&quot;] == &quot;PIX&quot;)
+    assert pix[&quot;risk_level&quot;] == 3 and pix[&quot;drawdown&quot;] == -3.0</code></pre>
+<ul>
+<li class="task"><strong>Step 3: Run red.</strong></li>
+<li class="task"><strong>Step 4: Implement</strong> — <code>load_funds(state)</code> opens <code>state[&quot;fundmaster_path&quot;]</code>, reads <code>Master</code>, builds <code>Fund</code> dicts from the column map, then applies Step 1b:</li>
+</ul>
+<pre><code>WHOLESALE = {&quot;PBCPF&quot;, &quot;PWSIF&quot;, &quot;PIWSIF&quot;, &quot;PeWS20F&quot;}
+
+def _excluded(name, abbr):
+    return name.startswith(&quot;PB &quot;) or abbr.endswith(&quot;-B&quot;) or abbr in WHOLESALE</code></pre>
+<p>Use explicit <code>None</code> checks for drawdown/days (SKILL.md note: <code>0.0</code> is valid, never <code>or</code>-default). Map <code>shariah</code> &quot;Yes&quot;→True else False.</p>
+<ul>
+<li class="task"><strong>Step 5: Run green. Commit</strong> <code>feat(engine): load_funds + Step 1b eligibility</code></li>
+</ul>
+<h3>Task 1.3: <code>filter_universe</code> (Step 2)</h3>
+<p>Shariah filter + risk-level ceiling. Ceilings: Conservative 2, Moderate 3, Moderately Aggressive 4, Aggressive 5.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/filter_universe.py</code>, <code>tests/consultant_engine/test_filter_universe.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.nodes.filter_universe import filter_universe
+
+FUNDS = [
+    {&quot;abbr&quot;: &quot;A&quot;, &quot;shariah&quot;: True,  &quot;risk_level&quot;: 2},
+    {&quot;abbr&quot;: &quot;B&quot;, &quot;shariah&quot;: False, &quot;risk_level&quot;: 4},
+    {&quot;abbr&quot;: &quot;C&quot;, &quot;shariah&quot;: True,  &quot;risk_level&quot;: 3},
+]
+
+def test_shariah_and_ceiling():
+    out = filter_universe({&quot;eligible_funds&quot;: FUNDS,
+                           &quot;client_profile&quot;: {&quot;risk_level&quot;: &quot;Moderate&quot;, &quot;shariah&quot;: True}})
+    assert {f[&quot;abbr&quot;] for f in out[&quot;filtered_funds&quot;]} == {&quot;A&quot;, &quot;C&quot;}  # shariah + RL&lt;=3</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> <code>shariah is None</code> ⇒ no Shariah filter; <code>shariah is False</code> ⇒ exclude shariah-compliant (conventional-only). Ceiling map as above.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): filter_universe (Shariah + RL ceiling)</code></li>
+</ul>
+<h3>Task 1.4: <code>cfs.derived_class</code> + <code>percentile_rank</code></h3>
+<p>Derived class via asset look-through: Equity-equivalent if dom+for equity ≥ 60; Defensive if fi+mm+deposits ≥ 60; else Balanced. Percentile rank: top→100, bottom→0; ties share the rank.</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, <code>tests/consultant_engine/test_cfs.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import derived_class, percentile_rank
+
+def test_derived_class():
+    assert derived_class({&quot;assets&quot;: {&quot;dom_equity&quot;: 70, &quot;for_equity&quot;: 10, &quot;fi&quot;: 0,
+                                     &quot;mm&quot;: 10, &quot;deposits&quot;: 0, &quot;other&quot;: 10}}) == &quot;Equity-equivalent&quot;
+    assert derived_class({&quot;assets&quot;: {&quot;dom_equity&quot;: 5, &quot;for_equity&quot;: 0, &quot;fi&quot;: 50,
+                                     &quot;mm&quot;: 20, &quot;deposits&quot;: 10, &quot;other&quot;: 15}}) == &quot;Defensive&quot;
+
+def test_percentile_rank():
+    pop = [10, 20, 30, 40, 50]
+    assert percentile_rank(50, pop) == 100
+    assert percentile_rank(10, pop) == 0
+    assert percentile_rank(30, pop) == 50</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+</ul>
+<pre><code>def derived_class(fund) -&gt; str:
+    a = fund[&quot;assets&quot;]
+    eq = a.get(&quot;dom_equity&quot;, 0) + a.get(&quot;for_equity&quot;, 0)
+    deff = a.get(&quot;fi&quot;, 0) + a.get(&quot;mm&quot;, 0) + a.get(&quot;deposits&quot;, 0)
+    if eq &gt;= 60: return &quot;Equity-equivalent&quot;
+    if deff &gt;= 60: return &quot;Defensive&quot;
+    return &quot;Balanced&quot;
+
+def percentile_rank(value, population) -&gt; float:
+    pop = sorted(population)
+    if len(pop) &lt;= 1: return 100.0
+    below = sum(1 for x in pop if x &lt; value)
+    return round(100 * below / (len(pop) - 1), 1)</code></pre>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS derived-class + percentile rank</code></li>
+</ul>
+<h3>Task 1.5: <code>cfs</code> Alpha_N (weighted raw + penalties + missing-period)</h3>
+<p>Raw = 3Y·0.4 + 5Y·0.3 + 1Y·0.2 + YTD·0.1; missing periods redistribute their weight proportionally across available; halve if 3Y alpha &lt; 0; halve again if 5Y alpha &lt; 0.</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, <code>tests/consultant_engine/test_cfs.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import weighted_blend, raw_alpha_penalised
+
+def test_weighted_blend_full():
+    periods = {&quot;ytd&quot;: 1.0, &quot;1y&quot;: 2.0, &quot;3y&quot;: 3.0, &quot;5y&quot;: 4.0}
+    assert weighted_blend(periods) == round(3*.4 + 4*.3 + 2*.2 + 1*.1, 4)
+
+def test_weighted_blend_redistributes_missing():
+    # only 3Y + 5Y present → weights .4/.3 renormalize to .571/.429
+    v = weighted_blend({&quot;3y&quot;: 10.0, &quot;5y&quot;: 10.0})
+    assert round(v, 2) == 10.0
+
+def test_penalties_halve_on_negative_long_alpha():
+    fund = {&quot;returns&quot;: {&quot;3y&quot;: {&quot;alpha&quot;: -1.0}, &quot;5y&quot;: {&quot;alpha&quot;: 2.0},
+                        &quot;1y&quot;: {&quot;alpha&quot;: 5.0}, &quot;ytd&quot;: {&quot;alpha&quot;: 5.0}}}
+    base = raw_alpha_penalised(fund, penalize=False)
+    pen = raw_alpha_penalised(fund, penalize=True)
+    assert pen == base / 2          # 3Y&lt;0 halves once</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+</ul>
+<pre><code>WEIGHTS = {&quot;3y&quot;: 0.4, &quot;5y&quot;: 0.3, &quot;1y&quot;: 0.2, &quot;ytd&quot;: 0.1}
+
+def weighted_blend(periods: dict) -&gt; float:
+    avail = {k: v for k, v in periods.items() if v is not None and k in WEIGHTS}
+    if not avail: return 0.0
+    total_w = sum(WEIGHTS[k] for k in avail)
+    return round(sum(v * WEIGHTS[k] for k, v in avail.items()) / total_w, 4)
+
+def raw_alpha_penalised(fund, penalize=True) -&gt; float:
+    alpha_periods = {k: fund[&quot;returns&quot;].get(k, {}).get(&quot;alpha&quot;) for k in WEIGHTS}
+    raw = weighted_blend(alpha_periods)
+    if penalize:
+        if (fund[&quot;returns&quot;].get(&quot;3y&quot;, {}).get(&quot;alpha&quot;) or 0) &lt; 0: raw /= 2
+        if (fund[&quot;returns&quot;].get(&quot;5y&quot;, {}).get(&quot;alpha&quot;) or 0) &lt; 0: raw /= 2
+    return raw</code></pre>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS Alpha_N raw + penalties</code></li>
+</ul>
+<h3>Task 1.6: <code>cfs</code> ReturnFit_N (weighted fund return / E_target → piecewise curve)</h3>
+<p>Wtd_Return uses the same period weights on <strong>fund</strong> returns; Return_Ratio = Wtd_Return / E_target; piecewise-linear curve (anchors: ≥1.5→100, 1.0→80, 0.75→50, 0.5→20, ≤0.25→5, ≤0→0). Bear-market exception (all-negative within class → relative) is a class-level pass handled in Task 1.10&#x27;s <code>score_all</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import returnfit_score
+
+def test_returnfit_anchors():
+    assert returnfit_score(1.5) == 100
+    assert returnfit_score(1.0) == 80
+    assert returnfit_score(0.75) == 50
+    assert returnfit_score(0.0) == 0
+
+def test_returnfit_interpolates():
+    assert 80 &lt; returnfit_score(1.25) &lt; 100      # between 1.0 and 1.5</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+</ul>
+<pre><code>_ANCHORS = [(0.0, 0), (0.25, 5), (0.5, 20), (0.75, 50), (1.0, 80), (1.5, 100)]
+
+def returnfit_score(ratio: float) -&gt; float:
+    if ratio &lt;= 0: return 0.0
+    if ratio &gt;= 1.5: return 100.0
+    for (x0, y0), (x1, y1) in zip(_ANCHORS, _ANCHORS[1:]):
+        if x0 &lt;= ratio &lt;= x1:
+            return round(y0 + (y1 - y0) * (ratio - x0) / (x1 - x0), 1)
+    return 0.0</code></pre>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS ReturnFit_N curve</code></li>
+</ul>
+<h3>Task 1.7: <code>cfs</code> Efficiency_raw</h3>
+<p><code>Efficiency_raw = 3Y AE</code> (FundMaster col 32) with fallback to 1Y AE. Normalized to percentile within class in <code>score_all</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import efficiency_raw
+def test_efficiency_prefers_3y_then_1y():
+    assert efficiency_raw({&quot;ae&quot;: {&quot;3y&quot;: 1.2, &quot;1y&quot;: 0.5}}) == 1.2
+    assert efficiency_raw({&quot;ae&quot;: {&quot;3y&quot;: None, &quot;1y&quot;: 0.5}}) == 0.5</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green</strong> (<code>fund[&quot;ae&quot;].get(&quot;3y&quot;)</code> else <code>.get(&quot;1y&quot;)</code> else 0).</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS Efficiency_raw</code></li>
+</ul>
+<h3>Task 1.8: <code>cfs</code> Momentum_N (absolute, with recovery bonus + None guard)</h3>
+<p>Base from drawdown bands; recovery bonus from days-from-ATH; clamp [0,100]. <strong>None-check drawdown before defaulting</strong> (SKILL.md: <code>0.0</code> is valid; never <code>or</code>-default to −50).</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import momentum_score
+def test_momentum_at_ath_fast_recovery():
+    assert momentum_score(0.0, 10) == 95          # band 80 + &lt;30d bonus 15
+def test_momentum_none_drawdown_defaults_to_minus_50():
+    # None drawdown defaults to -50.0; compare against -50.0 with the SAME days
+    assert momentum_score(None, None) == momentum_score(-50.0, None)
+def test_momentum_clamped():
+    assert momentum_score(-3.0, 500) == 70        # 80 base + (-10) old → 70</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+</ul>
+<pre><code>def _dd_base(dd):
+    for hi, score in [(-5,80),(-10,70),(-15,60),(-25,40),(-40,20)]:
+        if dd &gt;= hi: return score
+    return 10
+
+def _recovery(days):
+    if days is None: return 0
+    if days &lt; 30: return 15
+    if days &lt;= 90: return 10
+    if days &lt;= 180: return 5
+    if days &lt;= 365: return 0
+    return -10
+
+def momentum_score(drawdown, days) -&gt; float:
+    dd = drawdown if drawdown is not None else -50.0
+    return max(0.0, min(100.0, _dd_base(dd) + _recovery(days)))</code></pre>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS Momentum_N (None-safe)</code></li>
+</ul>
+<h3>Task 1.9: <code>cfs</code> weights (base + E_target stretch + clamp + normalize)</h3>
+<p>Base weights per profile (SKILL.md table). Stretch = (E_target − midpoint)/midpoint; above → shift ≤+10pp w_A→w_R proportional to stretch; below → shift ≤+5pp w_R→w_A. Clamp each to [5,50], renormalize to 100.</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import profile_weights
+
+def test_base_weights_sum_100():
+    w = profile_weights(&quot;Moderate&quot;, 5.0)        # at midpoint → no stretch
+    assert round(sum(w.values())) == 100
+    assert w[&quot;returnfit&quot;] == 40
+
+def test_stretch_above_shifts_alpha_to_returnfit():
+    w = profile_weights(&quot;Moderate&quot;, 6.0)        # +20% stretch
+    base = profile_weights(&quot;Moderate&quot;, 5.0)
+    assert w[&quot;returnfit&quot;] &gt; base[&quot;returnfit&quot;] and w[&quot;alpha&quot;] &lt; base[&quot;alpha&quot;]</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+</ul>
+<pre><code>BASE = {
+  &quot;Conservative&quot;:          {&quot;alpha&quot;:28,&quot;returnfit&quot;:40,&quot;efficiency&quot;:25,&quot;momentum&quot;:7},
+  &quot;Moderate&quot;:              {&quot;alpha&quot;:28,&quot;returnfit&quot;:40,&quot;efficiency&quot;:20,&quot;momentum&quot;:12},
+  &quot;Moderately Aggressive&quot;: {&quot;alpha&quot;:26,&quot;returnfit&quot;:40,&quot;efficiency&quot;:17,&quot;momentum&quot;:17},
+  &quot;Aggressive&quot;:            {&quot;alpha&quot;:30,&quot;returnfit&quot;:40,&quot;efficiency&quot;:13,&quot;momentum&quot;:17},
+}
+MID = {&quot;Conservative&quot;:3.5,&quot;Moderate&quot;:5.0,&quot;Moderately Aggressive&quot;:7.0,&quot;Aggressive&quot;:9.0}
+
+def profile_weights(profile, target_annual_return_pct) -&gt; dict:
+    w = dict(BASE[profile]); mid = MID[profile]
+    stretch = (target_annual_return_pct - mid) / mid
+    if stretch &gt; 0:
+        shift = min(10.0, 10.0 * stretch); w[&quot;alpha&quot;] -= shift; w[&quot;returnfit&quot;] += shift
+    elif stretch &lt; 0:
+        shift = min(5.0, 5.0 * abs(stretch)); w[&quot;returnfit&quot;] -= shift; w[&quot;alpha&quot;] += shift
+    w = {k: max(5.0, min(50.0, v)) for k, v in w.items()}
+    total = sum(w.values())
+    return {k: round(v * 100 / total, 2) for k, v in w.items()}</code></pre>
+<ul>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS profile weights + stretch modifier</code></li>
+</ul>
+<h3>Task 1.10: <code>cfs.score_all</code> (compose + class-normalize + bear exception + tiebreaker)</h3>
+<p>Computes per-fund dims, percentile-normalizes Alpha/ReturnFit/Efficiency <strong>within derived class</strong>, leaves Momentum absolute, composes CFS, returns <code>CFSScore</code> list sorted desc with tiebreak (CFS within 2 → higher Alpha_N, then Efficiency_N). Bear-market: if all <code>Wtd_Return</code> in a class &lt; 0, ReturnFit becomes relative (percentile) within class.</p>
+<p><strong>Files:</strong> <code>consultant_engine/cfs.py</code>, <code>consultant_engine/nodes/score_cfs.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.cfs import score_all
+
+def _f(abbr, a3, ret3, ae3, dd):
+    return {&quot;abbr&quot;: abbr, &quot;assets&quot;: {&quot;dom_equity&quot;: 80, &quot;for_equity&quot;: 0, &quot;fi&quot;: 0,
+            &quot;mm&quot;: 10, &quot;deposits&quot;: 0, &quot;other&quot;: 10},
+            &quot;returns&quot;: {&quot;3y&quot;: {&quot;alpha&quot;: a3, &quot;fund&quot;: ret3}, &quot;5y&quot;: {&quot;alpha&quot;: a3, &quot;fund&quot;: ret3},
+                        &quot;1y&quot;: {&quot;alpha&quot;: a3, &quot;fund&quot;: ret3}, &quot;ytd&quot;: {&quot;alpha&quot;: a3, &quot;fund&quot;: ret3}},
+            &quot;ae&quot;: {&quot;3y&quot;: ae3}, &quot;drawdown&quot;: dd, &quot;days_from_ath&quot;: 20}
+
+def test_score_all_ranks_higher_alpha_first():
+    funds = [_f(&quot;LOW&quot;, 1.0, 5.0, 0.3, -3.0), _f(&quot;HIGH&quot;, 8.0, 12.0, 1.5, -3.0)]
+    scores = score_all(funds, &quot;Moderate&quot;, 5.0)
+    assert scores[0][&quot;abbr&quot;] == &quot;HIGH&quot;
+    assert 0 &lt;= scores[0][&quot;composite&quot;] &lt;= 100</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> <code>score_all(funds, profile, target_annual_return_pct)</code>: group by <code>derived_class</code>; per class compute raw alpha/returnfit-ratio/efficiency, then percentile-normalize within class; momentum absolute; <code>composite = Σ w·dim/100</code> using <code>profile_weights</code>; sort with tiebreaker. <code>score_cfs</code> node: <code>return {&quot;cfs_scores&quot;: score_all(state[&quot;filtered_funds&quot;], state[&quot;client_profile&quot;][&quot;risk_level&quot;], state[&quot;client_profile&quot;][&quot;target_annual_return_pct&quot;])}</code>.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): CFS score_all + tiebreaker + bear exception</code></li>
+</ul>
+<h3>Task 1.11: <code>invariants</code> module</h3>
+<p>Pure checks reused by <code>build_portfolio</code> (post-build) and the review gate (post-edit): allocations sum to 100 (±0.5), <strong>exactly four funds</strong>, no single fund over the concentration cap, every fund&#x27;s RL ≤ profile ceiling (except a disclosed satellite), gold + money-market structural positions both present, all funds retail-eligible + in the scored universe.</p>
+<p><strong>Files:</strong> <code>consultant_engine/invariants.py</code>, <code>tests/consultant_engine/test_invariants.py</code></p>
+<p>Concentration cap + portfolio size — the build is <strong>always 4 funds</strong> (gold + MM + 2 discretionary), so count is exactly four for every profile: <code>SIZE = {p: (4, 4) for p in PROFILES}</code> (satellite / exposure-gap *substitute* a slot, never add a fifth). The per-fund concentration cap is a <strong>backstop sized for the 4-fund structure</strong> — with only two core funds absorbing a whole asset-band each after normalization, it is looser than the old 6-fund caps: <code>CAP = {&quot;Conservative&quot;:50,&quot;Moderate&quot;:50,&quot;Moderately Aggressive&quot;:60,&quot;Aggressive&quot;:70}</code> (derived from the profile&#x27;s largest asset-band ceiling in SKILL.md Step-4, with headroom for normalization). The deterministic allocator&#x27;s band logic does the real shaping; the cap only catches a single fund dominating the book (and guards human edits at the review gate).</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.invariants import check_invariants
+
+PORT = [
+    {&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 60},
+    {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;role&quot;: &quot;structural:gold&quot;, &quot;allocation_pct&quot;: 10},
+    {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;role&quot;: &quot;structural:money_market&quot;, &quot;allocation_pct&quot;: 10},
+    {&quot;abbr&quot;: &quot;PeDiv&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 20},
+]
+UNIVERSE = {&quot;PIX&quot;, &quot;PeEMAS&quot;, &quot;PeCDF-A&quot;, &quot;PeDiv&quot;}
+
+def test_concentration_violation():
+    v = check_invariants(PORT, &quot;Moderate&quot;, UNIVERSE, rl_by_abbr={a: 3 for a in UNIVERSE})
+    assert any(&quot;cap&quot; in x[&quot;msg&quot;].lower() for x in v)     # PIX 60 &gt; 50 cap
+
+def test_clean_portfolio_has_no_violations():
+    clean = [{&quot;abbr&quot;:&quot;PIX&quot;,&quot;role&quot;:&quot;core&quot;,&quot;allocation_pct&quot;:40},
+             {&quot;abbr&quot;:&quot;PeDiv&quot;,&quot;role&quot;:&quot;core&quot;,&quot;allocation_pct&quot;:40},
+             {&quot;abbr&quot;:&quot;PeEMAS&quot;,&quot;role&quot;:&quot;structural:gold&quot;,&quot;allocation_pct&quot;:10},
+             {&quot;abbr&quot;:&quot;PeCDF-A&quot;,&quot;role&quot;:&quot;structural:money_market&quot;,&quot;allocation_pct&quot;:10}]
+    v = check_invariants(clean, &quot;Moderate&quot;, UNIVERSE, rl_by_abbr={a: 3 for a in UNIVERSE})
+    assert v == []</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Return <code>list[{&quot;code&quot;,&quot;msg&quot;}]</code>.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): deterministic invariants</code></li>
+</ul>
+<h3>Task 1.12: <code>portfolio</code> templates + structural gold/MM</h3>
+<p><code>build(scores, funds, profile, shariah)</code> → <code>list[Holding]</code>. <strong>Experience-blind</strong> — every client gets the same <strong>4-fund</strong> portfolio: the top-2 CFS core funds for the profile, then always appends gold <code>PeEMAS</code> and money-market <code>PeCDF-A</code> (or <code>PIMMF-A</code> if shariah). Allocation % from the template gradient, normalized to 100.</p>
+<p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, <code>tests/consultant_engine/test_build_portfolio.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.portfolio import build
+
+def test_structural_always_present_and_sums_100():
+    scores = [{&quot;abbr&quot;: f&quot;E{i}&quot;, &quot;composite&quot;: 90 - i, &quot;derived_class&quot;: &quot;Equity-equivalent&quot;,
+               &quot;alpha_n&quot;: 50} for i in range(6)]
+    funds = {f&quot;E{i}&quot;: {&quot;abbr&quot;: f&quot;E{i}&quot;, &quot;fund_type&quot;: &quot;Equity&quot;, &quot;risk_level&quot;: 3,
+                       &quot;top5&quot;: [], &quot;shariah&quot;: False} for i in range(6)}
+    funds[&quot;PeEMAS&quot;] = {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;fund_type&quot;: &quot;Gold&quot;, &quot;risk_level&quot;: 3, &quot;top5&quot;: []}
+    funds[&quot;PeCDF-A&quot;] = {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;fund_type&quot;: &quot;Money Market&quot;, &quot;risk_level&quot;: 1, &quot;top5&quot;: []}
+    port = build(scores, funds, &quot;Moderate&quot;, shariah=None)
+    roles = {h[&quot;role&quot;] for h in port}
+    assert &quot;structural:gold&quot; in roles and &quot;structural:money_market&quot; in roles
+    assert len(port) == 4                                      # gold + MM + 2 core, always
+    assert round(sum(h[&quot;allocation_pct&quot;] for h in port)) == 100</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Encode template ranges (use midpoints, then normalize). Always take exactly the top-2 core picks so total funds = 4 (gold + MM + 2 core) for every client.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): portfolio templates + structural positions</code></li>
+</ul>
+<h3>Task 1.13: <code>portfolio</code> diversification (top-holdings overlap dedup)</h3>
+<p>If two equity/mixed picks share ≥3 of top-5 holdings, drop the lower-alpha one and pull the next-ranked candidate.</p>
+<p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.portfolio import dedup_overlap
+def test_overlap_drops_lower_alpha():
+    picks = [{&quot;abbr&quot;: &quot;A&quot;, &quot;alpha_n&quot;: 80, &quot;top5&quot;: [&quot;x&quot;,&quot;y&quot;,&quot;z&quot;,&quot;p&quot;,&quot;q&quot;]},
+             {&quot;abbr&quot;: &quot;B&quot;, &quot;alpha_n&quot;: 60, &quot;top5&quot;: [&quot;x&quot;,&quot;y&quot;,&quot;z&quot;,&quot;m&quot;,&quot;n&quot;]}]   # shares x,y,z
+    kept = dedup_overlap(picks)
+    assert [p[&quot;abbr&quot;] for p in kept] == [&quot;A&quot;]</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green</strong> (pairwise top-5 intersection ≥3 → keep higher <code>alpha_n</code>).</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): diversification overlap dedup</code></li>
+</ul>
+<h3>Task 1.14: <code>portfolio</code> exposure-gap pick</h3>
+<p>Conditional <strong>exposure-gap pick</strong> when macro flags an exposure no core fund covers. Because the portfolio is fixed at 4 funds, the pick <strong>substitutes the lowest-alpha core slot</strong> — never a fifth fund — and <strong>no-ops when an alpha-outlier satellite is already present</strong> (satellite wins the single discretionary substitution, per spec decision 10). The gap fund is capped at 15%; the freed slot share is redistributed to the surviving non-structural holdings so the book still sums to 100. Gates: positive 3Y alpha, ≤1 per portfolio, ≤15% allocation, profile supports it. (Macro-driven; in L1 the trigger comes from <code>state[&quot;macro_context&quot;][&quot;exposure_gaps&quot;]</code>, empty by default.)</p>
+<p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.portfolio import exposure_gap_pick
+
+CAND = [{&quot;abbr&quot;: &quot;PUSEQ&quot;, &quot;returns&quot;: {&quot;3y&quot;: {&quot;alpha&quot;: 1.5}}, &quot;fund_type&quot;: &quot;Equity&quot;}]
+CORE = [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 45, &quot;alpha_n&quot;: 70},
+        {&quot;abbr&quot;: &quot;PLO&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 35, &quot;alpha_n&quot;: 30},
+        {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;role&quot;: &quot;structural:gold&quot;, &quot;allocation_pct&quot;: 10},
+        {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;role&quot;: &quot;structural:money_market&quot;, &quot;allocation_pct&quot;: 10}]
+
+def test_gap_pick_substitutes_lowest_alpha_core_capped_15():
+    out = exposure_gap_pick(CORE, candidates=CAND, gaps=[&quot;US equity&quot;], profile=&quot;Moderate&quot;)
+    abbrs = {h[&quot;abbr&quot;] for h in out}
+    assert &quot;PUSEQ&quot; in abbrs and &quot;PLO&quot; not in abbrs           # replaced the lower-alpha core slot
+    assert len(out) == 4 and round(sum(h[&quot;allocation_pct&quot;] for h in out)) == 100
+    assert next(h for h in out if h[&quot;abbr&quot;] == &quot;PUSEQ&quot;)[&quot;allocation_pct&quot;] &lt;= 15
+
+def test_no_gap_returns_portfolio_unchanged():
+    assert exposure_gap_pick(CORE, CAND, gaps=[], profile=&quot;Moderate&quot;) == CORE
+
+def test_skip_when_satellite_present():
+    with_sat = CORE + [{&quot;abbr&quot;: &quot;STAR&quot;, &quot;role&quot;: &quot;satellite&quot;, &quot;allocation_pct&quot;: 8}]
+    assert exposure_gap_pick(with_sat, CAND, gaps=[&quot;US equity&quot;], profile=&quot;Moderate&quot;) == with_sat</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Signature <code>exposure_gap_pick(portfolio, candidates, gaps, profile) -&gt; list[Holding]</code>; <strong>no-op if a satellite is already present</strong> (precedence) or no gap/candidate; else swap the lowest-alpha core for the gap fund, cap it at 15%, redistribute the freed slot to the surviving non-structural holdings (sum stays 100). Gate on positive 3Y alpha + ≤1 pick + ≤15%.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): exposure-gap pick</code></li>
+</ul>
+<h3>Task 1.15: <code>portfolio</code> alpha-outlier satellite + carve</h3>
+<p>Scan qualified universe (Status=Qualified); top-5 by CFS minus held; gates A (3Y&gt;0, 5Y&gt;0 if present), A2 (Alpha_N≥80), B (Shariah), C (overlap&lt;3); pick ≤1; size per profile cap; Aggressive skips. Because the portfolio is fixed at 4 funds, the satellite <strong>substitutes the lowest-alpha core slot</strong> (never a fifth fund), <strong>inheriting that core&#x27;s allocation</strong> so the book stays at 100 (a small-tilt satellite + redistribute is infeasible here — it would over-concentrate the one surviving core past the cap). It carries alpha-qualified precedence over any exposure-gap pick (spec decision 10).</p>
+<p><strong>Files:</strong> <code>consultant_engine/portfolio.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.portfolio import alpha_outlier
+
+def test_outlier_substitutes_lowest_alpha_core():
+    portfolio = [{&quot;abbr&quot;: &quot;CORE_HI&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 45, &quot;alpha_n&quot;: 70},
+                 {&quot;abbr&quot;: &quot;CORE_LO&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 35, &quot;alpha_n&quot;: 40},
+                 {&quot;abbr&quot;: &quot;PeEMAS&quot;, &quot;role&quot;: &quot;structural:gold&quot;, &quot;allocation_pct&quot;: 10},
+                 {&quot;abbr&quot;: &quot;PeCDF-A&quot;, &quot;role&quot;: &quot;structural:money_market&quot;, &quot;allocation_pct&quot;: 10}]
+    scores = [{&quot;abbr&quot;: &quot;STAR&quot;, &quot;composite&quot;: 99, &quot;alpha_n&quot;: 95, &quot;derived_class&quot;: &quot;Equity-equivalent&quot;}]
+    funds = {&quot;STAR&quot;: {&quot;abbr&quot;: &quot;STAR&quot;, &quot;status&quot;: &quot;Qualified&quot;, &quot;shariah&quot;: False,
+                      &quot;risk_level&quot;: 5, &quot;top5&quot;: [], &quot;returns&quot;: {&quot;3y&quot;: {&quot;alpha&quot;: 9.0}, &quot;5y&quot;: {&quot;alpha&quot;: 7.0}}}}
+    out = alpha_outlier(portfolio, scores, funds, &quot;Moderate&quot;, shariah=None)
+    abbrs = {h[&quot;abbr&quot;] for h in out}
+    assert &quot;STAR&quot; in abbrs and &quot;CORE_LO&quot; not in abbrs        # took the lowest-alpha core&#x27;s slot
+    assert next(h for h in out if h[&quot;abbr&quot;] == &quot;STAR&quot;)[&quot;role&quot;] == &quot;satellite&quot;
+    assert len(out) == 4 and round(sum(h[&quot;allocation_pct&quot;] for h in out)) == 100
+
+def test_aggressive_skips_outlier():
+    assert alpha_outlier([], [], {}, &quot;Aggressive&quot;, None) == []</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Signature <code>alpha_outlier(portfolio, scores, funds, profile, shariah) -&gt; list[Holding]</code>; gates A/A2/B/C from SKILL.md Step 4d; substitutes the lowest-alpha core (keeps the book at 4 funds); Aggressive returns input unchanged.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): alpha-outlier satellite + carve</code></li>
+</ul>
+<h3>Task 1.16: <code>build_portfolio</code> node (compose + invariants)</h3>
+<p>Wires 1.12–1.15 into <code>build_portfolio(state)</code>: build → dedup → <strong>satellite → exposure-gap</strong> (satellite runs first so it claims the single discretionary substitution; exposure-gap no-ops when a satellite was taken — spec decision 10) → normalize → <code>check_invariants</code>; raise on any invariant violation (a build-time bug, not a human edit). Also emits <code>proposed_allocation</code> (the review artifact payload, Task 2.1 fills detail).</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/build_portfolio.py</code>, <code>tests/consultant_engine/test_build_portfolio_node.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — full pipeline from <code>tiny_fundmaster</code> → <code>load_funds → filter → score → build_portfolio</code> yields a 100%-summing portfolio with gold+MM and no invariant violations.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): build_portfolio node (compose + invariant gate)</code></li>
+</ul>
+<p><strong>L1 exit check:</strong> <code>python3 -m pytest tests/consultant_engine/ -v</code> green; running the graph to the interrupt produces a real, invariant-clean portfolio (LLM nodes still stubbed).</p>
+<hr>
+<h2 class="phase">Phase 2 — Review gate (HITL: exit-and-resume + edit re-validation)</h2>
+<p>Goal: implement the artifact contract from spec §7.</p>
+<h3>Task 2.1: Write review artifact + HTML preview at interrupt</h3>
+<p><code>build_proposed_allocation(state) -&gt; dict</code> builds the JSON contract (<code>context</code>, <code>constraints</code>, <code>allocation</code>, <code>review</code>); <code>_review</code> (graph.py) writes it to <code>data/review/&lt;thread_id&gt;.json</code> + <code>data/review/&lt;thread_id&gt;.html</code> before calling <code>interrupt()</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/review_gate.py</code>, <code>tests/consultant_engine/test_review_gate.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>import json
+from consultant_engine.nodes.review_gate import build_proposed_allocation, write_artifact
+
+def test_artifact_has_three_blocks(tmp_path):
+    state = {&quot;thread_id&quot;: &quot;t1&quot;, &quot;client_profile&quot;: {&quot;risk_level&quot;: &quot;Moderate&quot;, &quot;target_annual_return_pct&quot;: 5.0,
+             &quot;shariah&quot;: False, &quot;experience&quot;: &quot;experienced&quot;, &quot;upfront_capital_rm&quot;: 50000},
+             &quot;fundmaster_path&quot;: &quot;fm.xlsx&quot;,
+             &quot;portfolio&quot;: [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;role&quot;: &quot;core&quot;, &quot;allocation_pct&quot;: 40}],
+             &quot;cfs_scores&quot;: [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;composite&quot;: 88, &quot;alpha_n&quot;: 90}]}
+    art = build_proposed_allocation(state)
+    assert set(art) &gt;= {&quot;context&quot;, &quot;constraints&quot;, &quot;allocation&quot;, &quot;review&quot;}
+    assert art[&quot;constraints&quot;][&quot;allocations_sum_to_pct&quot;] == 100
+    p = write_artifact(tmp_path, &quot;t1&quot;, art)
+    assert json.loads(p.read_text())[&quot;allocation&quot;][0][&quot;abbrev&quot;] == &quot;PIX&quot;</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> <code>constraints</code> derived from profile (cap, count range, RL ceiling, required structural). <code>allocation[].cfs/rank/risk_level/eligible</code> are display-only copies from <code>cfs_scores</code>/funds.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): review artifact + preview</code></li>
+</ul>
+<h3>Task 2.2: Resume re-validation (intent vs facts)</h3>
+<p><code>apply_resume(state, resume_payload) -&gt; dict</code>: read edited <code>allocation</code> (only <code>abbrev</code> + <code>allocation_pct</code> honored), <strong>re-derive</strong> facts from <code>cfs_scores</code>/universe, run <code>check_invariants</code>. Clean → updated <code>portfolio</code>. Violations → with review ON, re-interrupt (write artifact with a <code>violations</code> block); with <code>--no-review</code>, raise (fail loudly). Replace the L0 <code>read_resume_payload</code> stub with a real reader of <code>data/review/&lt;thread_id&gt;.json</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/review_gate.py</code>, <code>consultant_engine/graph.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.nodes.review_gate import apply_resume
+
+def test_overcap_edit_is_rejected():
+    state = {&quot;client_profile&quot;: {&quot;risk_level&quot;: &quot;Moderate&quot;}, &quot;filtered_funds&quot;: [],
+             &quot;cfs_scores&quot;: [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;alpha_n&quot;: 90}, {&quot;abbr&quot;: &quot;PeDiv&quot;, &quot;alpha_n&quot;: 80}],
+             &quot;_universe&quot;: {&quot;PIX&quot;, &quot;PeDiv&quot;, &quot;PeEMAS&quot;, &quot;PeCDF-A&quot;}}
+    payload = {&quot;allocation&quot;: [
+        {&quot;abbrev&quot;: &quot;PIX&quot;, &quot;allocation_pct&quot;: 60},        # over the 40 cap
+        {&quot;abbrev&quot;: &quot;PeDiv&quot;, &quot;allocation_pct&quot;: 20},
+        {&quot;abbrev&quot;: &quot;PeEMAS&quot;, &quot;allocation_pct&quot;: 10},
+        {&quot;abbrev&quot;: &quot;PeCDF-A&quot;, &quot;allocation_pct&quot;: 10}]}
+    out = apply_resume(state, payload)
+    assert out[&quot;violations&quot;]                              # re-validation caught the cap breach
+
+def test_clean_edit_accepted():
+    state = {&quot;client_profile&quot;: {&quot;risk_level&quot;: &quot;Moderate&quot;}, &quot;filtered_funds&quot;: [],
+             &quot;cfs_scores&quot;: [{&quot;abbr&quot;: &quot;PIX&quot;, &quot;alpha_n&quot;: 90}, {&quot;abbr&quot;: &quot;PeDiv&quot;, &quot;alpha_n&quot;: 80}],
+             &quot;_universe&quot;: {&quot;PIX&quot;, &quot;PeDiv&quot;, &quot;PeEMAS&quot;, &quot;PeCDF-A&quot;}}
+    payload = {&quot;allocation&quot;: [
+        {&quot;abbrev&quot;: &quot;PIX&quot;, &quot;allocation_pct&quot;: 40},
+        {&quot;abbrev&quot;: &quot;PeDiv&quot;, &quot;allocation_pct&quot;: 40},
+        {&quot;abbrev&quot;: &quot;PeEMAS&quot;, &quot;allocation_pct&quot;: 10},
+        {&quot;abbrev&quot;: &quot;PeCDF-A&quot;, &quot;allocation_pct&quot;: 10}]}
+    out = apply_resume(state, payload)
+    assert out.get(&quot;violations&quot;, []) == []
+    assert {h[&quot;abbr&quot;] for h in out[&quot;portfolio&quot;]} == {&quot;PIX&quot;, &quot;PeDiv&quot;, &quot;PeEMAS&quot;, &quot;PeCDF-A&quot;}</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Wire into <code>_review</code>: on resume, call <code>apply_resume</code>; if it returns violations and not <code>no_review</code>, re-<code>interrupt</code>.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): resume re-validation (intent vs facts)</code></li>
+</ul>
+<p><strong>Phase-2 exit check:</strong> end-to-end CLI: invoke pauses + writes <code>data/review/&lt;tid&gt;.json</code>; hand-edit over the cap → <code>--resume</code> re-pauses; edit clean → resumes to (stubbed) generation.</p>
+<hr>
+<h2 class="phase">Phase L2 — Real generation (LLM prose + slotted HTML)</h2>
+<h3>Task 3.0: Macro contract + fixture + real <code>macro_context</code> node</h3>
+<p>The macro-context seam (spec §6, deliverable 3): a pydantic schema, a fixture producer, and a <code>macro_context</code> node that normalizes/validates the contract. Live web-search producer is <strong>deferred to ENH-6</strong> — ship the contract + fixture only.</p>
+<p><strong>Files:</strong> <code>consultant_engine/macro.py</code>, <code>consultant_engine/assets/macro_fixture.json</code>, <code>consultant_engine/nodes/macro_context.py</code>, <code>tests/consultant_engine/test_macro.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong></li>
+</ul>
+<pre><code>from consultant_engine.macro import MacroContext, load_fixture
+from consultant_engine.nodes.macro_context import macro_context
+
+def test_contract_validates_dated_events():
+    mc = MacroContext.model_validate({&quot;events&quot;: [
+        {&quot;date&quot;: &quot;2026-06-01&quot;, &quot;theme&quot;: &quot;rates&quot;, &quot;claim&quot;: &quot;BNM held OPR at 3.00%&quot;,
+         &quot;source_url&quot;: &quot;https://example.com/bnm&quot;}]})
+    assert mc.events[0].theme == &quot;rates&quot;
+
+def test_macro_context_node_normalizes(tmp_path):
+    out = macro_context({&quot;macro_context&quot;: {&quot;source&quot;: &quot;fixture&quot;}})
+    assert &quot;events&quot; in out[&quot;macro_context&quot;]
+    assert all({&quot;date&quot;,&quot;theme&quot;,&quot;claim&quot;,&quot;source_url&quot;} &lt;= set(e) for e in out[&quot;macro_context&quot;][&quot;events&quot;])</code></pre>
+<ul>
+<li class="task"><strong>Step 2: Run red</strong> → FAIL (no <code>consultant_engine.macro</code>).</li>
+<li class="task"><strong>Step 3: Implement</strong></li>
+</ul>
+<pre><code># consultant_engine/macro.py
+import json
+from pathlib import Path
+from pydantic import BaseModel, HttpUrl
+
+class MacroEvent(BaseModel):
+    date: str
+    theme: str
+    claim: str
+    source_url: str
+
+class MacroContext(BaseModel):
+    events: list[MacroEvent] = []
+
+def load_fixture() -&gt; MacroContext:
+    p = Path(__file__).resolve().parent.parent / &quot;consultant_engine/assets/macro_fixture.json&quot;
+    return MacroContext.model_validate(json.loads(p.read_text()))</code></pre>
+<p><code>macro_context</code> node: if <code>state[&quot;macro_context&quot;].get(&quot;source&quot;) == &quot;fixture&quot;</code> (or <code>&quot;none&quot;</code>), return <code>{&quot;macro_context&quot;: load_fixture().model_dump()}</code>; else validate the passed dict through <code>MacroContext</code> and return its <code>model_dump()</code>. The fixture JSON holds 2–3 dated events spanning themes (rates, ringgit, AI/tech).</p>
+<ul>
+<li class="task"><strong>Step 4: Run green</strong> → PASS.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): macro contract + fixture + macro_context node</code></li>
+</ul>
+<h3>Task 3.1: Move design system + build slotted skeleton</h3>
+<p>Copy <code>fund-consultant-skill/references/design_system.css</code> → <code>consultant_engine/assets/design_system.css</code> verbatim. Derive <code>consultant_engine/assets/proposal_skeleton.html</code> from <code>references/proposal_template.md</code>: keep the locked structure (cover, 9 numbered sections in the order from <code>tests/test_proposal_validation.py::LOCKED_SECTIONS</code>), convert each <code>[BRACKETED]</code> token into an explicit slot — numeric slots as <code>data-slot=&quot;cfs.PIX.composite&quot;</code> attributes, prose slots as <code>&lt;!--slot:why.PIX--&gt;</code> markers — so <code>validate</code> can diff numbers by slot. Include the <strong>conditional Foundation Intro</strong> block (rendered for new investors only) as a <strong>3-note</strong> block — *What is a Unit Trust / How Returns Work / Cooling-Off Right*; <strong>drop the old &quot;Why a Starter Portfolio (vs a full 6-fund)&quot; note</strong>, since every client now gets the same focused 4-fund build.</p>
+<p><strong>Files:</strong> <code>consultant_engine/assets/design_system.css</code>, <code>consultant_engine/assets/proposal_skeleton.html</code>, <code>tests/consultant_engine/test_assets.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — skeleton contains all 9 <code>LOCKED_SECTIONS</code> titles in order, exactly 9 <code>&lt;div class=&quot;section&quot;&gt;</code>, the 4 disclaimer <code>&lt;h4&gt;</code>s, and the <code>fund-consultant v[SKILL_VERSION]</code>→<code>{{version}}</code> slot.</li>
+<li class="task"><strong>Step 2–4: red → build asset → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): move design system + slotted skeleton</code></li>
+</ul>
+<h3>Task 3.2: <code>templates</code> — deterministic structural cards + slot fill</h3>
+<p><code>render_structural_card(holding, fund)</code> builds the gold + money-market cards deterministically (no LLM — per spec §14 they leave the LLM map set). <code>fill_slots(skeleton, slot_values)</code> substitutes numeric slots + version.</p>
+<p><strong>Files:</strong> <code>consultant_engine/templates.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — gold card carries the <code>#b7791f</code> border + no alpha-warning; <code>fill_slots</code> replaces <code>{{version}}</code> and a <code>data-slot</code> value; unknown leftover slot raises.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): structural-card templating + slot fill</code></li>
+</ul>
+<h3>Task 3.3: Generation prompt assets</h3>
+<p>Author <code>consultant_engine/assets/prompts/generate_proposal.md</code> from SKILL.md Steps 6–7: per-fund &quot;Why/Watch&quot; prose, macro alignment, investment strategy, the two-layer jargon rule keyed on <code>client_profile[&quot;experience&quot;]</code>, tone/compliance language rules, and the instruction to fill prose slots only (numbers come pre-filled). Include the canonical jargon table verbatim.</p>
+<p><strong>Files:</strong> <code>consultant_engine/assets/prompts/generate_proposal.md</code> (+ <code>repair.md</code>)</p>
+<ul>
+<li class="task"><strong>Step 1:</strong> Write the prompt; no test (asset). Smoke: file exists + contains the jargon table + &quot;do not alter numeric slots&quot;.</li>
+<li class="task"><strong>Step 2: Commit</strong> <code>feat(engine): generation + repair prompt assets</code></li>
+</ul>
+<h3>Task 3.4: <code>llm</code> wrapper (configurable + stub-able)</h3>
+<p><code>complete(prompt, model, system=None) -&gt; str</code> over the Anthropic SDK; honor <code>CONSULTANT_ENGINE_FAKE_LLM</code> env (returns a deterministic canned HTML) so tests + CI never hit the network.</p>
+<p><strong>Files:</strong> <code>consultant_engine/llm.py</code>, <code>tests/consultant_engine/test_llm.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — with the fake env set, <code>complete(...)</code> returns the canned string without an API key.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): Anthropic wrapper with fake-LLM mode</code></li>
+</ul>
+<h3>Task 3.5: <code>generate_proposal</code> node</h3>
+<p>Pre-fill all numeric slots deterministically (CFS bars, performance tables, allocations, portfolio summary, exposure pies from SKILL.md 7b/7c), render structural cards deterministically, then call the LLM (selecting the prompt by <code>client_profile[&quot;experience&quot;]</code>) to fill prose slots only. The <strong>Foundation Intro</strong> block renders only for new investors (conditional skeleton block). Returns <code>{&quot;proposal_html&quot;: ...}</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/generate_proposal.py</code>, test (run under fake-LLM).</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — under fake-LLM, output contains the cover, all 9 sections, a CFS bar whose numeric slots equal the state CFS, and the version stamp.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): generate_proposal (numeric prefill + LLM prose)</code></li>
+</ul>
+<h3>Task 3.6: <code>emit</code> node (version-stamped filename + write)</h3>
+<p>Filename <code>FundProposal_&lt;Profile&gt;_&lt;MonYYYY&gt;[_&lt;ClientLastName&gt;]_v&lt;__version__&gt;.html</code> into <code>state[&quot;output_dir&quot;]</code>; footer/disclaimer stamp from <code>consultant_engine.__version__</code>. MonYYYY from the FundMaster filename.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/emit.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — writes a file whose name ends <code>_v0.1.0.html</code> and whose text contains <code>fund-consultant v0.1.0</code> (stamp string kept identical so the existing validator matches) and <code>AI-Generated Document</code>.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> (Stamp label stays <code>fund-consultant v&lt;ver&gt;</code> so the locked-template validator continues to match; the version source is now the package — see Task 4.4.)</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): emit with package-version stamping</code></li>
+</ul>
+<p><strong>L2 exit check:</strong> <code>python -m consultant_engine ... --no-review</code> (fake-LLM) writes a complete proposal HTML to the output dir.</p>
+<hr>
+<h2 class="phase">Phase L3 — Validate ⇄ repair + shared rule module</h2>
+<h3>Task 4.1: Extract shared rule module</h3>
+<p><code>consultant_engine/rules/validation.py</code> exposes pure functions returning <code>list[{&quot;code&quot;,&quot;msg&quot;}]</code>, lifted from <code>tests/test_proposal_validation.py</code>: <code>check_sections(html)</code>, <code>check_version_and_disclosure(html, version)</code>, <code>check_cfs_consistency(html)</code>, <code>check_funds_in_workbook(html, workbook_index)</code>, <code>check_alpha_warning(html, workbook_index)</code>, <code>check_retail_eligibility(html, workbook_index)</code>, plus <code>validate_html(html, version, workbook_index) -&gt; list</code>. Reuse the existing regex helpers (<code>fund_cards</code>, <code>workbook_index</code>).</p>
+<p><strong>Files:</strong> <code>consultant_engine/rules/validation.py</code>, <code>tests/consultant_engine/test_validation_rules.py</code>, fixtures <code>proposal_good.html</code>, <code>proposal_bad_section.html</code>, <code>proposal_bad_cfs.html</code>.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> (this is the *validate-the-validator* layer)</li>
+</ul>
+<pre><code>from consultant_engine.rules.validation import validate_html
+from consultant_engine import __version__
+
+def test_good_proposal_has_no_violations(good_html, wb_index):
+    assert validate_html(good_html, __version__, wb_index) == []
+
+def test_section_drift_is_caught(bad_section_html, wb_index):
+    codes = {v[&quot;code&quot;] for v in validate_html(bad_section_html, __version__, wb_index)}
+    assert &quot;section_order&quot; in codes
+
+def test_cfs_inconsistency_is_caught(bad_cfs_html, wb_index):
+    codes = {v[&quot;code&quot;] for v in validate_html(bad_cfs_html, __version__, wb_index)}
+    assert &quot;cfs_recompute&quot; in codes</code></pre>
+<ul>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong> Port each check; <code>proposal_good.html</code> is a known-clean fixture (copy a curated <code>output/examples/fund_proposals/*</code> proposal, re-stamped to <code>__version__</code>); the bad fixtures mutate one rule each.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): shared validation rule module + good/bad fixtures</code></li>
+</ul>
+<h3>Task 4.2: <code>validate</code> node</h3>
+<p><code>validate(state)</code> builds the workbook index from <code>fundmaster_path</code>, runs <code>validate_html(state[&quot;proposal_html&quot;], __version__, idx)</code>, returns <code>{&quot;violations&quot;: [...]}</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/validate.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — clean generated HTML → <code>violations == []</code>; a hand-broken HTML → non-empty.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): validate node</code></li>
+</ul>
+<h3>Task 4.3: <code>repair</code> node + loop + fail-loud</h3>
+<p><code>repair(state)</code> sends <code>violations</code> + current HTML + the repair prompt to the LLM, returns <code>{&quot;proposal_html&quot;: fixed, &quot;repair_iterations&quot;: n+1}</code>. The <code>_after_validate</code>/<code>MAX_REPAIR=3</code>/<code>fail</code> wiring already exists (Task 0.4) — add a test proving cap → <code>RuntimeError</code>.</p>
+<p><strong>Files:</strong> <code>consultant_engine/nodes/repair.py</code>, test.</p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — with a fake-LLM that never fixes the injected violation, the graph raises <code>RuntimeError</code> after 3 repairs (fail-loud), and <code>repair_iterations == 3</code>.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>feat(engine): repair node + fail-loud at MAX</code></li>
+</ul>
+<h3>Task 4.4: Refactor <code>tests/test_proposal_validation.py</code> onto the shared module + package version</h3>
+<p>Re-point <code>skill_version()</code> to <code>consultant_engine.__version__</code>; replace the inline checks with calls into <code>consultant_engine.rules.validation</code> so the suite and the runtime node share one source of truth. Keep <code>KNOWN_*</code> pin sets empty.</p>
+<p><strong>Files:</strong> <code>tests/test_proposal_validation.py</code></p>
+<ul>
+<li class="task"><strong>Step 1:</strong> Change <code>skill_version()</code>:</li>
+</ul>
+<pre><code>def skill_version():
+    from consultant_engine import __version__
+    return __version__</code></pre>
+<ul>
+<li class="task"><strong>Step 2:</strong> Re-stamp curated <code>output/examples/fund_proposals/*.html</code> filenames + footers to <code>_v0.1.0</code> (so the version-stamp test passes against the new source). Keep one curated sample per profile.</li>
+<li class="task"><strong>Step 3:</strong> Replace each <code>test_*</code> body with a thin wrapper calling the shared functions (logic now lives in <code>rules/validation.py</code>).</li>
+<li class="task"><strong>Step 4: Run</strong> <code>python3 -m pytest tests/test_proposal_validation.py -v</code> → PASS.</li>
+<li class="task"><strong>Step 5: Commit</strong> <code>refactor(tests): proposal validation onto shared rule module + package version</code></li>
+</ul>
+<p><strong>L3 exit check:</strong> full <code>python3 -m pytest</code> green; a real (fake-LLM) end-to-end run emits a proposal that the standalone suite also passes.</p>
+<hr>
+<h2 class="phase">Phase 5 — Cutover (retire the skill bundle, keep CI green)</h2>
+<h3>Task 5.1: Retire <code>fund-consultant-skill/</code> bundle</h3>
+<p>Delete the bundle (its CSS/skeleton/prompts now live in <code>consultant_engine/assets/</code>). Confirm nothing else imports it (<code>grep -rn &quot;fund-consultant-skill&quot; --include=*.py</code>).</p>
+<p><strong>Files:</strong> remove <code>fund-consultant-skill/</code>; <code>tests/</code> references.</p>
+<ul>
+<li class="task"><strong>Step 1:</strong> <code>grep -rn &quot;fund-consultant-skill&quot; . --include=*.py --include=*.md</code> → resolve every hit (the only <code>.py</code> user was <code>skill_version()</code>, fixed in 4.4).</li>
+<li class="task"><strong>Step 2:</strong> <code>git rm -r fund-consultant-skill/</code></li>
+<li class="task"><strong>Step 3: Run</strong> <code>python3 -m pytest</code> → green.</li>
+<li class="task"><strong>Step 4: Commit</strong> <code>chore: retire fund-consultant skill bundle (superseded by consultant_engine)</code></li>
+</ul>
+<h3>Task 5.2: Update CLAUDE.md + README + sync-private references</h3>
+<p>Update the CLAUDE.md skill table (drop the <code>fund-consultant</code> row; document the engine CLI), the &quot;Where the logic lives&quot; + outputs/versioning sections (version source is now <code>consultant_engine.__version__</code>), and <code>scripts/sync-private.sh</code> if it referenced the skill path. README &quot;Public/private split&quot; + consulting-layer description.</p>
+<p><strong>Files:</strong> <code>CLAUDE.md</code>, <code>README.md</code>, <code>scripts/sync-private.sh</code></p>
+<ul>
+<li class="task"><strong>Step 1:</strong> Edit the docs; replace trigger-phrase row with: consultant is now <code>python -m consultant_engine …</code>.</li>
+<li class="task"><strong>Step 2:</strong> Verify <code>scripts/sync-private.sh</code> still resolves outputs (proposals dir unchanged).</li>
+<li class="task"><strong>Step 3: Commit</strong> <code>docs: point consultant docs at consultant_engine CLI</code></li>
+</ul>
+<h3>Task 5.3: CI + golden anchor</h3>
+<p>Confirm <code>.github/workflows/ci.yml</code> <code>pytest</code> covers <code>tests/consultant_engine/</code>. Pin one curated proposal as the <strong>golden anchor</strong> referenced by the spec §14 parity item (a <code>test_golden_structure</code> asserting the engine&#x27;s fake-LLM output matches the golden&#x27;s section/slot structure).</p>
+<p><strong>Files:</strong> <code>.github/workflows/ci.yml</code> (verify only), <code>tests/consultant_engine/test_golden.py</code></p>
+<ul>
+<li class="task"><strong>Step 1: Failing test</strong> — engine fake-LLM output and the golden share identical <code>LOCKED_SECTIONS</code> order + numeric-slot keys.</li>
+<li class="task"><strong>Step 2–4: red → implement → green.</strong></li>
+<li class="task"><strong>Step 5: Commit</strong> <code>test(engine): golden structural parity anchor</code></li>
+</ul>
+<h3>Task 5.4: &quot;Primitives ↔ framework&quot; mapping note (deliverable 2)</h3>
+<p>A short doc mapping the hand-rolled orchestration primitives in the old skill to their LangGraph expressions in this engine — the learning artifact for the Phase-1 capstone.</p>
+<p><strong>Files:</strong> <code>docs/superpowers/notes/primitives-to-langgraph.md</code> (+ <code>.html</code> companion per the CLAUDE.md convention)</p>
+<ul>
+<li class="task"><strong>Step 1:</strong> Write the note as a table — each row a primitive → its LangGraph expression → the file/line in <code>consultant_engine/</code> that realizes it:</li>
+<li>conditional dispatch → <code>add_conditional_edges</code> (<code>graph.py</code> <code>_after_validate</code>)</li>
+<li>retry-until-valid loop → <code>validate ⇄ repair</code> cycle + <code>MAX_REPAIR</code> cap</li>
+<li>shared-state blackboard → <code>ConsultantState</code> TypedDict channels (<code>state.py</code>)</li>
+<li>planner–executor → compute nodes produce plan (<code>portfolio</code>), generation executes it</li>
+<li>agent handoff / subgraph → the ENH-6 macro-researcher seam (<code>macro.py</code> contract)</li>
+<li>human-in-the-loop → <code>interrupt()</code> + SQLite checkpointer (<code>review_gate.py</code>)</li>
+<li>tool use → openpyxl/PHS reads inside nodes</li>
+<li>MCP-tool → node → the macro producer swap behind the contract</li>
+<li class="task"><strong>Step 2:</strong> Generate the <code>.html</code> companion (same basename) per the standing convention.</li>
+<li class="task"><strong>Step 3: Commit</strong> <code>docs: primitives↔LangGraph mapping note (Track 0 deliverable)</code></li>
+</ul>
+<p><strong>Final exit check:</strong> <code>pip install -r requirements.txt pytest &amp;&amp; pytest</code> fully green; <code>python -m consultant_engine --profile &lt;p&gt; --fundmaster &lt;wb&gt; -o /tmp</code> (review ON) pauses, writes the artifact, and <code>--resume</code> completes to a validator-passing proposal.</p>
+<hr>
+<h2>Open items carried from spec §14 (decide as they arise)</h2>
+<ul>
+<li>Exact <code>MAX</code> repair iterations (default 3) — encoded as <code>graph.MAX_REPAIR</code>.</li>
+<li>Macro-contract schema fields + theme taxonomy — Track 0 ships the contract + a fixture only; live producer is ENH-6.</li>
+<li>Fan-out vs single-node generation — <strong>single-node is the default</strong> here (Task 3.5); structural cards already templated out of the LLM set. Revisit only if isolation/repair-cost demands it.</li>
+<li>Model selection per node + token budget — <code>--model</code> flag; Sonnet default.</li>
+</ul>
+<hr><p style="color:#9fb0c0;font-size:13px">Generated from <code>2026-06-19-track0-headless-consultant-engine.md</code>. Markdown remains the source of truth.</p>
+</div></body></html>

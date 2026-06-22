@@ -1,0 +1,68 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Primitives → LangGraph (Track 0 capstone note)</title>
+<style>
+:root{--bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
+--line:#2d3a47;--accent:#4ea1ff;--good:#56d364;--warn:#ffb454;--kw:#d2a8ff;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 26px 90px;}
+h1{font-size:27px;letter-spacing:-.3px;margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:16px}
+h2{font-size:20px;margin:40px 0 12px;padding:10px 0 8px;border-bottom:1px solid var(--line);color:#fff}
+h2.phase{color:var(--good);border-bottom:2px solid rgba(86,211,100,.35)}
+h3{font-size:16px;margin:26px 0 10px;color:var(--accent)}
+h4{font-size:14px;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+p{margin:10px 0}
+a{color:var(--accent)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#cdd9e5}
+pre{background:#10161d;border:1px solid var(--line);border-left:3px solid var(--kw);border-radius:8px;
+padding:14px 16px;overflow-x:auto;margin:12px 0}
+pre code{background:none;border:none;padding:0;font-size:12.5px;line-height:1.5;color:#cdd9e5}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+ul,ol{margin:10px 0;padding-left:24px}
+li{margin:5px 0}
+li.task{list-style:none;margin-left:-18px}
+li.task::before{content:"☐  ";color:var(--warn);font-weight:700}
+blockquote{margin:14px 0;padding:10px 16px;border-left:3px solid var(--accent);
+background:var(--panel);border-radius:0 8px 8px 0;color:var(--muted)}
+hr{border:none;border-top:1px solid var(--line);margin:26px 0}
+strong{color:#fff}
+.banner{background:linear-gradient(0deg,rgba(78,161,255,.08),rgba(78,161,255,.08)),var(--panel);
+border:1px solid rgba(78,161,255,.4);border-radius:10px;padding:12px 16px;margin:14px 0;font-size:13.5px}
+</style></head><body><div class="wrap"><h1>Primitives → LangGraph Mapping</h1>
+<p>_Capstone learning artifact — Track 0: Headless Consultant Engine_</p>
+<hr>
+<h2>Why the rewrite</h2>
+<p>The old interactive <code>fund-consultant</code> skill was a prose procedure: a sequence of natural-language instructions that Claude followed step-by-step in a chat session. Every &quot;primitive&quot; — conditional branching, retry loops, shared state, human checkpoints — was implicit, carried in the prompt text and maintained by the conversation context window. There was no graph, no checkpointer, no testable unit; the whole thing existed only while the session was alive.</p>
+<p>The new <code>consultant_engine/</code> package gives each of those primitives a <strong>first-class, inspectable expression</strong> in LangGraph. The graph is compiled once, persisted to SQLite, and can be paused and resumed across processes. Every node is a plain Python function with a typed input/output contract, so individual steps are unit-testable without running the full pipeline.</p>
+<hr>
+<h2>The determinism boundary</h2>
+<p>A second architectural principle shapes the whole engine: <strong>Python owns all numbers; the LLM writes prose</strong>. The proposal skeleton is a locked HTML template with two kinds of placeholders:</p>
+<ul>
+<li><code>data-slot=&quot;KEY&quot;</code> — numeric/factual slots filled deterministically by</li>
+</ul>
+<p>  <code>templates.fill_slots</code> (CFS scores, allocation percentages, return figures).   <code>fill_slots</code> raises <code>ValueError</code> on any unfilled slot, so a silent gap is   impossible.</p>
+<ul>
+<li><code>&lt;!--slot:KEY--&gt;</code> prose markers — left untouched by <code>fill_slots</code> and handed to</li>
+</ul>
+<p>  the LLM in <code>generate_proposal</code>. The LLM writes narrative _into_ a document where   every number is already correct; it cannot hallucinate a figure because there are   no numeric placeholders left for it to fill.</p>
+<p>After generation the <code>validate → repair</code> loop checks structural conformance — slot completeness, disclosure rules, CFS recomputation. This guards _transcription_ (did the LLM drop a required section?), not arithmetic (the numbers were already correct before the LLM touched the document).</p>
+<hr>
+<h2>Primitive → LangGraph mapping</h2>
+<table><thead><tr><th>Old primitive (skill procedure)</th><th>LangGraph expression</th><th>Realization in <code>consultant_engine/</code></th></tr></thead><tbody>
+<tr><td><strong>Conditional dispatch</strong> — &quot;if valid, emit; if not, repair; if repair cap hit, fail&quot;</td><td><code>add_conditional_edges</code> with a routing function</td><td><code>graph.py</code> — <code>build_graph</code> calls <code>g.add_conditional_edges(&quot;validate&quot;, _after_validate, {&quot;repair&quot;: &quot;repair&quot;, &quot;emit&quot;: &quot;emit&quot;, &quot;fail&quot;: &quot;fail&quot;})</code> (line 76–80); routing logic in <code>_after_validate</code> (line 40–45)</td></tr>
+<tr><td><strong>Retry-until-valid loop</strong> — keep asking the LLM to fix the proposal until it passes, up to a cap</td><td><code>validate ⇄ repair</code> cycle; <code>MAX_REPAIR = 3</code> guards infinite loops</td><td><code>graph.py</code> — <code>g.add_edge(&quot;repair&quot;, &quot;validate&quot;)</code> (line 81) + <code>_after_validate</code> checks <code>repair_iterations &gt;= MAX_REPAIR</code>; <code>nodes/repair.py</code> — <code>repair()</code> increments <code>repair_iterations</code> and returns corrected <code>proposal_html</code></td></tr>
+<tr><td><strong>Shared-state blackboard</strong> — all steps read/write a single mutable context dict</td><td><code>ConsultantState</code> TypedDict; channels are the typed keys</td><td><code>state.py</code> — <code>ConsultantState</code> TypedDict (line 45) carries all pipeline state: <code>eligible_funds</code>, <code>portfolio</code>, <code>cfs_scores</code>, <code>proposal_html</code>, <code>violations</code>, <code>repair_iterations</code>, etc.</td></tr>
+<tr><td><strong>Planner–executor split</strong> — compute the plan (what funds, what weights), then produce the document</td><td>Separate compute node (planner) feeds a generation node (executor)</td><td><code>nodes/build_portfolio.py</code> — <code>build_portfolio()</code> assembles and invariant-gates the portfolio plan; <code>nodes/generate_proposal.py</code> — <code>generate_proposal()</code> executes it into HTML</td></tr>
+<tr><td><strong>Agent handoff / subgraph seam</strong> — hand off to a specialist for macro research, receive a typed result back</td><td>Typed contract boundary; future subgraph replaces the fixture loader</td><td><code>macro.py</code> — <code>MacroContext</code> Pydantic model (line 13) is the contract; <code>nodes/macro_context.py</code> — <code>macro_context()</code> resolves source (<code>&quot;fixture&quot;</code> / <code>&quot;none&quot;</code> / validated dict) and writes <code>{&quot;macro_context&quot;: ...}</code> into state — the seam where ENH-6&#x27;s real researcher agent will plug in</td></tr>
+<tr><td><strong>Human-in-the-loop</strong> — pause, let the consultant edit the allocation, resume</td><td><code>interrupt()</code> + SQLite checkpointer (exit-and-resume across processes)</td><td><code>graph.py</code> — <code>_review()</code> calls <code>interrupt(artifact)</code> (line 27) after writing a JSON+HTML review artifact; <code>cli.py</code> — <code>SqliteSaver</code> (line 3, line 26–29) persists the checkpoint; <code>--resume</code> flag triggers <code>app.invoke(Command(resume=...))</code> (line 35)</td></tr>
+<tr><td><strong>Tool use</strong> — read external data sources (FundMaster workbook) as a deterministic action</td><td>Deterministic openpyxl read inside a node; no LLM involved</td><td><code>nodes/load_funds.py</code> — <code>load_funds()</code> reads the FundMaster <code>.xlsx</code> via <code>openpyxl</code> (line 14–134); the determinism boundary means the LLM never sees raw spreadsheet data</td></tr>
+<tr><td><strong>Deterministic-numbers / LLM-prose split</strong> — Python computes all figures; LLM authors narrative into a pre-filled document</td><td>Locked skeleton + <code>fill_slots</code> (numeric pass) then prose-slot authoring</td><td><code>templates.py</code> — <code>fill_slots()</code> (line 128) fills <code>data-slot</code> elements and raises on any missing key; <code>nodes/generate_proposal.py</code> — <code>generate_proposal()</code> calls <code>fill_slots</code> first (line 365) then <code>_fill_prose_slots_llm</code> / <code>_fill_prose_slots_fake</code> for <code>&lt;!--slot:--&gt;</code> markers</td></tr>
+</tbody></table>
+<hr>
+<p>_The HTML companion (<code>primitives-to-langgraph.html</code>) is generated from this markdown file, per the repo convention that every spec/plan/note ships a standalone self-contained HTML copy alongside it._</p>
+<hr><p style="color:#9fb0c0;font-size:13px">Generated from <code>primitives-to-langgraph.md</code>. Markdown remains the source of truth.</p>
+</div></body></html>

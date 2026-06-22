@@ -4,11 +4,13 @@ location, so copying the skill bundle into the workspace redirects every read
 and write there."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import openpyxl
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -64,3 +66,213 @@ def pipeline_workspace(tmp_path_factory):
     run_script(ws, "build_sheet_data.py")
     run_script(ws, "build_xlsx.py")
     return ws
+
+
+# ── consultant_engine (Track 0) fixtures ───────────────────────────────────
+# These live in the root conftest rather than a tests/consultant_engine/conftest.py
+# on purpose: that directory name collides with the production `consultant_engine`
+# package (breaks pytest package import), and a second conftest.py would shadow the
+# bare `from conftest import ...` that test_pipeline.py relies on. Root conftest
+# fixtures are available to every test, including the consultant_engine suite.
+
+@pytest.fixture(autouse=True)
+def _fake_llm_for_ci(monkeypatch, request):
+    """Ensure LLM calls never hit the real Anthropic API in the test suite.
+    Sets CONSULTANT_ENGINE_FAKE_LLM=1 for every test in the consultant_engine suite
+    AND passes the env var into subprocess invocations (test_cli) via os.environ,
+    which subprocesses inherit.  Tests that explicitly test the real path are not
+    present in this suite, so global autouse is safe."""
+    # Only activate for consultant_engine tests (path contains consultant_engine)
+    test_path = str(request.fspath)
+    if "consultant_engine" not in test_path:
+        return  # skip for pipeline / other tests
+    monkeypatch.setenv("CONSULTANT_ENGINE_FAKE_LLM", "1")
+
+def _row(ws, r, name, abbr, shariah, ftype, rl, status, walpha, **kw):
+    ws.cell(r, 1, name); ws.cell(r, 2, abbr); ws.cell(r, 3, shariah)
+    ws.cell(r, 4, ftype); ws.cell(r, 6, rl); ws.cell(r, 10, status); ws.cell(r, 14, walpha)
+    for col, val in kw.items():
+        ws.cell(r, int(col[1:]), val)         # pass c35=.. style overrides
+
+
+@pytest.fixture
+def tiny_fundmaster(tmp_path):
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
+    ws.cell(3, 1, "Fund Name")                 # header marker on row 3
+    _row(ws, 4, "Public Index Fund", "PIX", "No", "Equity", 3, "Qualified", 2.1,
+         c72=-3.0, c73=20)
+    _row(ws, 5, "PB Growth Fund", "PBGF", "No", "Equity", 4, "Qualified", 1.0)   # PB → excluded
+    _row(ws, 6, "Public e-Cash Deposit", "PeCDF-B", "No", "Money Market", 1, "Qualified", 0.1)  # -B → excluded
+    _row(ws, 7, "Public Wholesale", "PWSIF", "No", "Equity", 5, "Qualified", 3.0)  # wholesale → excluded
+    _row(ws, 8, "Public e-Cash Deposit", "PeCDF-A", "No", "Money Market", 1, "Qualified", 0.1)
+    p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"; wb.save(p)
+    return str(p)
+
+
+@pytest.fixture
+def fundmaster_4fund(tmp_path):
+    """4-fund fixture for build_portfolio integration tests.
+
+    Sheet "Master" (header row 3, data row 4+):
+      - THREE conventional equity funds (RL 3, Qualified, Shariah No)
+        each Equity-equivalent (dom_equity=75 for_equity=10) with distinct
+        positive returns/alpha so they rank differently through CFS scoring.
+      - PeEMAS (gold structural, RL 3, assets→other=95 for Balanced class).
+      - PeCDF-A (money-market structural, RL 1, mm=100 for Defensive class).
+
+    Equity funds use plain abbreviations (no "PB " prefix, no "-B" suffix,
+    not in the WHOLESALE set) so _excluded() passes them all.
+    """
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
+    ws.cell(3, 1, "Fund Name")   # header marker on row 3
+
+    # ytd cols 15-17, 1y cols 18-20, 3y cols 21-23, 5y cols 24-26, 10y cols 27-29
+    # col 72=drawdown, col 73=days_from_ath
+
+    # Equity fund 1 — highest alpha
+    _row(ws, 4, "Public Growth A", "PGA", "No", "Equity", 3, "Qualified", 4.0,
+         c15=20.0, c16=15.0, c17=5.0,    # ytd: fund/bench/alpha
+         c18=18.0, c19=13.0, c20=5.0,    # 1y
+         c21=15.0, c22=11.0, c23=4.0,    # 3y: fund=15, bench=11, alpha=4
+         c24=12.0, c25=9.0,  c26=3.0,    # 5y
+         c27=10.0, c28=8.0,  c29=2.0,    # 10y
+         c35=75.0, c36=10.0,             # dom_equity=75, for_equity=10 → Equity-equivalent
+         c72=-5.0, c73=20)               # drawdown / days_from_ath for momentum
+
+    # Equity fund 2 — middle alpha
+    # 5Y bench is 7.5 (not 8.0) so the stored alpha 2.5 == fund(10) - bench(7.5):
+    # bench is never used in CFS scoring, so this keeps every score unchanged
+    # while satisfying the MFR value-add relation the perf-consistency check enforces.
+    _row(ws, 5, "Public Balanced A", "PBA", "No", "Equity", 3, "Qualified", 3.0,
+         c15=18.0, c16=14.0, c17=4.0,
+         c18=16.0, c19=12.0, c20=4.0,
+         c21=12.0, c22=9.0,  c23=3.0,
+         c24=10.0, c25=7.5,  c26=2.5,
+         c27=9.0,  c28=7.5,  c29=1.5,
+         c35=75.0, c36=10.0,
+         c72=-5.0, c73=30)
+
+    # Equity fund 3 — lowest alpha of the three
+    _row(ws, 6, "Public SmallCap A", "PSCA", "No", "Equity", 3, "Qualified", 2.0,
+         c15=15.0, c16=12.0, c17=3.0,
+         c18=13.0, c19=10.0, c20=3.0,
+         c21=10.0, c22=8.0,  c23=2.0,
+         c24=8.0,  c25=6.5,  c26=1.5,
+         c27=7.0,  c28=6.0,  c29=1.0,
+         c35=75.0, c36=10.0,
+         c72=-5.0, c73=45)
+
+    # PeEMAS — gold structural (RL 3; Moderate ceiling = 3 so no rl_ceiling issue;
+    # other=95 → Balanced class so it won't compete with Equity-equivalent cores)
+    _row(ws, 7, "Public e-Islamic EMAS", "PeEMAS", "No", "Gold", 3, "Qualified", 0.5,
+         c15=5.0, c16=4.0, c17=1.0,
+         c18=4.0, c19=3.5, c20=0.5,
+         c21=3.0, c22=2.5, c23=0.5,
+         c40=95.0,          # other=95 → Balanced (not Equity-equivalent)
+         c72=-2.0, c73=10)
+
+    # PeCDF-A — money-market structural (RL 1)
+    _row(ws, 8, "Public e-Cash Deposit", "PeCDF-A", "No", "Money Market", 1, "Qualified", 0.1,
+         c15=2.0, c16=2.0, c17=0.0,
+         c18=2.0, c19=2.0, c20=0.0,
+         c21=2.0, c22=2.0, c23=0.0,
+         c38=100.0,          # mm=100 → Defensive
+         c72=-1.0, c73=5)
+
+    p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"
+    wb.save(p)
+    return str(p)
+
+
+@pytest.fixture
+def fundmaster_exposure(tmp_path):
+    """4-fund fixture identical in shape to ``fundmaster_4fund`` but with the
+    geographic header row (row 3, cols 41-52) populated and real per-fund geo
+    values, so the deterministic Portfolio Exposure look-through has data to
+    compute (asset-class pie + geographic pie/legend).
+
+    Geo column order matches load_funds' canonical read (cols 41-52):
+      USA, Taiwan, Korea, Japan, France, Germany, China, Singapore,
+      Netherlands, Indonesia, Australia, Geo Other.
+    """
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
+    ws.cell(3, 1, "Fund Name")
+
+    # Geo header row (cols 41-52) — written with the real workbook's " (%)" suffix
+    # (e.g. "USA (%)"), exactly as build_xlsx emits them, so the look-through
+    # exercises the same header strings load_funds keys geo dicts by. Bare-name
+    # _GEO_COLUMNS in exposure.py must still match these (the suffix is stripped).
+    geo_headers = [
+        "USA", "Taiwan", "Korea", "Japan", "France", "Germany",
+        "China", "Singapore", "Netherlands", "Indonesia", "Australia", "Geo Other",
+    ]
+    for i, h in enumerate(geo_headers):
+        ws.cell(3, 41 + i, f"{h} (%)")
+
+    # Equity fund 1 — heavy USA + Taiwan; Japan tiny (<2% after weighting → Other).
+    _row(ws, 4, "Public Growth A", "PGA", "No", "Equity", 3, "Qualified", 4.0,
+         c15=20.0, c16=15.0, c17=5.0,
+         c18=18.0, c19=13.0, c20=5.0,
+         c21=15.0, c22=11.0, c23=4.0,
+         c24=12.0, c25=9.0,  c26=3.0,
+         c27=10.0, c28=8.0,  c29=2.0,
+         c35=70.0, c36=20.0, c37=5.0, c39=5.0,   # dom 70, for 20, fi 5, deposits 5
+         c41=40.0, c42=15.0, c44=1.0, c52=4.0,   # USA 40, Taiwan 15, Japan 1, GeoOther 4
+         c72=-5.0, c73=20)
+
+    # Equity fund 2 — USA + Korea.
+    _row(ws, 5, "Public Balanced A", "PBA", "No", "Equity", 3, "Qualified", 3.0,
+         c15=18.0, c16=14.0, c17=4.0,
+         c18=16.0, c19=12.0, c20=4.0,
+         c21=12.0, c22=9.0,  c23=3.0,
+         c24=10.0, c25=7.5,  c26=2.5,
+         c27=9.0,  c28=7.5,  c29=1.5,
+         c35=60.0, c36=25.0, c37=10.0, c38=5.0,  # dom 60, for 25, fi 10, mm 5
+         c41=45.0, c43=12.0, c52=3.0,            # USA 45, Korea 12, GeoOther 3
+         c72=-5.0, c73=30)
+
+    # Equity fund 3 — China + USA.
+    _row(ws, 6, "Public SmallCap A", "PSCA", "No", "Equity", 3, "Qualified", 2.0,
+         c15=15.0, c16=12.0, c17=3.0,
+         c18=13.0, c19=10.0, c20=3.0,
+         c21=10.0, c22=8.0,  c23=2.0,
+         c24=8.0,  c25=6.5,  c26=1.5,
+         c27=7.0,  c28=6.0,  c29=1.0,
+         c35=65.0, c36=20.0, c37=15.0,           # dom 65, for 20, fi 15
+         c41=30.0, c47=25.0, c52=2.0,            # USA 30, China 25, GeoOther 2
+         c72=-5.0, c73=45)
+
+    # PeEMAS — gold structural (other=95 → Balanced class).
+    _row(ws, 7, "Public e-Islamic EMAS", "PeEMAS", "No", "Gold", 3, "Qualified", 0.5,
+         c15=5.0, c16=4.0, c17=1.0,
+         c18=4.0, c19=3.5, c20=0.5,
+         c21=3.0, c22=2.5, c23=0.5,
+         c40=95.0,
+         c72=-2.0, c73=10)
+
+    # PeCDF-A — money-market structural (mm=100 → Defensive).
+    _row(ws, 8, "Public e-Cash Deposit", "PeCDF-A", "No", "Money Market", 1, "Qualified", 0.1,
+         c15=2.0, c16=2.0, c17=0.0,
+         c18=2.0, c19=2.0, c20=0.0,
+         c21=2.0, c22=2.0, c23=0.0,
+         c38=100.0,
+         c72=-1.0, c73=5)
+
+    p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"
+    wb.save(p)
+    return str(p)
+
+
+@pytest.fixture
+def fundmaster_top5(tmp_path):
+    """Two conventional equity funds whose Top-5 holdings (col 64) share ZERO
+    real names but many characters — the case that exposes the string-vs-list
+    overlap bug (C3)."""
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Master"
+    ws.cell(3, 1, "Fund Name")
+    _row(ws, 4, "Public Alpha A", "PAAA", "No", "Equity", 3, "Qualified", 3.0,
+         c64="Apple Inc | Microsoft | Nvidia | Tesla | Amazon")
+    _row(ws, 5, "Public Beta A", "PBBB", "No", "Equity", 3, "Qualified", 2.0,
+         c64="Petronas | Maybank | CIMB | Tenaga | Genting")
+    p = tmp_path / "PublicMutual_FundMaster_Jun2026_v0.1.0.xlsx"; wb.save(p)
+    return str(p)
