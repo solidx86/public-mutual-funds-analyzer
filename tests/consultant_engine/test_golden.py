@@ -28,7 +28,7 @@ from consultant_engine.rules.validation import (
     check_sections,
 )
 
-GOLDEN = Path("output/examples/fund_proposals/FundProposal_Moderate_Jun2026_v0.1.0.html")
+GOLDEN = Path("output/examples/fund_proposals/FundProposal_generic_Moderate_2026-06-12_v0.1.0.html")
 
 _DISCLOSURE_HEADINGS = [
     "AI-Generated Document",
