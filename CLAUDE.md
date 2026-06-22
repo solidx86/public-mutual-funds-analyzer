@@ -33,6 +33,8 @@ python -m consultant_engine --profile <p.json> [--fundmaster <wb.xlsx>] [-o <dir
 
 **Offline mode** — set `CONSULTANT_ENGINE_FAKE_LLM=1` to stub all LLM calls for fast local testing.
 
+> ⚠️ **Always run verification / fake-LLM proposals into a throwaway dir** (e.g. `-o /tmp/ce-check`), never the default output dir. Fake-LLM fills prose slots with readable `[KEY narrative]` stubs, so a verification run launched without `-o` will **overwrite the real client proposal** in `output/fund_proposals/` (a gitignored private-mount artifact with no backup). Only do a real-LLM run into the default dir when you intend to (re)produce the actual client artifact.
+
 ## Pipeline at a glance
 
 Run all four steps **from the repo root** — every script derives its paths from its own location. Cache files read/written under `data/cache/`, reference data under `data/reference/`.

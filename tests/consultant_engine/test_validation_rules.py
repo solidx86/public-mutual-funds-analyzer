@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from consultant_engine.rules.validation import (
+    check_cfs_consistency,
     check_exposure_consistency,
     check_unfilled_slots,
     fund_cards,
@@ -67,6 +68,47 @@ def test_section_drift_is_caught(bad_section_html, wb_index):
 def test_cfs_inconsistency_is_caught(bad_cfs_html, wb_index):
     codes = {v["code"] for v in validate_html(bad_cfs_html, __version__, wb_index)}
     assert "cfs_recompute" in codes
+
+
+# ── CFS recompute: per-card bounding + fail-loud on a malformed scored card ────
+
+
+def _scored_card(name: str, abbr: str, composite: str, rows: list[tuple[str, str]]) -> str:
+    """Build a minimal fund-card chunk with a CFS bar (score + dimension rows)."""
+    dims = "".join(
+        f"<span>{s} / 100 &middot; {w}% weight</span>" for s, w in rows
+    )
+    return (
+        f'<div class="fund-card"><h3>{name} &middot; {abbr}</h3>'
+        f'<div class="cfs-bar"><div class="cfs-title">COMPOSITE FUND SCORE: '
+        f'<span class="cfs-score">{composite}</span> / 100</div>{dims}</div></div>'
+    )
+
+
+def test_scored_card_with_wrong_row_count_fails_loud():
+    """A card that HAS a cfs-score but not exactly 4 dimension rows breaks the
+    scored-card contract — it must fail loud (``malformed_cfs_bar``), not be silently
+    skipped (which would let a malformed bar pass the validator unchecked)."""
+    html = _scored_card(
+        "Fund A", "PFA", "50.0",
+        [("50.0", "28.0"), ("50.0", "40.0"), ("50.0", "32.0")],  # only 3 rows
+    )
+    codes = {v["code"] for v in check_cfs_consistency(html)}
+    assert "malformed_cfs_bar" in codes, codes
+
+
+def test_cfs_recompute_is_bounded_and_attributed_per_card():
+    """Two scored cards: a clean one and a corrupted one. The recompute must use
+    each card's OWN rows (per-card bounding via fund_cards) — so exactly one
+    cfs_recompute fires, attributed to the offending card, and the clean card's rows
+    do not bleed into it."""
+    dims4 = [("50.0", "28.0"), ("50.0", "40.0"), ("50.0", "20.0"), ("50.0", "12.0")]
+    good = _scored_card("Fund A", "PFA", "50.0", dims4)            # recompute 50 == 50
+    bad_rows = [("60.0", "28.0"), ("60.0", "40.0"), ("60.0", "20.0"), ("60.0", "12.0")]
+    bad = _scored_card("Fund B", "PFB", "90.0", bad_rows)         # recompute 60 != 90
+    recompute = [v for v in check_cfs_consistency(good + bad) if v["code"] == "cfs_recompute"]
+    assert len(recompute) == 1, recompute
+    assert "PFB" in recompute[0]["msg"], recompute[0]["msg"]
 
 
 # ── Portfolio Exposure consistency guard ──────────────────────────────────────

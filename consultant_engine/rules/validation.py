@@ -174,26 +174,39 @@ def check_cfs_consistency(html_text: str) -> list[dict[str, str]]:
     """Recompute each fund card's CFS composite from its displayed dimension
     scores + weights and compare to the displayed composite.
 
-    Mismatch tolerance: ±1.0 (matches the existing test).
+    Bounded per fund card via ``fund_cards`` so each recompute reads exactly one
+    card's ``cfs-score`` and its four dimension rows — the same per-card iteration
+    the summary / render-fidelity checks use, instead of an unbounded split on
+    ``cfs-bar`` whose segments leaked across cards. Mismatch tolerance: ±1.0.
 
-    Violation code: ``cfs_recompute``
+    A card with **no** ``cfs-score`` is a structural / passive holding (gold, money
+    market) and is legitimately skipped. But a card that HAS a ``cfs-score`` yet
+    does not render exactly four dimension rows breaks the scored-card contract and
+    **fails loud** (``malformed_cfs_bar``) rather than being silently skipped — a
+    silent skip there would let a malformed bar pass the validator unchecked.
+
+    Violation codes: ``cfs_recompute``, ``malformed_cfs_bar``
     """
     violations: list[dict[str, str]] = []
 
-    bars = re.split(r'<div class="cfs-bar">', html_text)[1:]
-    for bar in bars:
-        bar_trimmed = bar.split('<div class="cfs-bar-note"')[0]
-        score_m = re.search(r'class="cfs-score">([\d.]+)</span>', bar_trimmed)
+    for abbr, chunk in fund_cards(html_text):
+        score_m = re.search(r'class="cfs-score">([\d.]+)</span>', chunk)
         if score_m is None:
-            # Passive/structural holding — "n/a" or "—" is acceptable
-            continue
+            continue  # structural / passive holding — no composite to reconcile
         composite = float(score_m.group(1))
         rows = re.findall(
             r"(\d+(?:\.\d+)?) / 100\*? &middot; (\d+(?:\.\d+)?)% weight",
-            bar_trimmed,
+            chunk,
         )
         if len(rows) != 4:
-            continue  # structural bar without all 4 dimensions — skip
+            violations.append({
+                "code": "malformed_cfs_bar",
+                "msg": (
+                    f"{abbr}: scored card renders {len(rows)} CFS dimension rows, "
+                    f"expected 4 — composite {composite} cannot be reconciled"
+                ),
+            })
+            continue
         scores = [float(s) for s, _ in rows]
         weights = [float(w) for _, w in rows]
         recomputed = sum(s * w / 100 for s, w in zip(scores, weights))
@@ -201,8 +214,8 @@ def check_cfs_consistency(html_text: str) -> list[dict[str, str]]:
             violations.append({
                 "code": "cfs_recompute",
                 "msg": (
-                    f"CFS composite {composite} != recomputed {recomputed:.2f} "
-                    f"(diff {abs(composite - recomputed):.2f})"
+                    f"{abbr}: CFS composite {composite} != recomputed "
+                    f"{recomputed:.2f} (diff {abs(composite - recomputed):.2f})"
                 ),
             })
 
@@ -462,6 +475,298 @@ def check_unfilled_slots(html_text: str) -> list[dict[str, str]]:
             seen.add(msg)
             violations.append({"code": "unfilled_slot", "msg": msg})
     return violations
+
+
+# ── Render-fidelity reconciliation (state-aware; runtime validate node only) ──
+#
+# The repair pass round-trips the WHOLE document through the LLM ("return the
+# complete HTML"), so the model CAN corrupt a Python-owned value (a CFS number, a
+# Shariah label, an allocation %). This check reconciles the rendered Python-owned
+# values in the FINAL html against the engine's OWN authoritative state.
+#
+# Reconciliation, NOT re-derivation: every authoritative value comes from either a
+# value already stored in state (cfs_scores / portfolio / eligible_funds) OR by
+# REUSING the exact production compute function the engine itself used
+# (compute_asset_exposure / compute_geo_exposure / _compute_portfolio_metrics). No
+# formula is re-implemented here — re-coding the math would be a circular test.
+
+# Number renders at display precision; ±0.05 absorbs 1-dp rounding without masking
+# a real corruption (e.g. 79.4 → 66.4).
+_FIDELITY_TOL = 0.05
+
+# Cells that legitimately render with no authoritative value to compare against.
+_FIDELITY_BLANK = {"", "—", "&mdash;", "n/a", "N/A", "-"}
+
+
+def _fidelity_num(raw: str):
+    """Parse a rendered numeric cell to float, or None when blank/non-numeric.
+
+    Strips tags, unescapes entities, and drops ``%`` / ``+`` / ``RM`` / commas so
+    "+2.40%", "RM 1,000" and "79.4" all parse. Em-dash / empty → None (skip, never
+    false-fire)."""
+    txt = _html.unescape(re.sub(r"<[^>]+>", "", raw)).strip()
+    if txt in _FIDELITY_BLANK:
+        return None
+    txt = txt.replace("%", "").replace("+", "").replace(",", "").replace("RM", "").strip()
+    try:
+        return float(txt)
+    except ValueError:
+        return None
+
+
+def _cfs_by_abbr(state: Any) -> dict[str, dict]:
+    return {c["abbr"]: c for c in state.get("cfs_scores", []) if c.get("abbr")}
+
+
+def _fund_by_abbr(state: Any) -> dict[str, dict]:
+    return {f["abbr"]: f for f in state.get("eligible_funds", []) if f.get("abbr")}
+
+
+def _alloc_by_abbr(state: Any) -> dict[str, float]:
+    return {h["abbr"]: h["allocation_pct"] for h in state.get("portfolio", []) if h.get("abbr")}
+
+
+def _shariah_label(value) -> str:
+    """Map a fund's stored ``shariah`` bool to its rendered card label."""
+    return "Shariah" if value else "Conventional"
+
+
+def _check_card_coverage(html_text: str, state: Any) -> list[dict[str, str]]:
+    """Coverage canary: every portfolio holding in state must render as a fund card.
+
+    The other fidelity checks iterate the cards they FIND — a card that was dropped
+    or whose abbreviation was mangled simply isn't visited, so its values would pass
+    unchecked (the classic vacuous pass). This asserts the rendered card set covers
+    every holding in ``state["portfolio"]``, turning a missing/renamed card into a
+    loud failure instead of a silent skip.
+    """
+    violations: list[dict[str, str]] = []
+    expected = [h["abbr"] for h in state.get("portfolio", []) if h.get("abbr")]
+    rendered = {abbr for abbr, _ in fund_cards(html_text)}
+    for abbr in expected:
+        if abbr not in rendered:
+            violations.append({
+                "code": "RENDER_FIDELITY",
+                "msg": (
+                    f"{abbr}: portfolio holding has no fund card in the rendered "
+                    f"proposal (expected {len(expected)} holdings, found "
+                    f"{len(rendered)} cards)"
+                ),
+            })
+    return violations
+
+
+def _check_fund_card_fidelity(html_text: str, state: Any) -> list[dict[str, str]]:
+    """Reconcile each fund card's rendered CFS composite, allocation, and Shariah
+    label against the authoritative state values for that fund."""
+    violations: list[dict[str, str]] = []
+    cfs = _cfs_by_abbr(state)
+    funds = _fund_by_abbr(state)
+    allocs = _alloc_by_abbr(state)
+
+    for abbr, chunk in fund_cards(html_text):
+        # CFS composite (cores only — structural cards carry no cfs-score span).
+        score_m = re.search(r'class="cfs-score">([\d.]+)</span>', chunk)
+        if score_m is not None and abbr in cfs:
+            rendered = float(score_m.group(1))
+            authoritative = cfs[abbr].get("composite")
+            if authoritative is not None and abs(rendered - float(authoritative)) > _FIDELITY_TOL:
+                violations.append({
+                    "code": "RENDER_FIDELITY",
+                    "msg": (
+                        f"{abbr}: rendered CFS composite {rendered} != engine "
+                        f"value {authoritative}"
+                    ),
+                })
+
+        # Allocation % (fund-card header).
+        alloc_m = re.search(r'class="alloc">([\d.]+)%</span>', chunk)
+        if alloc_m is not None and abbr in allocs:
+            rendered = float(alloc_m.group(1))
+            if abs(rendered - float(allocs[abbr])) > _FIDELITY_TOL:
+                violations.append({
+                    "code": "RENDER_FIDELITY",
+                    "msg": (
+                        f"{abbr}: rendered allocation {rendered}% != engine value "
+                        f"{allocs[abbr]}%"
+                    ),
+                })
+
+        if abbr not in funds:
+            continue
+        fund = funds[abbr]
+
+        # Shariah label (state stores a bool; HTML renders Shariah/Conventional).
+        sh_m = re.search(r"<strong>Shariah:</strong>\s*([A-Za-z]+)", chunk)
+        if sh_m is not None and "shariah" in fund:
+            rendered = sh_m.group(1).strip()
+            expected = _shariah_label(fund.get("shariah"))
+            if rendered != expected:
+                violations.append({
+                    "code": "RENDER_FIDELITY",
+                    "msg": f"{abbr}: rendered Shariah label '{rendered}' != engine '{expected}'",
+                })
+
+        # Risk Level meta cell.
+        rl_m = re.search(r"<strong>RL:</strong>\s*([^<]+)", chunk)
+        if rl_m is not None and fund.get("risk_level") is not None:
+            rendered = _fidelity_num(rl_m.group(1))
+            if rendered is not None and abs(rendered - float(fund["risk_level"])) > _FIDELITY_TOL:
+                violations.append({
+                    "code": "RENDER_FIDELITY",
+                    "msg": (
+                        f"{abbr}: rendered Risk Level {rendered} != engine "
+                        f"{fund['risk_level']}"
+                    ),
+                })
+
+        # Volatility Factor meta cell (skipped gracefully when rendered as em-dash).
+        vf_m = re.search(r"<strong>VF:</strong>\s*([^<]+)", chunk)
+        if vf_m is not None and fund.get("volatility_factor") is not None:
+            rendered = _fidelity_num(vf_m.group(1))
+            if rendered is not None and abs(rendered - float(fund["volatility_factor"])) > _FIDELITY_TOL:
+                violations.append({
+                    "code": "RENDER_FIDELITY",
+                    "msg": (
+                        f"{abbr}: rendered Volatility Factor {rendered} != engine "
+                        f"{fund['volatility_factor']}"
+                    ),
+                })
+
+    return violations
+
+
+def _check_exposure_fidelity(html_text: str, state: Any) -> list[dict[str, str]]:
+    """Reconcile each exposure legend % against the authoritative value from the
+    production look-through functions (compute_asset_exposure / compute_geo_exposure).
+
+    Matches by legend LABEL so a swapped pair (sum still 100, individual values
+    wrong) is caught — something check_exposure_sum cannot see.
+    """
+    from consultant_engine.exposure import (  # local: avoid any import-cycle risk
+        _ASSET_LABELS,
+        compute_asset_exposure,
+        compute_geo_exposure,
+    )
+
+    violations: list[dict[str, str]] = []
+    portfolio = state.get("portfolio", [])
+    funds_by_abbr = {f["abbr"]: f for f in state.get("eligible_funds", []) if f.get("abbr")}
+
+    # Authoritative percentage per legend label, from the production functions.
+    authoritative: dict[str, float] = {}
+    asset = compute_asset_exposure(portfolio, funds_by_abbr)
+    for slot_key, label in _ASSET_LABELS.items():
+        # Labels carry &amp; (e.g. "Money Market &amp; Cash"); unescape to match
+        # the rendered (also-&amp;-encoded) legend label after our own unescape.
+        authoritative[_html.unescape(label)] = asset[slot_key]
+    for geo_label, pct, _ in compute_geo_exposure(portfolio, funds_by_abbr):
+        authoritative[_html.unescape(geo_label)] = pct
+
+    sect_m = re.search(
+        r'Portfolio Exposure</div>(.*?)(?=<div class="section">|</body>)',
+        html_text,
+        re.DOTALL,
+    )
+    if sect_m is None:
+        return violations
+    section = sect_m.group(1)
+
+    pattern = re.compile(
+        r'legend-label">([^<]*)</span>\s*<span class="legend-pct">([^<]*)<'
+    )
+    for label_raw, pct_raw in pattern.findall(section):
+        label = _html.unescape(label_raw).strip()
+        rendered = _fidelity_num(pct_raw)
+        if rendered is None or label not in authoritative:
+            continue
+        if abs(rendered - authoritative[label]) > _FIDELITY_TOL:
+            violations.append({
+                "code": "RENDER_FIDELITY",
+                "msg": (
+                    f"Exposure '{label}': rendered {rendered}% != engine "
+                    f"{authoritative[label]}%"
+                ),
+            })
+    return violations
+
+
+def _check_weighted_aggregate_fidelity(html_text: str, state: Any) -> list[dict[str, str]]:
+    """Reconcile the weighted portfolio aggregates (weighted CFS, weighted 3Y alpha,
+    weighted risk level) against _compute_portfolio_metrics (the production function)."""
+    from consultant_engine.nodes.generate_proposal import (  # local: avoid cycle
+        _compute_portfolio_metrics,
+    )
+
+    metrics = _compute_portfolio_metrics(
+        state.get("portfolio", []),
+        state.get("cfs_scores", []),
+        state.get("eligible_funds", []),
+    )
+    # data-slot key → (authoritative value, human label).
+    checks = {
+        "portfolio.cfs_composite": (metrics["weighted_cfs"], "weighted CFS"),
+        "portfolio.weighted_cfs": (metrics["weighted_cfs"], "weighted CFS"),
+        "portfolio.alpha_3y": (metrics["weighted_alpha_3y"], "weighted 3Y alpha"),
+        "portfolio.weighted_alpha": (metrics["weighted_alpha_3y"], "weighted 3Y alpha"),
+        "portfolio.weighted_risk_level": (metrics["weighted_risk_level"], "weighted risk level"),
+    }
+
+    violations: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for slot_key, (auth_str, label) in checks.items():
+        auth = _fidelity_num(auth_str)
+        if auth is None:
+            continue
+        for m in re.finditer(
+            rf'data-slot="{re.escape(slot_key)}"[^>]*>([^<]*)<', html_text
+        ):
+            rendered = _fidelity_num(m.group(1))
+            if rendered is None:
+                continue
+            if abs(rendered - auth) > _FIDELITY_TOL:
+                msg = (
+                    f"Portfolio {label} (slot {slot_key}): rendered {rendered} != "
+                    f"engine {auth}"
+                )
+                if msg in seen:
+                    continue
+                seen.add(msg)
+                violations.append({"code": "RENDER_FIDELITY", "msg": msg})
+    return violations
+
+
+def check_render_fidelity(html_text: str, state: Any) -> list[dict[str, str]]:
+    """Reconcile the rendered Python-owned values in ``html_text`` against the
+    engine's OWN authoritative values in ``state``.
+
+    Runs in the runtime ``validate`` node (which holds state) — NOT in
+    ``validate_html`` (the offline eval layer has no state). Defends against the
+    repair pass, which round-trips the whole document through the LLM and so could
+    silently corrupt a Python-owned number, label, or allocation.
+
+    Covers a coverage canary (every portfolio holding renders as a fund card, so a
+    dropped/renamed card can't make the per-card checks pass vacuously) and, per fund
+    card: CFS composite, allocation %, Shariah label, Risk Level, Volatility Factor;
+    the asset-class + geographic exposure legend percentages; and the weighted
+    portfolio aggregates (weighted CFS, weighted 3Y alpha, weighted risk level).
+    Authoritative values come from state or from REUSING the production compute
+    functions — never re-derived here.
+
+    Args:
+        html_text: The final (post-generate or post-repair) proposal HTML.
+        state: The ConsultantState (reads cfs_scores, portfolio, eligible_funds).
+
+    Returns:
+        A list of ``{"code": "RENDER_FIDELITY", "msg": ...}`` dicts; ``[]`` when every
+        rendered Python-owned value matches its authoritative source.
+    """
+    return (
+        _check_card_coverage(html_text, state)
+        + _check_fund_card_fidelity(html_text, state)
+        + _check_exposure_fidelity(html_text, state)
+        + _check_weighted_aggregate_fidelity(html_text, state)
+    )
 
 
 # ── Composite runner ──────────────────────────────────────────────────────────

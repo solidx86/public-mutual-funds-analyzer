@@ -489,3 +489,50 @@ card numbers and the Section 6 pies).
 - Not doing this now — captured so it isn't lost.
 - Scope via brainstorming → writing-plans before implementing; stays inside the determinism
   boundary (facts from the workbook/JSON, Python-rendered).
+
+---
+
+## ENH-10 — Promptfoo eval for prose-authored numbers (drift the validator can't see)
+
+**Status:** TODO — deferred (documented now; not built). Picks up under **Track A** (ENH-5).
+**Raised:** 2026-06-22
+**Area:** `consultant_engine/` LLM prose surface (the 9 genuine-synthesis slots), offline eval layer
+**Related:** ENH-1 (hallucination hardening), ENH-5 Track A (evals), and the new runtime
+`check_render_fidelity` reconciliation guard (validation.py) — this is its **offline complement**.
+
+### The gap it closes
+The determinism boundary keeps every *structured* number Python-owned, and the runtime
+reconciliation check (`check_render_fidelity`) now matches each rendered Python-owned value
+(CFS, allocations, exposure legend, weighted aggregates, meta) against the engine's own state.
+What neither covers is **numbers the LLM writes into prose** that are *not* bound to any
+`data-slot` — e.g. a synthesis sentence saying "nearly 78% of the portfolio sits in funds
+beating their benchmark" or "your three equity sleeves average 4.1% alpha". These are
+LLM-authored, free-text, and have no anchor to reconcile against, so:
+- the reconciliation guard can't see them (no data-slot);
+- the locked-template / recompute evals can't see them (not a known cell);
+- they can silently drift or contradict the deterministic figures elsewhere in the document.
+
+### Why promptfoo (not a unit test / not the runtime guard)
+This is a **fuzzy, probabilistic** judgement ("does this prose number contradict the data?"),
+not an exact equality — wrong tool for a hard assertion. Promptfoo fits because it gives:
+- **LLM-rubric assertions** — judge whether a prose-stated number is supported by / consistent
+  with the deterministic figures handed to the prompt;
+- **multi-sample** runs to surface non-determinism (the same prompt sometimes inventing a number);
+- a **regression gate on prompt/model changes** — run when the prompt template or model version
+  changes, catch drift before it ships.
+It is explicitly an **offline regression layer, NOT a per-run production guard** — the runtime
+validate→repair loop stays the per-run guard for structured values; promptfoo measures the prose
+surface out-of-band.
+
+### Open questions for its own scoping
+- Rubric design: feed the judge the deterministic figures (CFS/alloc/exposure/weighted) as ground
+  truth and ask "is every number in this prose entailed by these figures?" — pass/fail + the
+  offending sentence.
+- Whether to forbid *new* numbers in prose entirely (prose may reference only figures already in
+  the structured slots) vs. allow derived-but-consistent numbers.
+- Sample count / threshold for the regression gate; where it sits relative to Track A wave (a)'s
+  prose LLM-as-judge (likely the same harness).
+
+### Notes
+- Deferred on the user's call (2026-06-22): "skip the promptfoo now, but document it in tasks.md."
+- Scope via brainstorming → writing-plans before implementing; lands inside Track A.
