@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Implementation Plan — Track 0 review remediation</title>
+<style>
+  :root{
+    --ink:#1f2328; --muted:#57606a; --line:#d8dee4; --bg:#fbfcfd;
+    --accent:#9a3b2e; --accent-soft:#f3e7e4; --code-bg:#f4f1ea; --ok:#1a7f4b; --warn:#9a6700;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:56px 28px 96px}
+  header.doc{border-bottom:3px solid var(--accent); padding-bottom:22px; margin-bottom:8px}
+  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 14px; letter-spacing:-.01em}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--muted)}
+  .meta b{color:var(--ink); font-weight:600}
+  h2{font-size:21px; margin:42px 0 12px; padding-top:10px; letter-spacing:-.01em; border-top:1px solid var(--line)}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--accent)}
+  p,li{color:var(--ink)}
+  .muted{color:var(--muted)}
+  code{background:var(--code-bg); padding:.12em .4em; border-radius:4px; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre code{background:none; padding:0}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft); padding:12px 16px; border-radius:0 8px 8px 0; margin:18px 0}
+  .callout.warn{border-color:var(--warn); background:#fbf3da}
+  ul.tight{margin:8px 0; padding-left:22px}
+  ul.tight li{margin:4px 0}
+  .step{font-weight:600}
+  .task{background:#fff; border:1px solid var(--line); border-radius:10px; padding:4px 20px 14px; margin:20px 0}
+  hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+  footer.doc{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <p class="eyebrow">Implementation Plan</p>
+  <h1>Track 0 review remediation</h1>
+  <div class="meta">
+    <span><b>Project:</b> public-mutual-funds-analyzer</span>
+    <span><b>Component:</b> consultant_engine</span>
+    <span><b>Date:</b> 2026-06-22</span>
+    <span><b>Branch:</b> track0-headless-consultant-engine-spec</span>
+  </div>
+</header>
+
+<div class="callout">
+  <b>For agentic workers:</b> REQUIRED SUB-SKILL — use <code>superpowers:subagent-driven-development</code> (recommended) or <code>superpowers:executing-plans</code> to implement this plan task-by-task. The markdown source (<code>2026-06-22-track0-review-remediation.md</code>) is authoritative; this HTML is a review companion. Steps use checkbox syntax in the markdown for tracking.
+</div>
+
+<p><b>Goal:</b> Close the remaining Important + Minor findings from the full-branch code review of <code>consultant_engine</code> (branch <code>track0-headless-consultant-engine-spec</code>), so the branch is correct and honest enough to merge to <code>main</code>.</p>
+<p><b>Architecture:</b> <code>consultant_engine</code> is a headless LangGraph <code>load → score → build → macro → generate → validate → repair → emit</code> pipeline with a Python-owned determinism boundary (Python owns every number; the LLM writes prose and assembles a locked HTML skeleton). The fixes are surgical: a deterministic cap-clamp in the portfolio builder, two HITL resume-path corrections, a unicode-safe filename, documentation honesty around the prose-number boundary, test-gap closures, minor cleanups, and regenerated public examples (no version bump this branch).</p>
+<p><b>Tech Stack:</b> Python 3.14, LangGraph + langgraph-checkpoint-sqlite, pydantic, openpyxl, pytest. Offline via <code>CONSULTANT_ENGINE_FAKE_LLM=1</code>.</p>
+
+<h2>Global Constraints</h2>
+<ul class="tight">
+  <li><b>Python interpreter:</b> always run tests with <code>.venv/bin/python -m pytest</code>. Bare <code>python</code> / system <code>python3.14</code> lack pytest. Single-test runs set the env var explicitly: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest &lt;node&gt; -v</code>.</li>
+  <li><b>Full offline suite:</b> <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine tests/test_proposal_validation.py -q</code> (the root conftest auto-sets FAKE_LLM for any test whose path contains <code>consultant_engine</code>, but a bare <code>tests/test_proposal_validation.py</code> run wants the env var too).</li>
+  <li><b>TDD, adversarial:</b> every behavioral fix lands with an adversarial test that <b>fails on the pre-fix code</b> and passes after. The standing lesson of this branch: convenient narrow-spread fixtures hid real bugs — wide-spread / spec-shaped fixtures are mandatory for the cap and HITL fixes.</li>
+  <li><b><code>KNOWN_*</code> pin sets stay empty.</b> <code>tests/test_proposal_validation.py</code> declares <code>KNOWN_ELIGIBILITY_VIOLATIONS</code>, <code>KNOWN_SECTION_DEVIATIONS</code>, <code>KNOWN_CFS_INCONSISTENCIES</code> — if a regenerated example trips a rule, fix the proposal, never pin it.</li>
+  <li><b>Version source:</b> <code>consultant_engine.__version__</code> in <code>consultant_engine/__init__.py</code> (currently <code>"0.1.0"</code>). The filename/footer stamp is the literal <code>fund-consultant v&lt;ver&gt;</code>.</li>
+  <li><b>Filename convention:</b> <code>FundProposal_&lt;ClientName|generic&gt;_&lt;RiskProfile&gt;_&lt;YYYY-MM-DD&gt;_v&lt;consultant-version&gt;.html</code> where <code>&lt;ClientName&gt;</code> is the client name with non-word chars removed (case preserved) or the literal <code>generic</code>.</li>
+  <li><b>Examples are public.</b> <code>output/examples/</code> is the only committed output tree; <code>output/fund_proposals/</code> + <code>output/fundmasters/</code> are gitignored private mounts. Never run a verification/fake-LLM proposal into the default dir — examples are regenerated explicitly into <code>output/examples/fund_proposals/</code>.</li>
+  <li><b>Conventional commits</b>, each ending with a trailing <code>Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;</code> line. Commit after every green step group.</li>
+  <li><b>IMP-7 is already done</b> (commit <code>1dd8530</code>: <code>&lt;title&gt;</code> separator + regression guard + golden-path fix; suite 325 green). No task here re-does it.</li>
+</ul>
+
+<h2>File Structure</h2>
+<table>
+  <thead><tr><th>Path</th><th>Change</th><th>Responsibility</th></tr></thead>
+  <tbody>
+    <tr><td><code>consultant_engine/portfolio.py</code></td><td>Modify</td><td>Add <code>_clamp_and_spill()</code> helper; clamp cores at the profile cap in <code>build()</code> and after <code>_redistribute_freed_share</code> in <code>exposure_gap_pick</code>.</td></tr>
+    <tr><td><code>consultant_engine/invariants.py</code></td><td>Read-only (import <code>CAP</code>)</td><td>Source of the per-profile <code>CAP</code> dict the clamp reads.</td></tr>
+    <tr><td><code>consultant_engine/nodes/build_portfolio.py</code></td><td>Modify</td><td>Replace the generic build-time <code>RuntimeError</code> with a profile/cap-naming error; persist <code>state["_universe"]</code>.</td></tr>
+    <tr><td><code>consultant_engine/nodes/review_gate.py</code></td><td>Modify</td><td>Accept <code>abbrev</code> or <code>abbr</code> + emit <code>malformed_edit</code>; wrap <code>read_resume_payload</code> JSON parse; sanitize <code>thread_id</code> (M-e lives in <code>cli.py</code>, see below).</td></tr>
+    <tr><td><code>consultant_engine/nodes/emit.py</code></td><td>Modify</td><td>Unicode-safe <code>_name_segment</code> (<code>\w</code> instead of <code>A-Za-z0-9</code>).</td></tr>
+    <tr><td><code>consultant_engine/cli.py</code></td><td>Modify</td><td>M-e: reject path-separator <code>thread_id</code> before building review paths.</td></tr>
+    <tr><td><code>consultant_engine/cfs.py</code></td><td>Modify</td><td>M-a / M-b clarifying comments only.</td></tr>
+    <tr><td><code>consultant_engine/exposure.py</code></td><td>Document only (decision made)</td><td>M-c geo structural-leak: leave as-is + add one-line NOTE comment to <code>compute_geo_exposure</code>. No behavioural change, no test.</td></tr>
+    <tr><td><code>consultant_engine/macro.py</code></td><td>Modify</td><td>M-f one-line comment (exposure_gaps injection-only).</td></tr>
+    <tr><td><code>consultant_engine/assets/prompts/repair.md</code></td><td>Modify</td><td>Delete the dead <code>NUMERIC_TRANSCRIPTION</code> rows.</td></tr>
+    <tr><td><code>consultant_engine/nodes/generate_proposal.py</code></td><td>Modify (M-j)</td><td>Drop / document the <code>_DEFAULT_CFS_WEIGHTS</code> fallback.</td></tr>
+    <tr><td><code>consultant_engine/__init__.py</code></td><td>Unchanged</td><td>Stays <code>__version__ = "0.1.0"</code> — no bump this branch (owner decision).</td></tr>
+    <tr><td><code>docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md</code></td><td>Modify</td><td>§7 note <code>abbr</code> also accepted; §156 prose-number boundary sentence.</td></tr>
+    <tr><td><code>README.md</code></td><td>Modify</td><td>One sentence: prose-embedded figures are LLM-authored-and-unverified.</td></tr>
+    <tr><td><code>tests/consultant_engine/test_build_portfolio.py</code></td><td>Modify</td><td>Wide-spread cap-compliance adversarial tests (Task 1).</td></tr>
+    <tr><td><code>tests/consultant_engine/test_review_gate.py</code></td><td>Modify</td><td><code>abbrev</code>/<code>abbr</code>, <code>malformed_edit</code>, <code>_universe</code> persistence, JSON-parse tests.</td></tr>
+    <tr><td><code>tests/consultant_engine/test_emit.py</code></td><td>Modify</td><td>Unicode name contract tests.</td></tr>
+    <tr><td><code>tests/consultant_engine/test_cli.py</code></td><td>Modify</td><td>Assert artifact exists + carries the version stamp.</td></tr>
+    <tr><td><code>tests/consultant_engine/test_repair_contract.py</code></td><td>Create</td><td>Group 3.3 guard: repair.md references only emittable codes.</td></tr>
+    <tr><td><code>tests/test_proposal_validation.py</code></td><td>Modify</td><td>M-h: delete the two unused <code>KNOWN_*</code> sets.</td></tr>
+    <tr><td><code>tests/consultant_engine/test_structural_parity.py</code></td><td>Unchanged</td><td>Group 6: <code>GOLDEN</code> path stays <code>_v0.1.0.html</code> (content refreshes, no edit).</td></tr>
+    <tr><td><code>output/examples/fund_proposals/*.html</code></td><td>Regenerate</td><td>Group 6: three examples refreshed in place at the existing <code>_v0.1.0.html</code> names.</td></tr>
+  </tbody>
+</table>
+
+<h2>Group 1 — Concentration-cap overflow (IMP-1, IMP-2, IMP-3)</h2>
+<p><b>Finding.</b> The CFS-proportional core split in <code>portfolio.build()</code> and the exposure-gap redistribution in <code>exposure_gap_pick</code>/<code>_redistribute_freed_share</code> have <b>no per-fund cap clamp</b>. On valid but skewed FundMaster data (composites ~95/5 under "Moderate", cap 50 → core A reaches <b>70.1%</b>; a "Conservative" gap case → surviving core <b>57.6%</b>), <code>check_invariants</code> returns a <code>concentration_cap</code> violation and <code>build_portfolio</code> raises <code>RuntimeError("...build-time bug...")</code> <b>before</b> the validate→repair loop — so legitimate client data aborts generation. Every existing <code>build()</code> fixture uses a narrow spread (90/89, 80/78), so this is untested.</p>
+<p><b>Decision: clamp &amp; redistribute</b> — solve the numeric constraint deterministically in Python so the result satisfies <code>check_invariants</code> by construction.</p>
+
+<div class="task">
+<h3>Task 1: Clamp cores in <code>build()</code> and <code>exposure_gap_pick</code></h3>
+<p><b>Files:</b> Modify <code>consultant_engine/portfolio.py</code> (<code>build</code> ~L76-93; <code>exposure_gap_pick</code> ~L160-193; new helper near top); modify <code>consultant_engine/nodes/build_portfolio.py:87-90</code> (explicit terminal error); test <code>tests/consultant_engine/test_build_portfolio.py</code>.</p>
+<p><b>Interfaces.</b> Consumes <code>from consultant_engine.invariants import CAP</code> — <code>CAP: dict[str, int]</code> keyed by the four profile strings (<code>"Conservative": 50, "Moderate": 50, "Moderately Aggressive": 60, "Aggressive": 70</code>). Produces <code>_clamp_and_spill(holdings: list[Holding], cap: float) -&gt; None</code> — mutates <code>holdings</code> in place so no <code>allocation_pct &gt; cap</code>, spilling overflow first to the other core, then to structural sleeves (<code>structural:gold</code>, <code>structural:money_market</code>), preserving sum and 1-dp rounding. <code>build(scores, profile, shariah)</code> and <code>exposure_gap_pick(portfolio, candidates, gaps, profile)</code> keep their existing signatures and return types (<code>list[Holding]</code>).</p>
+
+<p><span class="step">Step 1.</span> Write the failing wide-spread <code>build()</code> test in <code>tests/consultant_engine/test_build_portfolio.py</code>:</p>
+<pre><code>from consultant_engine.invariants import CAP, check_invariants
+
+
+def test_build_clamps_skewed_core_to_cap_moderate():
+    # Composites ~95/5 → naive CFS-proportional split puts core A at ~70% of the
+    # 63.5 core budget, i.e. &gt;50 (the Moderate cap). build() must clamp &amp; spill.
+    scores = [
+        {"abbr": "BIG", "composite": 95.0, "alpha_n": 90},
+        {"abbr": "SMALL", "composite": 5.0, "alpha_n": 30},
+    ]
+    port = build(scores, "Moderate", shariah=False)
+    cap = CAP["Moderate"]
+    assert all(h["allocation_pct"] &lt;= cap for h in port), port
+    assert sum(h["allocation_pct"] for h in port) == 100.0
+    # No invariant violation by construction.
+    universe = {h["abbr"] for h in port}
+    rl = {h["abbr"]: 3 for h in port}
+    assert check_invariants(port, "Moderate", universe, rl) == []</code></pre>
+
+<p><span class="step">Step 2.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_build_portfolio.py::test_build_clamps_skewed_core_to_cap_moderate -v</code> → <b>FAIL</b> (larger core ~70.1 &gt; 50).</p>
+
+<p><span class="step">Step 3.</span> Add the import and helper above <code>build()</code> in <code>consultant_engine/portfolio.py</code>:</p>
+<pre><code>from consultant_engine.invariants import CAP
+
+# Roles that can absorb spilled overflow when a core exceeds the cap, in priority order.
+_SPILL_ROLES = ("structural:gold", "structural:money_market")
+
+
+def _clamp_and_spill(holdings: list[Holding], cap: float) -> None:
+    """Clamp every core holding at ``cap`` in place, spilling the overflow first to
+    the *other* core(s) (up to their own cap headroom), then to the structural
+    sleeves. Order-stable; assumes the sleeves have enough headroom (the 4-fund
+    template always leaves &gt;=20pts on gold+MM combined for every profile cap)."""
+    cores = [h for h in holdings if h.get("role") == "core" or h.get("role") == "exposure_gap"]
+    sleeves = [h for h in holdings if h.get("role") in _SPILL_ROLES]
+    for src in cores:
+        overflow = round(src["allocation_pct"] - cap, 1)
+        if overflow &lt;= 0:
+            continue
+        src["allocation_pct"] = cap
+        # 1) spill to other cores with headroom
+        for dst in cores:
+            if dst is src or overflow &lt;= 0:
+                continue
+            room = round(cap - dst["allocation_pct"], 1)
+            take = min(room, overflow)
+            if take &gt; 0:
+                dst["allocation_pct"] = round(dst["allocation_pct"] + take, 1)
+                overflow = round(overflow - take, 1)
+        # 2) spill remainder to structural sleeves (no per-fund cap on structurals)
+        for dst in sleeves:
+            if overflow &lt;= 0:
+                break
+            dst["allocation_pct"] = round(dst["allocation_pct"] + overflow, 1)
+            overflow = 0.0</code></pre>
+
+<p><span class="step">Step 4.</span> Call the helper in <code>build()</code>, after the residual-fix block and before <code>return holdings</code>:</p>
+<pre><code>    # Clamp any core above the profile cap and spill the excess (deterministic,
+    # so the result satisfies check_invariants' concentration_cap by construction).
+    _clamp_and_spill(holdings, CAP[profile])
+
+    return holdings</code></pre>
+
+<p><span class="step">Step 5.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_build_portfolio.py::test_build_clamps_skewed_core_to_cap_moderate -v</code> → <b>PASS</b>.</p>
+
+<p><span class="step">Step 6.</span> Write the failing <code>exposure_gap_pick</code> cap test:</p>
+<pre><code>def test_gap_pick_clamps_surviving_core_to_cap():
+    # Surviving core inherits freed share and would exceed the Conservative cap (50);
+    # the redistribution must clamp it and spill to structurals.
+    core = [
+        {"abbr": "BIG", "role": "core", "allocation_pct": 48.0, "alpha_n": 70},
+        {"abbr": "LO", "role": "core", "allocation_pct": 25.0, "alpha_n": 20},
+        {"abbr": "PeEMAS", "role": "structural:gold", "allocation_pct": 17.0},
+        {"abbr": "PeCDF-A", "role": "structural:money_market", "allocation_pct": 10.0},
+    ]
+    cand = [{"abbr": "GAP", "returns": {"3y": {"alpha": 1.0}}}]
+    out = exposure_gap_pick(core, candidates=cand, gaps=["china"], profile="Conservative")
+    cap = CAP["Conservative"]
+    assert all(h["allocation_pct"] &lt;= cap for h in out), out
+    assert sum(h["allocation_pct"] for h in out) == 100.0</code></pre>
+
+<p><span class="step">Step 7.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_build_portfolio.py::test_gap_pick_clamps_surviving_core_to_cap -v</code> → <b>FAIL</b> (BIG receives the 10pt gap-cap freed share and exceeds 50).</p>
+
+<p><span class="step">Step 8.</span> In <code>exposure_gap_pick</code>, after the existing residual-fix block and before <code>return new_portfolio</code>, insert:</p>
+<pre><code>    # Clamp any surviving core lifted over the profile cap by the redistribution,
+    # spilling the excess to structural sleeves (same rule as build()).
+    _clamp_and_spill(new_portfolio, CAP[profile])
+
+    return new_portfolio</code></pre>
+
+<p><span class="step">Step 9.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_build_portfolio.py::test_gap_pick_clamps_surviving_core_to_cap -v</code> → <b>PASS</b>.</p>
+
+<p><span class="step">Step 10.</span> Replace the generic <code>RuntimeError</code> in <code>consultant_engine/nodes/build_portfolio.py</code> (lines 87–90):</p>
+<pre><code>    violations = check_invariants(portfolio_funds, profile, universe, rl_by_abbr)
+    if violations:
+        raise RuntimeError(
+            f"build_portfolio could not satisfy invariants for profile "
+            f"{profile!r} (cap {CAP[profile]}): {violations}. The deterministic "
+            f"clamp should make this unreachable for well-formed FundMaster data; "
+            f"if you see it, the FundMaster or profile constraints are infeasible."
+        )</code></pre>
+<p>Also extend the existing import: <code>from consultant_engine.invariants import CAP, check_invariants</code>.</p>
+
+<p><span class="step">Step 11.</span> Run the full portfolio + build_portfolio suite → <b>PASS</b> (including pre-existing <code>test_structural_always_present_and_sums_100</code>, <code>test_exact_100_sum_after_redistribution</code>, etc.).</p>
+
+<p><span class="step">Step 12.</span> Commit:</p>
+<pre><code>git add consultant_engine/portfolio.py consultant_engine/nodes/build_portfolio.py tests/consultant_engine/test_build_portfolio.py
+git commit -m "fix(consultant): clamp cores at the profile cap &amp; redistribute overflow
+
+Valid skewed FundMaster data (composite ~95/5) drove a core past the
+concentration cap, tripping check_invariants and the generic build-time
+RuntimeError before the repair loop. Clamp &amp; spill deterministically in
+build() and exposure_gap_pick; replace the RuntimeError with an explicit
+profile/cap-naming message for the truly-infeasible case.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;"</code></pre>
+</div>
+
+<h2>Group 2 — HITL human-edit path (IMP-4, IMP-5)</h2>
+<p>The one surface a human edits raw JSON (<code>data/review/&lt;thread_id&gt;.json</code>). Both bugs are masked by fixtures that keep structurals inside <code>eligible_funds</code> and use the <code>abbr</code> key.</p>
+
+<div class="task">
+<h3>Task 2: <code>abbr</code>/<code>abbrev</code> reconciliation + <code>malformed_edit</code> + persist <code>_universe</code></h3>
+<p><b>Files:</b> Modify <code>consultant_engine/nodes/review_gate.py</code> (<code>apply_resume</code> ~L213-243); modify <code>consultant_engine/nodes/build_portfolio.py</code> (return dict ~L92-98); modify <code>docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md</code> (§7 ~L151); test <code>tests/consultant_engine/test_review_gate.py</code>.</p>
+<p><b>Interfaces.</b> <code>apply_resume(state, resume_payload)</code> still returns <code>{}</code> (bare approve), <code>{"violations": [...]}</code>, or <code>{"portfolio": [...], "violations": []}</code>. New <code>malformed_edit</code> violation code on a malformed entry. <code>build_portfolio</code> return dict gains <code>"_universe": universe</code>.</p>
+
+<p><span class="step">Step 1.</span> Write the failing <code>abbrev</code>-key test in <code>tests/consultant_engine/test_review_gate.py</code>:</p>
+<pre><code>def test_apply_resume_accepts_abbrev_key():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [], "_universe": {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}}
+    payload = {"allocation": [
+        {"abbrev": "PIX", "allocation_pct": 40},
+        {"abbrev": "PeDiv", "allocation_pct": 40},
+        {"abbrev": "PeEMAS", "allocation_pct": 10},
+        {"abbrev": "PeCDF-A", "allocation_pct": 10}]}
+    out = apply_resume(state, payload)
+    assert out.get("violations", []) == []
+    assert {h["abbr"] for h in out["portfolio"]} == {"PIX", "PeDiv", "PeEMAS", "PeCDF-A"}
+
+
+def test_apply_resume_malformed_edit_does_not_crash():
+    state = {"client_profile": {"risk_level": "Moderate"}, "filtered_funds": [],
+             "cfs_scores": [], "_universe": {"PIX", "PeEMAS", "PeCDF-A"}}
+    payload = {"allocation": [
+        {"allocation_pct": 40},                       # no abbr/abbrev key at all
+        {"abbrev": "PeEMAS", "allocation_pct": 10}]}
+    out = apply_resume(state, payload)            # must NOT raise KeyError
+    assert any(v["code"] == "malformed_edit" for v in out["violations"])</code></pre>
+
+<p><span class="step">Step 2.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_review_gate.py::test_apply_resume_accepts_abbrev_key tests/consultant_engine/test_review_gate.py::test_apply_resume_malformed_edit_does_not_crash -v</code> → both <b>FAIL</b> with <code>KeyError: 'abbr'</code>.</p>
+
+<p><span class="step">Step 3.</span> Rewrite the holdings comprehension in <code>apply_resume</code> with a malformed-tolerant loop:</p>
+<pre><code>    # Step 2: extract abbr (accept the spec key 'abbrev' or the legacy 'abbr')
+    # + allocation_pct from payload; derive role. Never crash on a malformed edit —
+    # surface it as a re-validation violation so the gate re-pauses instead.
+    allocation_entries = resume_payload["allocation"]
+    holdings: list[dict[str, Any]] = []
+    malformed: list[dict[str, str]] = []
+    for e in allocation_entries:
+        abbr = e.get("abbrev") or e.get("abbr")
+        if not abbr or "allocation_pct" not in e:
+            malformed.append({
+                "code": "malformed_edit",
+                "msg": (
+                    f"edit entry {e!r} is missing an 'abbrev'/'abbr' identifier or "
+                    f"'allocation_pct'"
+                ),
+            })
+            continue
+        holdings.append({
+            "abbr": abbr,
+            "role": _role_for(abbr),
+            "allocation_pct": e["allocation_pct"],
+        })</code></pre>
+<p>Then, just before the existing Step 5 invariant check, short-circuit on malformed entries:</p>
+<pre><code>    if malformed:
+        return {"violations": malformed}</code></pre>
+
+<p><span class="step">Step 4.</span> Run <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_review_gate.py -v</code> → <b>PASS</b> (including pre-existing <code>test_overcap_edit_is_rejected</code>, <code>test_clean_edit_accepted</code>, <code>test_bare_approve_returns_empty</code>).</p>
+
+<p><span class="step">Step 5.</span> Write the failing <code>_universe</code> persistence test (IMP-5) in <code>tests/consultant_engine/test_review_gate.py</code>:</p>
+<pre><code>def test_build_portfolio_persists_universe_for_structural_reapproval(fundmaster_4fund):
+    from consultant_engine.nodes.load_profile import load_profile
+    from consultant_engine.nodes.load_funds import load_funds
+    from consultant_engine.nodes.filter_universe import filter_universe
+    from consultant_engine.nodes.score_cfs import score_cfs
+    from consultant_engine.nodes.build_portfolio import build_portfolio
+
+    s = {"client_profile": {"risk_level": "Moderate", "shariah": False},
+         "fundmaster_path": fundmaster_4fund, "macro_context": {"source": "fixture"}}
+    for step in (load_profile, load_funds, filter_universe, score_cfs, build_portfolio):
+        s.update(step(s))
+
+    # build_portfolio must have published the universe it validated against.
+    assert "_universe" in s and s["_universe"], "build_portfolio must persist _universe"
+
+    # A plain re-approval of the engine's own portfolio must be violation-free,
+    # even though the structural sleeves are outside eligible_funds.
+    payload = {"allocation": [
+        {"abbrev": h["abbr"], "allocation_pct": h["allocation_pct"]}
+        for h in s["portfolio"]]}
+    out = apply_resume(s, payload)
+    assert out.get("violations", []) == [], out</code></pre>
+
+<p><span class="step">Step 6.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_review_gate.py::test_build_portfolio_persists_universe_for_structural_reapproval -v</code> → <b>FAIL</b> (<code>assert "_universe" in s</code> fails; nothing writes it today).</p>
+
+<p><span class="step">Step 7.</span> Extend the return dict in <code>consultant_engine/nodes/build_portfolio.py</code>:</p>
+<pre><code>    return {
+        "portfolio": portfolio_funds,
+        "proposed_allocation": {
+            "profile": profile,
+            "holdings": portfolio_funds,
+        },
+        # Persist the universe the gate re-validates against, so a re-approved
+        # structural sleeve (outside eligible_funds) is not a spurious violation.
+        "_universe": universe,
+    }</code></pre>
+<p>Confirm <code>_universe</code> is an allowed key on <code>ConsultantState</code> (if the TypedDict declares persisted keys, add <code>_universe: set[str]</code>).</p>
+
+<p><span class="step">Step 8.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_review_gate.py::test_build_portfolio_persists_universe_for_structural_reapproval -v</code> → <b>PASS</b>.</p>
+
+<p><span class="step">Step 9.</span> Align spec §7 in <code>docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md</code> (~L151):</p>
+<pre><code>- **Intent vs facts:** the consultant edits only `abbrev` and `allocation_pct` (the
+  legacy key `abbr` is also accepted; an entry missing both — or missing
+  `allocation_pct` — surfaces as a `malformed_edit` re-validation violation rather
+  than crashing the resume). The computed fields (`cfs`, `rank`, `risk_level`,
+  `eligible`) are **display-only** — on resume the engine re-derives them from
+  state/workbook and ignores anything typed there.</code></pre>
+
+<p><span class="step">Step 10.</span> Run <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_review_gate.py tests/consultant_engine/test_golden.py -v</code> → <b>PASS</b>.</p>
+
+<p><span class="step">Step 11.</span> Commit:</p>
+<pre><code>git add consultant_engine/nodes/review_gate.py consultant_engine/nodes/build_portfolio.py consultant_engine/state.py docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md tests/consultant_engine/test_review_gate.py
+git commit -m "fix(consultant): robust HITL resume (abbrev/abbr + malformed_edit + _universe)
+
+apply_resume now accepts the spec key 'abbrev' or the legacy 'abbr' and
+emits a malformed_edit violation instead of KeyError on a bad entry.
+build_portfolio persists the validated universe so re-approving a portfolio
+with a structural sleeve outside eligible_funds is no longer a spurious
+universe violation. Spec §7 aligned.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;"</code></pre>
+</div>
+
+<h2>Group 3 — Determinism-boundary honesty (IMP-6) — docs only</h2>
+<p><b>Finding.</b> Numbers the LLM types into narrative prose (<code>why.*</code>, <code>watch.*</code>, <code>macro.impact.*</code>, <code>thesis</code>) are unguarded — a conscious residual hole per spec §156. But <code>repair.md</code> still advertises a <code>NUMERIC_TRANSCRIPTION</code> repair rule that <b>no validator emits</b> (grep-confirmed: it appears only in <code>repair.md</code>, never in <code>rules/validation.py</code>). The system advertises a guard it lacks.</p>
+<p><b>Decision: document + delete the dead rule.</b> (Note: <code>exposure.py</code>'s docstring at L6 — "Python owns every number; the LLM only writes prose" — is an accurate determinism-thesis statement, not a stale <code>NUMERIC_TRANSCRIPTION</code> reference, so it stays.)</p>
+
+<div class="task">
+<h3>Task 3: Delete the dead rule, document the boundary, guard against recurrence</h3>
+<p><b>Files:</b> Modify <code>consultant_engine/assets/prompts/repair.md</code> (L16, L26-31, L40, L57); modify <code>docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md</code> (§156 area, ~L23); modify <code>README.md</code> (~L107); create <code>tests/consultant_engine/test_repair_contract.py</code>.</p>
+
+<p><span class="step">Step 1.</span> Four edits to <code>repair.md</code>:</p>
+<ol>
+  <li>L16 — drop <code>, "NUMERIC_TRANSCRIPTION"</code> from the example list.</li>
+  <li>L26-31 — replace the "unless the rule is <code>NUMERIC_TRANSCRIPTION</code>" paragraph with:</li>
+</ol>
+<pre><code>**Do not alter numeric slots.** Every `data-slot` value — CFS scores, alpha
+percentages, allocation weights, fees, VF figures, return percentages — is
+Python-owned and locked. The repair pass fixes structure, prose, and disclosure
+only; it never edits a number.</code></pre>
+<ol start="3">
+  <li>L40 — delete the entire <code>| `NUMERIC_TRANSCRIPTION` | … |</code> table row.</li>
+  <li>L57 — simplify Rule 2:</li>
+</ol>
+<pre><code>2. **Do not alter numeric slots.** All numbers — CFS scores, alpha percentages,
+   allocation weights, fees, VF figures, return percentages — are locked.</code></pre>
+
+<p><span class="step">Step 2.</span> Append to the spec's §156 determinism-boundary bullet (~L23):</p>
+<pre><code>  Figures the LLM embeds in narrative prose (e.g. inside `why.*`, `watch.*`,
+  `macro.impact.*`, `thesis`) are **LLM-authored and intentionally unverified** —
+  the validator guards numbers only where they live in a Python-owned `data-slot`
+  or table cell. Any number that must be guaranteed is rendered into such a slot,
+  never left to prose.</code></pre>
+
+<p><span class="step">Step 3.</span> Append to <code>README.md</code> consultant-engine paragraph (~L107):</p>
+<pre><code>Numbers the engine must guarantee live in Python-owned `data-slot` / table cells
+and are reconciled by the validator; figures embedded in narrative prose are
+LLM-authored and intentionally unverified.</code></pre>
+
+<p><span class="step">Step 4.</span> Create <code>tests/consultant_engine/test_repair_contract.py</code>:</p>
+<pre><code>"""Guard: repair.md must reference only violation codes the validator can emit.
+
+A repair rule for a code no validator produces is dead weight that advertises a
+guarantee the engine does not provide (the NUMERIC_TRANSCRIPTION trap).
+"""
+import re
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+REPAIR_MD = REPO_ROOT / "consultant_engine" / "assets" / "prompts" / "repair.md"
+VALIDATION_PY = REPO_ROOT / "consultant_engine" / "rules" / "validation.py"
+
+# Codes the repair prompt legitimately names that are NOT validation `code`
+# literals: legacy/skeleton rule identifiers the prompt documents structurally.
+_ALLOWED_NON_CODE = {
+    "SLOT_UNRESOLVED", "COVER_META_CELLS", "COVER_FOOTER_SPANS",
+    "SKILL_VERSION_LITERAL", "FEE_TABLE_COLUMNS", "JARGON_MISSING_DEFINITION",
+    "SECTION_COUNT", "SECTION_ORDER", "DISCLOSURE_HEADING",
+}
+
+
+def _emittable_codes() -&gt; set[str]:
+    text = VALIDATION_PY.read_text()
+    return {m.group(1) for m in re.finditer(r'"code":\s*"([A-Za-z_]+)"', text)}
+
+
+def test_repair_md_references_no_unknown_code():
+    repair_text = REPAIR_MD.read_text()
+    # Rule identifiers in repair.md appear as backticked ALL_CAPS or snake tokens.
+    referenced = {m.group(1) for m in re.finditer(r"`([A-Z][A-Z_]+|[a-z_]+)`", repair_text)}
+    emittable = {c.upper() for c in _emittable_codes()}
+    unknown = {
+        r for r in referenced
+        if r.upper() not in emittable
+        and r not in _ALLOWED_NON_CODE
+        and r.isupper() or r.islower() and "_" in r
+    }
+    # NUMERIC_TRANSCRIPTION specifically must be gone.
+    assert "NUMERIC_TRANSCRIPTION" not in repair_text
+    assert "NUMERIC_TRANSCRIPTION" not in unknown</code></pre>
+<p class="muted">Note: keep this guard pragmatic — its load-bearing assertion is <code>"NUMERIC_TRANSCRIPTION" not in repair_text</code>. If the broad token scan proves brittle against the prompt's prose, narrow <code>referenced</code> to the table's Rule column only rather than weakening the dead-rule assertion.</p>
+
+<p><span class="step">Step 5.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_repair_contract.py -v</code> → <b>PASS</b> (the row was deleted in Step 1).</p>
+
+<p><span class="step">Step 6.</span> Commit:</p>
+<pre><code>git add consultant_engine/assets/prompts/repair.md docs/superpowers/specs/2026-06-19-track0-headless-consultant-engine-design.md README.md tests/consultant_engine/test_repair_contract.py
+git commit -m "docs(consultant): delete dead NUMERIC_TRANSCRIPTION rule, document prose-number boundary
+
+The repair prompt advertised a NUMERIC_TRANSCRIPTION rule no validator emits.
+Remove it, document that prose-embedded figures are LLM-authored-and-unverified
+(spec §156 + README), and add a test guarding the repair/validator contract.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;"</code></pre>
+</div>
+
+<h2>Group 4 — Test gaps (IMP-8, IMP-9)</h2>
+
+<div class="task">
+<h3>Task 4: Unicode client-name contract + CLI artifact assertion</h3>
+<p><b>Files:</b> Modify <code>consultant_engine/nodes/emit.py:22</code> (<code>_name_segment</code>); modify <code>tests/consultant_engine/test_emit.py</code>; modify <code>tests/consultant_engine/test_cli.py:49-63</code> (<code>test_cli_runs_with_no_review</code>).</p>
+<p><b>Interfaces.</b> <code>_name_segment(client_name: str) -&gt; str</code> preserves unicode word chars, strips spaces/punctuation/underscore, falls back to <code>"generic"</code>.</p>
+
+<p><span class="step">Step 1.</span> Add failing unicode tests to <code>tests/consultant_engine/test_emit.py</code>:</p>
+<pre><code>def test_emit_accented_name_preserved(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderate", "client_name": "José"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_José_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
+
+
+def test_emit_cjk_name_preserved(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Aggressive", "client_name": "陈伟明"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_陈伟明_Aggressive_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name
+
+
+def test_emit_unicode_spaces_and_punctuation_stripped(tmp_path):
+    state = {"proposal_html": SAMPLE,
+             "client_profile": {"risk_level": "Moderate", "client_name": "Anwar bin Ismail!"},
+             "output_dir": str(tmp_path)}
+    name = Path(emit(state)["output_path"]).name
+    assert re.fullmatch(r"FundProposal_AnwarbinIsmail_Moderate_\d{4}-\d{2}-\d{2}_v1\.27\.html", name), name</code></pre>
+
+<p><span class="step">Step 2.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_emit.py::test_emit_accented_name_preserved tests/consultant_engine/test_emit.py::test_emit_cjk_name_preserved -v</code> → <b>FAIL</b> (<code>"José"→"Jos"</code>, <code>"陈伟明"→""→"generic"</code> under the <code>[^A-Za-z0-9]</code> strip).</p>
+
+<p><span class="step">Step 3.</span> Make <code>_name_segment</code> unicode-aware in <code>consultant_engine/nodes/emit.py</code>:</p>
+<pre><code>def _name_segment(client_name: str) -> str:
+    """Build the filename's name segment from a client name.
+
+    Strips spaces, punctuation, and the underscore while preserving every unicode
+    word character (Python 3 ``\w`` is unicode-aware for ``str``, so accented and
+    CJK names survive), and falls back to the literal ``"generic"`` when nothing
+    usable remains.
+    """
+    # \w keeps unicode letters/digits but also the underscore; strip the underscore
+    # explicitly so it never leaks into a filename.
+    segment = re.sub(r"[^\w]", "", client_name or "", flags=re.UNICODE).replace("_", "")
+    return segment or "generic"</code></pre>
+
+<p><span class="step">Step 4.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_emit.py -v</code> → <b>PASS</b> (including pre-existing <code>test_emit_full_name_spaces_removed</code> and <code>test_emit_punctuation_only_name_falls_back_to_generic</code>).</p>
+
+<p><span class="step">Step 5.</span> Strengthen <code>test_cli_runs_with_no_review</code> in <code>tests/consultant_engine/test_cli.py</code>:</p>
+<pre><code>    assert r.returncode == 0, r.stderr
+    # A clean exit must have produced a real proposal carrying the version stamp.
+    from consultant_engine import __version__
+    produced = list(Path(tmp_path).glob("FundProposal_*.html"))
+    assert produced, f"no FundProposal_*.html written to {tmp_path}; stdout={r.stdout}"
+    text = produced[0].read_text(encoding="utf-8")
+    assert f"fund-consultant v{__version__}" in text, "proposal missing version stamp"</code></pre>
+
+<p><span class="step">Step 6.</span> Run: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine/test_cli.py::test_cli_runs_with_no_review -v</code> → <b>PASS</b>.</p>
+
+<p><span class="step">Step 7.</span> Commit:</p>
+<pre><code>git add consultant_engine/nodes/emit.py tests/consultant_engine/test_emit.py tests/consultant_engine/test_cli.py
+git commit -m "fix(consultant): unicode-safe client-name filenames + assert CLI artifact
+
+re.sub([^A-Za-z0-9]) silently dropped accented/CJK names to 'generic' (a
+misfiling/privacy hazard). Preserve unicode word chars; strip the underscore.
+The no-review CLI test now asserts the proposal file exists and carries the
+fund-consultant version stamp, not just returncode==0.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;"</code></pre>
+</div>
+
+<h2>Group 5 — Minor cleanups (bundled, one commit)</h2>
+
+<div class="task">
+<h3>Task 5: Minor cleanups</h3>
+<p><b>Files:</b> <code>consultant_engine/cfs.py</code> (M-a/M-b); <code>consultant_engine/exposure.py</code> (M-c); <code>consultant_engine/nodes/review_gate.py</code> (M-d); <code>consultant_engine/cli.py</code> (M-e); <code>consultant_engine/macro.py</code> (M-f); <code>tests/test_proposal_validation.py</code> (M-h); <code>tests/consultant_engine/test_golden.py</code> → <code>test_structural_parity.py</code> (M-i); <code>consultant_engine/nodes/generate_proposal.py</code> (M-j).</p>
+
+<p><span class="step">Step 1: M-a</span> — annotate <code>percentile_rank</code>'s thin-class case in <code>cfs.py</code>:</p>
+<pre><code>def percentile_rank(value, population) -> float:
+    """Percentile rank of value within population (top→100, bottom→0, ties shared).
+
+    A population of &lt;=1 returns 100.0 by design: a fund that is the only member of
+    its derived class has no peers to rank against, so it gets full marks on that
+    dimension rather than an undefined 0/0. Intended — do not "fix" to 0.0.
+    """
+    pop = sorted(population)
+    if len(pop) &lt;= 1:
+        return 100.0
+    below = sum(1 for x in pop if x &lt; value)
+    return round(100 * below / (len(pop) - 1), 1)</code></pre>
+
+<p><span class="step">Step 2: M-b</span> — extend the comment in <code>raw_alpha_penalised</code>'s <code>if penalize:</code> block:</p>
+<pre><code>        # Explicit None checks: a missing alpha is "no penalty", distinct from a
+        # genuine negative alpha. Dividing a negative blend by 2 moves it TOWARD
+        # zero (less negative) — that is the intended "halve the penalty magnitude"
+        # behaviour, NOT a sign bug. A future "fix" that negates instead would break
+        # the contract. (None and 0.0 both fail `&lt; 0`, so behaviour is unchanged.)
+        alpha_3y = fund["returns"].get("3y", {}).get("alpha")
+        alpha_5y = fund["returns"].get("5y", {}).get("alpha")</code></pre>
+
+<p><span class="step">Step 3: M-c</span> — <b>Decision (owner, 2026-06-22): leave the geo structural look-through as-is + document.</b></p>
+<p><code>compute_geo_exposure</code> (<code>exposure.py</code> ~L194-199) reads <code>assets.get("dom_equity")</code> for Malaysia and <code>geo</code> columns for foreign — it has <b>no</b> structural-role override (unlike the asset pie's <code>_STRUCTURAL_ROLE_SLOT</code>). This was verified against the real workbook on 2026-06-22:</p>
+<table>
+  <thead><tr><th>Fund</th><th>dom_equity</th><th>geo columns</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td><code>PeCDF-A</code></td><td><code>None</code></td><td>all None</td><td>money-market sleeve, contributes 0</td></tr>
+    <tr><td><code>PIMMF-A</code></td><td><code>None</code></td><td>all None</td><td>money-market fund, contributes 0</td></tr>
+    <tr><td><code>PeEMAS</code></td><td><code>None</code></td><td><code>USA: 91.0, …</code></td><td>gold sleeve carries USA 91%</td></tr>
+  </tbody>
+</table>
+<p>The gold sleeve PeEMAS (US-listed gold equities) genuinely contributes its weighted USA exposure to the geographic pie. Suppressing it would understate real US geographic exposure. This is intentional, not a leak — the two pies measure different axes (asset type vs geographic domicile).</p>
+<p>Add the following one-line NOTE comment in <code>compute_geo_exposure</code> just above the accumulation loop (<code>exposure.py</code> ~L194). No behavioural change and no new test.</p>
+<pre><code>    # NOTE (review M-c, 2026-06-22): structural sleeves are deliberately NOT
+    # role-overridden here (unlike the asset pie's _STRUCTURAL_ROLE_SLOT). A
+    # structural sleeve's underlying geography is real geographic exposure —
+    # e.g. the gold sleeve PeEMAS holds US-listed gold equities (USA 91% in the
+    # workbook), so it correctly contributes to the USA slice. The two pies
+    # measure different axes; this is intentional, not a leak.</code></pre>
+
+<p><span class="step">Step 4: M-d</span> — write the failing invalid-JSON test, then guard <code>read_resume_payload</code>:</p>
+<pre><code>def test_read_resume_payload_invalid_json_message(tmp_path, monkeypatch):
+    import pytest
+    from consultant_engine.nodes.review_gate import read_resume_payload
+    monkeypatch.chdir(tmp_path)
+    review = tmp_path / "data" / "review"
+    review.mkdir(parents=True)
+    (review / "bad.json").write_text("{not valid json")
+    with pytest.raises(ValueError) as ei:
+        read_resume_payload("bad")
+    assert "not valid JSON" in str(ei.value)</code></pre>
+<p>Run (expect FAIL — raw <code>json.JSONDecodeError</code>). Then wrap the parse in <code>read_resume_payload</code>:</p>
+<pre><code>    if not review_path.exists():
+        return {"decision": "approve"}
+    try:
+        return json.loads(review_path.read_text())
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"review file is not valid JSON: {review_path} ({e})"
+        ) from e</code></pre>
+<p>Re-run → <b>PASS</b>.</p>
+
+<p><span class="step">Step 5: M-e</span> — write the failing path-traversal test, then sanitize <code>_thread_id</code>:</p>
+<pre><code>def test_thread_id_rejects_path_separators():
+    import argparse, pytest
+    from consultant_engine.cli import _thread_id
+    args = argparse.Namespace(resume="../../etc/passwd", profile=None)
+    with pytest.raises(SystemExit):
+        _thread_id(args)</code></pre>
+<p>Run (expect FAIL). Then guard <code>_thread_id</code> in <code>cli.py</code>:</p>
+<pre><code>def _thread_id(args) -> str:
+    """Checkpoint thread id: the --resume value, else the profile filename stem.
+
+    Rejects path separators / traversal so the value is safe to interpolate into
+    data/review/&lt;id&gt;.json and the checkpoint key."""
+    tid = args.resume if args.resume else Path(args.profile).stem
+    if "/" in tid or "\\" in tid or ".." in tid:
+        raise SystemExit(f"invalid thread id {tid!r}: path separators are not allowed")
+    return tid</code></pre>
+<p>Re-run → <b>PASS</b>.</p>
+
+<p><span class="step">Step 6: M-f</span> — comment <code>MacroContext.exposure_gaps</code> in <code>consultant_engine/macro.py</code>:</p>
+<pre><code>    events: list[MacroEvent] = []
+    # exposure_gaps is INJECTION-ONLY: the live web-search producer (fetch_live_macro)
+    # returns events only and never populates gaps, so the build_portfolio I2 branch
+    # that reads exposure_gaps is exercised solely via an injected macro contract.
+    exposure_gaps: list[str] = []</code></pre>
+
+<p><span class="step">Step 7: M-h</span> — confirm <code>KNOWN_SECTION_DEVIATIONS</code> and <code>KNOWN_CFS_INCONSISTENCIES</code> are referenced nowhere, then delete both lines from <code>tests/test_proposal_validation.py</code> (L66-67). Keep <code>KNOWN_ELIGIBILITY_VIOLATIONS = set()</code> (used at L146); update the preceding comment to name only the surviving set.</p>
+
+<p><span class="step">Step 8: M-i</span> — rename <code>tests/consultant_engine/test_golden.py</code> to <code>test_structural_parity.py</code> (the file tests structural parity; a content diff would be brittle against fake-LLM prose). Update the module docstring's first line. Use <code>git mv</code>.</p>
+
+<p><span class="step">Step 9: M-j</span> — drop the <code>_DEFAULT_CFS_WEIGHTS</code> silent fallback in <code>generate_proposal.py</code>:</p>
+<pre><code>    weights = cfs["weights"]   # always set by cfs.score_all; fail loud if a card lacks it</code></pre>
+<p>Delete the <code>_DEFAULT_CFS_WEIGHTS = {...}</code> definition (L152). If a structural/passive card legitimately reaches this line without <code>weights</code>, guard the call site (skip the dimension-row render for cards with no CFS score) — verify by running the golden suite next.</p>
+
+<p><span class="step">Step 10.</span> Run the full offline suite: <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine tests/test_proposal_validation.py -q</code> → <b>PASS</b>. If M-j's <code>cfs["weights"]</code> raises a <code>KeyError</code> on any card, apply the call-site guard and re-run.</p>
+
+<p><span class="step">Step 11.</span> Commit:</p>
+<pre><code>git add consultant_engine/cfs.py consultant_engine/exposure.py consultant_engine/nodes/review_gate.py consultant_engine/cli.py consultant_engine/macro.py consultant_engine/nodes/generate_proposal.py tests/test_proposal_validation.py tests/consultant_engine/
+git commit -m "chore(consultant): minor cleanups (cfs/exposure comments, JSON+thread_id guards, dead KNOWN_* + weights fallback)
+
+M-a/M-b cfs intent comments; M-c geo structural-leak verified; M-d clean
+invalid-JSON message in read_resume_payload; M-e reject path-separator
+thread_id; M-f macro exposure_gaps injection-only note; M-h drop two unused
+KNOWN_* sets; M-i rename test_golden -&gt; test_structural_parity; M-j drop the
+_DEFAULT_CFS_WEIGHTS silent fallback.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;"</code></pre>
+</div>
+
+<h2>Group 6 — Regenerate examples, refresh golden (no version bump)</h2>
+<p>The cap-clamp (Group 1) can change produced allocations, so the public examples regenerate and the golden refreshes. <b>Decision (owner, 2026-06-22): do NOT bump the version</b> — the engine stays <code>0.1.0</code>, examples stay <code>_v0.1.0.html</code>. A version bump should accompany a later release that actually ships these behavioural changes; this branch keeps the stamp stable so filenames/footers don't churn during review.</p>
+
+<div class="task">
+<h3>Task 6: Regenerate examples, refresh golden path</h3>
+<p><b>Files:</b> Regenerate (content only, same <code>_v0.1.0.html</code> names) <code>output/examples/fund_proposals/FundProposal_generic_{Moderate,ModeratelyAggressive,Aggressive}_2026-06-22_v0.1.0.html</code>. The stray untracked Aggressive file is regenerated in place (it becomes a tracked example). <code>tests/consultant_engine/test_structural_parity.py</code> <code>GOLDEN</code> path already points at the <code>_v0.1.0.html</code> Moderate example — no edit needed; its content just refreshes.</p>
+<p><b>Interfaces.</b> Consumes <code>python -m consultant_engine --profile &lt;p&gt; --no-review -o output/examples/fund_proposals</code>. Produces three refreshed <code>_v0.1.0.html</code> examples; <code>KNOWN_*</code> stays empty; golden test still resolves.</p>
+
+<p><span class="step">Step 1: (no version bump)</span> — <code>consultant_engine/__init__.py</code> stays <code>__version__ = "0.1.0"</code>. Nothing to change here — this step is a deliberate no-op recording the decision.</p>
+
+<p><span class="step">Step 2.</span> Identify the example-generation inputs:</p>
+<pre><code>ls data/profiles/ output/examples/fundmasters/</code></pre>
+<p>Confirm there are profiles for Moderate, Moderately Aggressive, and Aggressive (the three existing examples).</p>
+
+<p><span class="step">Step 3.</span> Regenerate the three examples (fake-LLM) into the public examples dir:</p>
+<pre><code>for p in moderate moderately_aggressive aggressive; do
+  CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m consultant_engine \
+    --profile data/profiles/$p.json --no-review \
+    -o output/examples/fund_proposals
+done
+ls output/examples/fund_proposals/</code></pre>
+<p>(Match the actual profile filenames from Step 2; use name-less generic profiles so the example filename contains <code>generic</code>. The generation date is <code>2026-06-22</code> per the system date.)</p>
+
+<p><span class="step">Step 4: (no deletes)</span> — the regeneration overwrites the same <code>_v0.1.0.html</code> names in place, so there is nothing to <code>git rm</code>. Confirm the three expected files exist and no stray <code>v0.2.0</code> name was produced:</p>
+<pre><code>ls output/examples/fund_proposals/FundProposal_generic_*_2026-06-22_v0.1.0.html</code></pre>
+
+<p><span class="step">Step 5: (golden path unchanged)</span> — <code>tests/consultant_engine/test_structural_parity.py</code> (renamed in Task 5) already has:</p>
+<pre><code>GOLDEN = Path("output/examples/fund_proposals/FundProposal_generic_Moderate_2026-06-22_v0.1.0.html")</code></pre>
+<p>No edit needed — verify the file it points at exists after regeneration.</p>
+
+<p><span class="step">Step 6.</span> Run the full offline suite → <b>PASS</b> with <code>KNOWN_*</code> empty:</p>
+<pre><code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine tests/test_proposal_validation.py -q</code></pre>
+<p>If any regenerated example trips a rule (CFS recompute, exposure sum, retail eligibility, etc.), <b>fix the proposal/engine, do not pin</b> — <code>KNOWN_ELIGIBILITY_VIOLATIONS</code> stays <code>set()</code>.</p>
+
+<p><span class="step">Step 7.</span> Commit:</p>
+<pre><code>git add output/examples/fund_proposals/
+git commit -m "chore(consultant): regenerate public examples after cap-clamp
+
+Cap-clamp (Group 1) can change produced allocations, so regenerate the three
+generic examples (fake-LLM) in place at the existing _v0.1.0.html names; the
+structural-parity golden refreshes with them. No version bump (engine stays
+0.1.0 for this branch). KNOWN_* stay empty.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;"</code></pre>
+</div>
+
+<h2>Definition of done</h2>
+<ul class="tight">
+  <li>Groups 1–6 landed, each commit green.</li>
+  <li>Every behavioral fix has an adversarial test proven to fail on the pre-fix code (cap clamp ×2, abbrev/malformed_edit, <code>_universe</code>, unicode names, invalid-JSON, thread_id traversal).</li>
+  <li><code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/consultant_engine tests/test_proposal_validation.py -q</code> fully green; <code>KNOWN_*</code> sets empty (only <code>KNOWN_ELIGIBILITY_VIOLATIONS</code> survives, <code>= set()</code>).</li>
+  <li>Spec §7 (<code>abbrev</code>/<code>abbr</code> + <code>malformed_edit</code>) and §156 (prose-number boundary) reconciled with the code; <code>repair.md</code> has no <code>NUMERIC_TRANSCRIPTION</code>.</li>
+  <li><code>__version__ == "0.1.0"</code> (no bump); three <code>_v0.1.0</code> examples refreshed in place, golden still resolves.</li>
+  <li>HTML companion of this plan regenerated (it mirrors this markdown; markdown is the source of truth).</li>
+  <li>Branch ready to merge to <code>main</code>.</li>
+</ul>
+
+<div class="callout warn">
+  <b>Open decisions surfaced</b> — now resolved by owner (2026-06-22): (1) M-c geo structural-leak — <b>leave as-is + document</b>; the gold sleeve's underlying USA exposure is real geographic exposure, not a leak (verified: PeEMAS USA 91%, PeCDF-A and PIMMF-A carry no geo). Group 6 — <b>no version bump</b>; examples regenerate in place at <code>_v0.1.0.html</code>. (2) M-g post-repair reconciliation of perf-row/RSP/macro Event+Date — the original draft offered RECOMMENDED (extend <code>check_render_fidelity</code>) vs FALLBACK (document as a known Track-0 gap); this plan <b>defers it as documentation-only</b> to keep Group 5 bundled and low-risk, since the perf-row/exposure/summary fidelity is already reconciled by <code>_check_fund_card_fidelity</code> / <code>_check_exposure_fidelity</code> / <code>_check_weighted_aggregate_fidelity</code>, and the RSP-total + macro Event+Date cells are the residual. If the implementer wants the stronger guard, extend <code>check_render_fidelity</code> with an RSP-total + macro-event reconciliation and add an adversarial corruption test — otherwise record the residual as a known Track-0 gap in the spec §8 note. (3) M-i — resolved to rename (not diff).
+</div>
+
+<footer class="doc">
+  HTML companion to <code>2026-06-22-track0-review-remediation.md</code> (the markdown is the source of truth; regenerate this file whenever it changes).
+</footer>
+
+</div>
+</body>
+</html>
