@@ -1,0 +1,396 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pipeline Determinism &amp; Eval Map</title>
+<style>
+:root{
+  --bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
+  --line:#2d3a47;--accent:#4ea1ff;
+  --det:#3fb950;--det-bg:#12331a;--det-ink:#a9f0bb;
+  --non:#e3902f;--non-bg:#3a2b0c;--non-ink:#ffdca6;
+  --llm:#a371f7;--llm-bg:#241633;--llm-ink:#e0ccff;
+  --hitl:#4493f8;--hitl-bg:#0e2740;--hitl-ink:#bfe0ff;
+  --dead:#6b7580;--dead-bg:#20262d;--dead-ink:#98a4b0;
+  --data:#5a6b82;--data-bg:#161d26;--data-ink:#c3d1e0;
+  --plan:#db61a2;--plan-bg:#33132a;--plan-ink:#ffc4e6;
+  --warn:#ffb454;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:1080px;margin:0 auto;padding:38px 24px 100px;}
+h1{font-size:27px;letter-spacing:-.3px;margin:0 0 6px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+h2{font-size:20px;margin:46px 0 6px;padding-top:14px;color:#fff}
+h2 .num{color:var(--accent);font-variant-numeric:tabular-nums}
+.sub{color:var(--muted);margin:4px 0 18px;font-size:14px}
+p{margin:10px 0}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+  font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#cdd9e5}
+strong{color:#fff}
+a{color:var(--accent)}
+.lede{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:16px 0}
+.lede .rule{font-size:16px;color:#fff;margin-top:12px}
+.flowline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font:13px ui-monospace,Menlo,monospace;
+  color:var(--muted);margin:10px 0 2px}
+.flowline b{color:var(--ink)}
+.arrow{color:var(--accent);font-weight:700}
+
+/* legend */
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;margin:16px 0}
+.leg{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);
+  border-radius:9px;padding:9px 12px;font-size:13px}
+.dot{flex:none;width:14px;height:14px;border-radius:4px;margin-top:2px}
+.leg .k{color:#fff;font-weight:600}
+
+/* chips */
+.chip{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
+  border-radius:999px;border:1px solid;white-space:nowrap;vertical-align:middle}
+.c-det{background:var(--det-bg);border-color:var(--det);color:var(--det-ink)}
+.c-non{background:var(--non-bg);border-color:var(--non);color:var(--non-ink)}
+.c-llm{background:var(--llm-bg);border-color:var(--llm);color:var(--llm-ink)}
+.c-hitl{background:var(--hitl-bg);border-color:var(--hitl);color:var(--hitl-ink)}
+.c-dead{background:var(--dead-bg);border-color:var(--dead);color:var(--dead-ink)}
+.c-data{background:var(--data-bg);border-color:var(--data);color:var(--data-ink)}
+.c-plan{background:var(--plan-bg);border-color:var(--plan);color:var(--plan-ink)}
+.c-test{background:var(--det-bg);border-color:var(--det);color:var(--det-ink)}
+.c-untest{background:#241a1a;border-color:#a04040;color:#f0b8b8}
+
+/* flow cards */
+.flow{display:flex;flex-direction:column;gap:0;margin:18px 0}
+.node{position:relative;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line);
+  border-radius:10px;padding:13px 16px;margin:7px 0}
+.node.det{border-left-color:var(--det)}
+.node.non{border-left-color:var(--non)}
+.node.llm{border-left-color:var(--llm)}
+.node.hitl{border-left-color:var(--hitl)}
+.node.dead{border-left-color:var(--dead);opacity:.72;border-style:dashed}
+.node.data{border-left-color:var(--data);background:var(--data-bg)}
+.node .hd{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:5px}
+.node .hd .t{font-weight:700;color:#fff;font-size:14.5px}
+.node .hd .path{font:12px ui-monospace,Menlo,monospace;color:var(--muted)}
+.node .body{font-size:13px;color:var(--muted)}
+.node .body b{color:var(--ink)}
+.io{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:6px;font-size:12.5px}
+.io span{color:var(--muted)}
+.io .lab{color:#7f8b99;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-right:4px}
+.conn{text-align:center;color:var(--accent);font-size:15px;line-height:1;margin:-2px 0}
+.sub2{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tech{flex:1 1 240px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:12.5px}
+.tech .th{font-weight:700;color:#fff;font-size:12px;margin-bottom:3px}
+.tech.det{border-left:3px solid var(--det)}
+.inrow{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.inrow .node{flex:1 1 150px;margin:0}
+
+/* eval columns */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+@media(max-width:760px){.cols{grid-template-columns:1fr}}
+.col{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.col.now{background:linear-gradient(0deg,rgba(63,185,80,.05),rgba(63,185,80,.05)),var(--panel);border-color:rgba(63,185,80,.4)}
+.col.soon{background:linear-gradient(0deg,rgba(219,97,162,.05),rgba(219,97,162,.05)),var(--panel);border-color:rgba(219,97,162,.4)}
+.col h3{margin:0 0 4px;font-size:15px;color:#fff}
+.col .cap{font-size:12px;color:var(--muted);margin-bottom:10px}
+.tier{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin:7px 0;font-size:12.5px}
+.tier .tt{font-weight:700;color:#fff}
+.tier.plan{border-style:dashed}
+.tier .f{font:11.5px ui-monospace,Menlo,monospace;color:var(--muted)}
+
+/* table */
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+td code{font-size:11.5px}
+
+/* callout */
+.gap{border-left:4px solid var(--warn);background:linear-gradient(0deg,rgba(255,180,84,.05),rgba(255,180,84,.05)),var(--panel);
+  border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:13.5px}
+.gap .g{color:var(--warn);font-weight:700}
+.proposed{background:linear-gradient(0deg,rgba(219,97,162,.06),rgba(219,97,162,.06)),var(--panel);
+  border:1px dashed var(--plan);border-radius:10px;padding:11px 15px;margin:14px 0;font-size:13px;color:var(--plan-ink)}
+.proposed b{color:#fff}
+.newnode{border-left-color:var(--det)!important;box-shadow:0 0 0 1px rgba(63,185,80,.35) inset}
+.c-new{background:var(--det-bg);border-color:var(--det);color:var(--det-ink)}
+.ingest{border:1px dashed var(--plan);border-radius:12px;padding:6px 12px 12px;margin:8px 0;background:rgba(219,97,162,.03)}
+.ingest .ih{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--plan);font-weight:700;margin:8px 2px 2px}
+.foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+</style></head><body><div class="wrap">
+
+<h1>Pipeline Determinism &amp; Eval Map</h1>
+<p class="sub">Draft — for every component: what feeds in, is it deterministic, and how (if at all) is it tested.
+Mirrors <code>docs/review/pipeline-determinism-map.draft.md</code>.</p>
+
+<div class="lede" style="border-style:dashed">
+  <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px">How to read this — the arc</div>
+  <div class="flowline" style="gap:6px">
+    <a href="#" style="text-decoration:none"><span class="chip c-non">① AS-IS</span></a> what runs today + its gaps
+    <span class="arrow">→</span>
+    <a href="#target" style="text-decoration:none"><span class="chip c-plan">② TARGET</span></a> 3 lanes · SQLite SSoT · deterministic screening (relabel retired) · one LangGraph island left — the consultant's
+    <span class="arrow">→</span>
+    <a href="#eval" style="text-decoration:none"><span class="chip c-test">③ EVAL</span></a> deterministic today, LLM-judge planned
+  </div>
+  <div style="font-size:13px;color:var(--muted);margin-top:9px">One idea under all three: <strong style="color:#fff">Python owns numbers; the LLM owns categories &amp; adjectives</strong> — every determinism &amp; test decision follows from which side of that line a thing sits. <em>(<a href="#decision">2026-07-06 decision</a>: on the screening side even categories move to Python — the relabel is retired.)</em></div>
+</div>
+
+<div class="lede">
+  Both pipelines start <strong>messy and non-deterministic</strong> — PDF-layout heuristics, live web scrapes,
+  LLM labels &amp; prose — and are deliberately funnelled into <strong>deterministic Python that owns every number</strong>.
+  <div class="flowline">
+    <span class="chip c-non">non-det INGEST</span><span class="arrow">→</span>
+    <span class="chip c-det">deterministic CORE</span><span class="arrow">→</span>
+    <span class="chip c-llm">fenced LLM</span>
+    <b>&nbsp;(categories + prose only — number slots pre-filled)</b>
+  </div>
+  <div class="rule">Design rule: <strong>Python owns numbers · the LLM owns categories &amp; adjectives.</strong>
+  In both pipelines the LLM is fenced to non-numeric work, and a deterministic test guards the fence.</div>
+  <div style="font-size:12.5px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)"><strong style="color:var(--warn)">Refinement (<a href="#decision">2026-07-06 decision</a>):</strong> the screening side no longer needs the LLM at all — two of its four relabel fields come from a <em>stated PHS field</em> (171/171 deterministic), the other two are synthesized labels <em>no consumer reads</em> (dropped). In the target the line sharpens to: <strong style="color:#fff">Python owns everything factual (numbers <em>and</em> categories); the LLM owns only adjectives</strong> — consultant prose.</div>
+</div>
+
+<h2>Legend</h2>
+<div class="legend">
+  <div class="leg"><span class="dot" style="background:var(--det)"></span><span><span class="k">DET</span> — deterministic Python (regex parse, coordinate parse, math, render). Same input → same output; testable by recompute.</span></div>
+  <div class="leg"><span class="dot" style="background:var(--non)"></span><span><span class="k">NON-DET (ingest)</span> — non-deterministic by <em>source</em>: PDF-layout heuristics, live network, <code>date.today()</code>.</span></div>
+  <div class="leg"><span class="dot" style="background:var(--llm)"></span><span><span class="k">LLM</span> — non-deterministic by <em>model</em>: Step 1.5 categorical relabel (enum-bounded) or consultant prose. <strong>Never writes a number.</strong></span></div>
+  <div class="leg"><span class="dot" style="background:var(--hitl)"></span><span><span class="k">HITL</span> — human-in-the-loop gate; a person approves before flow continues.</span></div>
+  <div class="leg"><span class="dot" style="background:var(--dead)"></span><span><span class="k">DEAD</span> — on disk but read by no code (Master Prospectus PDFs).</span></div>
+  <div class="leg"><span class="dot" style="background:var(--data)"></span><span><span class="k">DATA</span> — a file / cache / workbook artifact (not a process).</span></div>
+</div>
+<p style="font-size:13px;color:var(--muted)">Test status on each node: <span class="chip c-test">✓ tested</span> deterministic test in CI ·
+<span class="chip c-untest">untested</span> no automated coverage · <span class="chip c-plan">planned</span> designed, not built.</p>
+
+<!-- ================= PIPELINE 1 ================= -->
+<h2><span class="num">Pipeline 1</span> — Screening / Extraction &nbsp;<span class="chip c-non">AS-IS today</span></h2>
+<p class="sub">Current implementation. MFR + PHS PDFs (+ live web) → FundMaster workbook. Four Python scripts <em>plus one in-session LLM step (1.5) that lives in <code>SKILL.md</code>, not in any script.</em> &nbsp;The <a href="#target" style="color:var(--accent)">Target Architecture</a> below rescopes this into three decoupled lanes around a SQLite single source of truth.</p>
+
+<div class="inrow">
+  <div class="node data"><div class="hd"><span class="t">MFR PDFs</span></div><div class="body"><code>[MFR MON YY]*.pdf</code> — the numeric spine</div></div>
+  <div class="node data"><div class="hd"><span class="t">PHS PDFs</span></div><div class="body"><code>*_PHS.pdf</code> — objective + category only (<b>not fees</b>)</div></div>
+  <div class="node dead"><div class="hd"><span class="t">Master Prospectus</span> <span class="chip c-dead">DEAD</span></div><div class="body">on disk, read by no script</div></div>
+</div>
+<div class="conn">▼</div>
+
+<div class="node det">
+  <div class="hd"><span class="t">Stage 1 · extract_mfr.py</span> <span class="chip c-det">DET · Python</span> <span class="chip c-untest">untested vs PDF</span></div>
+  <div class="body">Two deterministic parsing techniques — both same-input-same-output, both brittle to <em>layout</em> change:</div>
+  <div class="sub2">
+    <div class="tech det"><div class="th">🟩 REGEX parse</div><code>extract_text()</code> + <code>re</code> → performance, YTD, annual returns, metadata (launch, NAV, volatility, Lipper, benchmark), PHS objective/category</div>
+    <div class="tech det"><div class="th">🟩 COORDINATE parse</div><code>extract_words()</code> + x0/top geometry (right-col split at <code>x0≥0.52·w</code>) → sectors, top-5 holdings, geo breakdown, asset allocation</div>
+  </div>
+  <div class="io"><span><span class="lab">out</span><code>data/cache/mfr_results.json</code> · tracked</span></div>
+</div>
+<div class="conn">▼ &nbsp;<span style="color:var(--muted);font-size:12px">reads 4 categorical fields, writes them back</span></div>
+
+<div class="node llm">
+  <div class="hd"><span class="t">Stage 1.5 · relabel</span> <span class="chip c-llm">LLM · in-session, NO script</span> <span class="chip c-test">✓ test_relabel.py</span></div>
+  <div class="body"><b>Claude Code executes this by hand during a skill run</b> (no API key, no Python). Rewrites only the 4
+  categorical fields the keyword classifier punted on — <code>asset_class</code>, <code>geography</code>,
+  <code>objective_class</code>, <code>phs_fund_type</code> — choosing from a <b>bounded enum</b> and stamping
+  <code>&lt;field&gt;_source:"llm-relabel"</code>. <b>Never touches a number.</b>
+  Live in tracked data: 7 <code>asset_class</code> + 15 <code>geography</code> relabels.
+  Guarded by <code>test_relabel.py</code> (enum conformance + pinned corrections).
+  <div style="margin-top:7px;color:var(--warn)">▶ <strong>Target: retired entirely</strong> — all 22 edits land in fields no consumer reads, while the two consumed fields (<code>objective_class</code>, <code>phs_fund_type</code>) got 0 edits and are 171/171 deterministic from a stated PHS field. See the <a href="#decision" style="color:var(--warn)">Decision</a> below.</div></div>
+</div>
+<div class="conn">▼</div>
+
+<div class="node non">
+  <div class="hd"><span class="t">Stage 2 · fetch_ath.py</span> <span class="chip c-non">NON-DET · live web</span> <span class="chip c-untest">untested vs web</span></div>
+  <div class="body">Scrapes ATH NAV + drawdown from <code>publicmutual.com.my</code>; retries, <code>date.today()</code> ranges → <b>output changes daily.</b></div>
+  <div class="io"><span><span class="lab">out</span><code>ath_results.json</code> · tracked</span></div>
+</div>
+<div class="conn">▼</div>
+
+<div class="node det">
+  <div class="hd"><span class="t">Stage 3 · build_sheet_data.py</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_pipeline.py</span></div>
+  <div class="body">Pure transform → flat master CSV; <b>re-derives weighted alpha</b> from period detail (doesn't trust the stored value).</div>
+  <div class="io"><span><span class="lab">in</span><code>mfr_results.json</code> + <code>funds_risk_level.xlsx</code></span><span><span class="lab">out</span><code>master_funds.csv</code> · gitignored</span></div>
+</div>
+<div class="conn">▼</div>
+
+<div class="node det">
+  <div class="hd"><span class="t">Stage 4 · build_xlsx.py</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_pipeline.py</span></div>
+  <div class="body">openpyxl render → formatted 2-sheet workbook (only the cosmetic "Generated &lt;date&gt;" footer varies).</div>
+  <div class="io"><span><span class="lab">in</span><code>master_funds.csv</code> + both JSONs + <code>SKILL.md</code> version</span><span><span class="lab">out</span><b>FundMaster_&lt;MonYYYY&gt;_v&lt;ver&gt;.xlsx</b></span></div>
+</div>
+
+<div class="gap"><span class="g">Two source-fidelity gaps (not internal-consistency):</span>
+<ul style="margin:8px 0 0;padding-left:20px">
+<li><strong>Stages 1 &amp; 2 have no test against their source.</strong> A PDF misread or bad scrape becomes a wrong number in <code>mfr_results.json</code> — and every downstream recompute test still passes, because they recompute <em>from</em> the corrupted value. Garbage-in, self-consistent-garbage-out.</li>
+<li><strong>Step 1.5's number-safety is only conventional.</strong> <code>test_relabel.py</code> proves the 4 fields hold valid enum values, but nothing hard-stops the LLM from also editing a numeric field mid-run. "NEVER modify performance/holdings" is enforced by discipline, not a gate. <span style="color:var(--warn)">▶ The target resolves this <em>by deletion</em> — the <a href="#decision" style="color:var(--warn)">Decision</a> removes the LLM step, so no un-gated model write remains.</span></li>
+</ul>
+<div style="margin-top:8px">→ This is the case for the <strong><a href="#target" style="color:var(--warn)">Target Architecture</a> (= ENH-1/ENH-2 + ATH decoupling)</strong>: one owned MFR lane with a typed schema + source-fidelity gate writing to the SQLite SSoT, instead of numeric extraction <em>and</em> the LLM relabel both editing a raw JSON blob.</div>
+</div>
+
+<!-- ================= TARGET ARCHITECTURE (Strategy A) ================= -->
+<a id="target"></a>
+<h2><span class="num">Target</span> — Strategy A · three decoupled lanes, SQLite SSoT &nbsp;<span class="chip c-plan">design target · not built</span></h2>
+<p class="sub">Rescopes Pipeline 1 (+ ENH-1/ENH-2, + ATH decoupling). Orchestration = <strong>Strategy A ("islands only")</strong>: LangGraph <em>only</em> where there's a cycle/HITL; everything else is plain Python or a scheduled job. The database is a <strong>SQLite file in-repo</strong> and is the single source of truth — every producer writes it, every consumer reads it.</p>
+
+<a id="decision"></a>
+<div class="gap" style="border-left-color:var(--warn)">
+<span class="g">Decision (2026-07-06) — retire the Step 1.5 relabel; drop <code>asset_class</code> + <code>geography</code>.</span>
+<p style="margin:8px 0 4px">Remove the in-session LLM relabel <strong>entirely</strong>, and drop <code>asset_class</code> + <code>geography</code> as fields. Keep <code>objective_class</code> (col E) and <code>phs_fund_type</code> (col D) as <strong>plain deterministic PHS-sourced fields</strong> — no LLM. <strong>Sequence this jointly with the MFR→SQLite→Excel rework below, not as an isolated edit to <code>extract_mfr.py</code>.</strong></p>
+<table style="margin:10px 0">
+<tr><th>Field</th><th>LLM edits</th><th>Source</th><th>In workbook?</th><th>Read downstream?</th><th>Verdict</th></tr>
+<tr><td><code>asset_class</code></td><td>7</td><td>MFR name + Lipper</td><td><b>no</b> (dead fallback)</td><td><b>no</b></td><td>synthesized label, no consumer → <b>drop</b></td></tr>
+<tr><td><code>geography</code></td><td>15</td><td>MFR name + Lipper</td><td><b>no</b> (dropped by <code>build_xlsx</code>)</td><td><b>no</b> (consultant reads numeric <code>Geo:</code> cols)</td><td>synthesized label, no consumer → <b>drop</b></td></tr>
+<tr><td><code>objective_class</code></td><td><b>0</b></td><td><b>PHS</b> "Fund objective"</td><td>yes (col E)</td><td>display</td><td>deterministic 171/171 → <b>keep, no LLM</b></td></tr>
+<tr><td><code>phs_fund_type</code></td><td><b>0</b></td><td><b>PHS</b> "Category of Fund"</td><td>yes (col D)</td><td>consultant <code>fund_type</code></td><td>deterministic 171/171 → <b>keep, no LLM</b></td></tr>
+</table>
+<p style="margin:6px 0">Two facts kill the relabel's value: <b>(1)</b> all 22 LLM edits land in the two fields <em>no consumer reads</em>, while the two fields that <em>are</em> consumed got <b>zero</b> edits; <b>(2)</b> <code>asset_class</code>/<code>geography</code> have <em>no source cell to be correct against</em> — they're synthesized from the MFR name + Lipper string, so the "truth" is itself a judgement (e.g. <b>PFSF</b> is labelled <code>United States</code> while its own extracted geo numbers are Taiwan-heavy). The PHS fields, by contrast, read a <em>stated</em> value and only need transcribe-and-map.</p>
+<p style="margin:6px 0 0"><strong style="color:var(--warn)">Architectural consequence — screening loses its LLM <em>and</em> its only LangGraph.</strong> With the relabel gone there is no LLM, cycle, or HITL anywhere in screening. So <b>Lane A no longer needs to be a LangGraph island</b>: all three lanes become <b>plain deterministic Python + a scheduler</b>. The <code>fidelity_gate</code> stays, but as a <b>deterministic source-fidelity assertion</b>, not an LLM-guarding router. The <b>only LangGraph left in the whole system is the consultant's</b> <code>generate → validate → repair</code> loop. The Step-1.5 number-safety gap doesn't get <em>fixed</em> — it <b>ceases to exist</b>.</p>
+</div>
+
+<div class="proposed"><b>Three lanes with no code dependency on each other</b> — they meet only at the database. ATH is on its own schedule (a daily NAV refresh; MFR is a monthly event), so it must not sit inside the MFR pipeline.</p></div>
+
+<div class="inrow">
+  <div class="node det" style="flex:1 1 260px"><div class="hd"><span class="t">Lane A · MFR ingest</span> <span class="chip c-plan">monthly, event</span></div><div class="body"><code>MFR + PHS PDFs</code> → extract (regex+coord) → fees (PHS) → fidelity gate <span class="arrow">→ upsert MFR fields</span> · <b>all deterministic — no LLM</b></div></div>
+  <div class="node non" style="flex:1 1 260px"><div class="hd"><span class="t">Lane B · ATH refresh</span> <span class="chip c-non">daily · cron → Agent SDK</span></div><div class="body"><code>live NAV</code> → scrape → compute drawdown <span class="arrow">→ upsert ATH cols</span></div></div>
+</div>
+<div class="conn">▼ &nbsp; both upsert into &nbsp; ▼</div>
+<div class="node data" style="border-left-color:var(--det);border-width:2px"><div class="hd"><span class="t">SQLite · canonical per-fund store</span> <span class="chip c-new">SINGLE SOURCE OF TRUTH</span></div><div class="body">in-repo <code>.sqlite</code> · <code>_source</code> on every field · the hub both writers upsert and both readers query</div></div>
+<div class="flowline" style="margin-top:8px"><span class="arrow">├▼</span> <b>Lane C · Excel export</b> — FundMaster is a <em>view</em> of the DB &nbsp;&nbsp; <span class="arrow">└▼</span> <b>consultant_engine</b> → proposal (reads the DB)</div>
+
+<h3 style="font-size:15px;color:#fff;margin-top:22px">Lane A — plain deterministic Python <span class="chip c-det">no LangGraph, post-decision</span></h3>
+<p class="sub" style="margin-bottom:8px">Per the <a href="#decision">Decision</a> above, the relabel LLM is gone — so Lane A has no cycle, no HITL, no model call. It is a <b>straight-line deterministic Python pipeline</b>: extract → classify(PHS) → fees → fidelity gate → upsert. The <code>fidelity_gate</code> stays, but now as a <b>deterministic assertion</b> (schema + numbers-match-source + cross-source sanity), not an LLM-guarding router.</p>
+
+<div class="node data"><div class="hd"><span class="t">discover_mfr</span> <span class="chip c-data">plain Python</span></div></div>
+<div class="conn">▼</div>
+<div class="inrow">
+  <div class="node det"><div class="hd"><span class="t">extract_numeric</span> <span class="chip c-det">regex + coord · DET</span></div></div>
+  <div class="node det"><div class="hd"><span class="t">classify_from_phs</span> <span class="chip c-det">objective + fund_type · DET</span></div><div class="body">stated PHS field → enum</div></div>
+  <div class="node det"><div class="hd"><span class="t">extract_fees</span> <span class="chip c-det">PHS FEES · DET · ENH-1</span></div></div>
+</div>
+<div class="conn">▼</div>
+<div class="node det newnode"><div class="hd"><span class="t">fidelity_gate</span> <span class="chip c-new">DET assertion · the hard gate</span></div><div class="body">schema valid · <b>numbers == source</b> · cross-source sanity → <b>clean</b> proceeds, <b>violations</b> fail loud and block the upsert. No model, no cycle — a plain deterministic check.</div></div>
+<div class="conn">▼</div>
+<div class="node data"><div class="hd"><span class="t">upsert_db</span> <span class="chip c-data">plain Python → SQLite</span></div></div>
+
+<div class="proposed"><b>What the decision removed (was in the earlier draft):</b> a LangGraph subgraph wrapping <code>relabel_llm → fidelity_gate → repair</code> (+ optional HITL) — the same shape as the consultant's <code>generate → validate → repair</code>. With the relabel retired, that whole island is deleted; <code>asset_class</code>/<code>geography</code> are dropped, and <code>objective_class</code>/<code>phs_fund_type</code> come from the deterministic <code>classify_from_phs</code> step (a <em>stated</em> PHS field → no model needed). The <code>fidelity_gate</code> survives as a plain deterministic check.</div>
+
+<h3 style="font-size:15px;color:#fff;margin-top:20px">Lanes B &amp; C — also <em>not</em> graphs (nor is anything on the screening side, now)</h3>
+<table>
+<tr><th>Lane</th><th>Shape</th><th>Why no LangGraph</th></tr>
+<tr><td><b>A · MFR ingest</b></td><td><code>discover → extract → classify(PHS) → fees → fidelity_gate → upsert</code></td><td><b>Post-decision: fully deterministic, no cycle/HITL/LLM.</b> A straight Python function with a hard gate — no state graph needed.</td></tr>
+<tr><td><b>B · ATH refresh</b></td><td><code>load_fund_codes(DB) → scrape_nav → compute_drawdown → upsert_db</code></td><td>Linear, no cycle/HITL. Runs on a <b>schedule</b>: cron now → an <b>Agent SDK</b> agent (one web-fetch tool) on Anthropic cloud. A scheduler is the right tool, not a state graph.</td></tr>
+<tr><td><b>C · Excel export</b></td><td><code>read_db → render_workbook → write_xlsx</code></td><td>Pure deterministic function. The workbook is a <b>materialized view</b> of the DB, regenerated on demand — the DB is the truth.</td></tr>
+</table>
+<div class="proposed" style="border-color:var(--det);background:rgba(63,185,80,.04);color:var(--det-ink)"><b>Net orchestration after the decision:</b> the <b>entire screening side is plain Python</b> (Lanes A + C) <b>+ a scheduler</b> (Lane B). "Strategy A — islands only" now has exactly <b>one island left, and it's the consultant's</b> <code>generate → validate → repair</code> loop. Screening no longer touches LangGraph at all.</div>
+
+<h3 style="font-size:15px;color:#fff;margin-top:20px">What the target changes (as-is → to-be)</h3>
+<table>
+<tr><th>Concern</th><th>Today (as-is)</th><th>Target (Strategy A)</th></tr>
+<tr><td>ATH coupling</td><td>A stage wired <em>between</em> MFR extract and workbook build</td><td><b>Independent Lane B</b> on its own schedule; meets MFR only at the DB</td></tr>
+<tr><td>Source of truth</td><td>JSON blob + CSV + the <code>.xlsx</code> itself</td><td><b>SQLite file</b> — one SSoT; workbook + consultant read it</td></tr>
+<tr><td>Excel</td><td>The authoritative output</td><td>A <b>view</b> rendered from the DB on demand</td></tr>
+<tr><td>Orchestration</td><td>4 scripts run by hand + a skill step</td><td>Plain Python (Lanes A + C) + a scheduled agent (Lane B) — <b>no LangGraph on the screening side</b></td></tr>
+<tr><td>Categorical relabel (Step 1.5)</td><td>In-session LLM rewrites 4 enum fields</td><td><b>Retired.</b> <code>asset_class</code>/<code>geography</code> <b>dropped</b> (no consumer); <code>objective_class</code>/<code>phs_fund_type</code> via deterministic <code>classify_from_phs</code></td></tr>
+<tr><td>Fees</td><td>Not extracted — proposal shows <code>—</code></td><td><b>First-class field</b> (ENH-1 PHS parse)</td></tr>
+<tr><td>Master Prospectus</td><td>⬛ dead on disk</td><td>Feeds <b>regulatory corpus</b> (future Track-B RAG)</td></tr>
+<tr><td>Number fidelity</td><td>Untested vs source — cascade risk</td><td><code>fidelity_gate</code> (deterministic) spot-checks numbers vs PDF + cross-source</td></tr>
+<tr><td>LLM number-safety</td><td>Convention only</td><td><b>Moot — no LLM in screening to fence</b></td></tr>
+<tr><td>Provenance</td><td><code>_source</code> on 2 relabeled fields</td><td><code>_source</code> on <b>every</b> field (regex / coord / phs-classify / fee-parse) — no <code>llm-relabel</code></td></tr>
+</table>
+<div class="gap" style="border-left-color:var(--plan);background:linear-gradient(0deg,rgba(219,97,162,.05),rgba(219,97,162,.05)),var(--panel)"><span class="g" style="color:var(--plan)">Payoff:</span> source-fidelity gaps close <em>structurally, not by discipline</em>; ATH stops being an artificial dependency; the LLM (and its un-gated number-safety risk) leaves the screening side entirely; and each tool is used for its strength — plain Python for all deterministic ETL, a scheduled agent for ATH, one SQLite SSoT tying it together. LangGraph is reserved for the one place a real cycle/HITL lives: the consultant's <code>generate → validate → repair</code> loop.</div>
+
+<h3 style="font-size:15px;color:#fff;margin-top:22px">The consultant reads the DB, not the workbook (target)</h3>
+<p class="sub" style="margin-bottom:8px">The elegant part: because the consultant already operates on typed <code>Fund</code> records + graph state, swapping its source from the <code>.xlsx</code> to the SQLite SSoT is a <b>narrow adapter at the read boundary — not a graph change.</b> Only three touchpoints move; the whole selection/scoring/generation machinery is untouched.</p>
+
+<div class="node data" style="border-left-color:var(--det);border-width:2px"><div class="hd"><span class="t">SQLite SSoT</span></div><div class="body">one source · read by both the consultant and the Excel export (Lane C)</div></div>
+<div class="conn">▼ &nbsp; consultant read boundary &nbsp; ▼</div>
+<div class="ingest" style="border-color:var(--det);background:rgba(63,185,80,.04)">
+  <div class="ih" style="color:var(--det)">CHANGES · the read boundary (adapter swap only)</div>
+  <div class="sub2">
+    <div class="tech det"><div class="th">load_funds</div>SQL query → <code>Fund</code> records &nbsp;<span style="color:#8a7">(was: openpyxl "Master" sheet)</span></div>
+    <div class="tech det"><div class="th">validate · db_index</div>fund membership + alpha-warning &nbsp;<span style="color:#8a7">(was: workbook_index)</span></div>
+    <div class="tech det"><div class="th">vintage lookup</div>DB metadata column &nbsp;<span style="color:#8a7">(was: parse .xlsx filename)</span></div>
+  </div>
+</div>
+<div class="conn">▼</div>
+<div class="node" style="border-left-color:var(--dead);opacity:.8"><div class="hd"><span class="t">UNCHANGED</span> <span class="chip c-dead">operate on Fund records + state</span></div><div class="body">filter_universe · score_cfs · build_portfolio · review_gate · generate · validate/repair · emit — none of them care whether the source was xlsx or SQLite</div></div>
+
+<table>
+<tr><th>Touchpoint (today)</th><th>Reads</th><th>Target</th></tr>
+<tr><td><code>load_funds</code> (openpyxl → Master sheet)</td><td>the <code>.xlsx</code></td><td><b>SQL query</b> → same <code>Fund</code> records</td></tr>
+<tr><td><code>cli._latest_fundmaster</code> (globs newest <code>*.xlsx</code>)</td><td>the filesystem</td><td><b>gone</b> — DB is always current; no file resolution</td></tr>
+<tr><td><code>validate.workbook_index</code> (membership, alpha-warning)</td><td>the <code>.xlsx</code></td><td><b><code>db_index</code></b> — same checks, DB-backed</td></tr>
+<tr><td><code>generate._workbook_month_year</code> (parses filename)</td><td>the filename</td><td><b>DB metadata column</b> for the vintage</td></tr>
+</table>
+<div class="gap" style="border-left-color:var(--det);background:linear-gradient(0deg,rgba(63,185,80,.05),rgba(63,185,80,.05)),var(--panel)"><span class="g" style="color:var(--det)">Two wins for free:</span> <b>fees become real</b> — today the fee table renders <code>—</code>; the DB carries the ENH-1 fee fields, so <code>load_funds</code> fills them (content change, no structural change). And <b>proposal + workbook can't drift</b> — they become two views of the same SQLite SSoT, so they cannot disagree by construction (today the validator cross-checks a separately-produced workbook that can be stale).</div>
+<p class="sub">Everything below documents the <b>AS-IS</b> consultant that reads the workbook. The only delta to reach the target is the read-boundary swap above; the node graph, determinism boundary, and eval tiers are identical.</p>
+
+<!-- ================= PIPELINE 2 ================= -->
+<h2><span class="num">Pipeline 2</span> — Consultant Engine &nbsp;<span class="chip c-non">AS-IS today</span></h2>
+<p class="sub">LangGraph <code>consultant_engine/</code>: reads the FundMaster <b>workbook</b> + client profile → HTML proposal. 11 nodes, one HITL pause, one validate→repair loop. <strong>Only 2–3 nodes ever call the LLM; every number is computed before prose is written.</strong> Every node has a direct unit test.</p>
+
+<div class="inrow">
+  <div class="node data"><div class="hd"><span class="t">client profile JSON</span></div><div class="body">risk_level, shariah, capital, target_return, goals, name</div></div>
+  <div class="node data"><div class="hd"><span class="t">FundMaster *.xlsx</span></div><div class="body">newest, auto-resolved</div></div>
+</div>
+<div class="conn">▼</div>
+
+<div class="node det"><div class="hd"><span class="t">1 · load_profile</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_load_profile.py (11)</span></div><div class="body">Normalise; default experience + target to profile midpoint; flag targets above ceiling.</div></div>
+<div class="conn">▼</div>
+<div class="node det"><div class="hd"><span class="t">2 · load_funds</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_load_funds.py (5)</span></div><div class="body">Parse Master sheet → Fund records; drop retail-ineligible (PB B-series, <code>-B</code>, wholesale set).</div></div>
+<div class="conn">▼</div>
+<div class="node det"><div class="hd"><span class="t">3 · filter_universe</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_filter_universe.py (6)</span></div><div class="body">Apply Shariah preference + per-profile risk-level ceiling.</div></div>
+<div class="conn">▼</div>
+<div class="node det"><div class="hd"><span class="t">4 · score_cfs</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_cfs.py (22)</span></div><div class="body">Composite Fund Score — 4 dims (alpha / return-fit / efficiency / momentum), sorted desc.</div></div>
+<div class="conn">▼</div>
+<div class="node llm"><div class="hd"><span class="t">5 · macro_context</span> <span class="chip c-llm">LLM only if --macro live</span> <span class="chip c-test">✓ test_macro*.py (9)</span></div><div class="body">Events + exposure gaps. <b>LLM (web-search) only in <code>--macro live</code></b>; fixture / contract / no-key paths are deterministic.</div></div>
+<div class="conn">▼</div>
+<div class="node det"><div class="hd"><span class="t">6 · build_portfolio</span> <span class="chip c-det">DET · invariant gate raises</span> <span class="chip c-test">✓ build_portfolio + invariants (38)</span></div><div class="body">Compose 4-fund portfolio (core top-2, dedup, structural gold+MM, satellite, gap-pick), clamp to caps. Gate asserts sum=100, exactly 4 funds, caps, mandatory gold+MM.</div></div>
+<div class="conn">▼</div>
+<div class="node hitl"><div class="hd"><span class="t">7 · review_gate</span> <span class="chip c-hitl">HITL</span> <span class="chip c-test">✓ test_review_gate.py (17)</span></div><div class="body"><b>Pauses here.</b> Writes <code>data/review/&lt;id&gt;.json</code> + preview, <code>interrupt()</code>s. Human edits allocation; on <code>--resume</code> edits are re-validated against invariants (bounded 3 rounds). <b>Human approves the numbers/allocation — before any prose exists.</b> <code>--no-review</code> auto-approves.</div></div>
+<div class="conn">▼</div>
+<div class="node llm"><div class="hd"><span class="t">8 · generate_proposal</span> <span class="chip c-det">Python fills ALL facts</span> <span class="chip c-llm">LLM fills prose slots only</span> <span class="chip c-test">✓ generate + determinism_guard</span></div><div class="body">Python renders every number, table, chart into the locked skeleton; <b>LLM writes only prose <code>&lt;!--slot:KEY--&gt;</code></b> (<code>why.*</code>, <code>watch.*</code>, macro impact). Missing slot → <code>[UNFILLED:KEY]</code> sentinel the validator flags.</div></div>
+<div class="conn">▼</div>
+<div class="node det"><div class="hd"><span class="t">9 · validate</span> <span class="chip c-det">DET — the core eval logic</span> <span class="chip c-test">✓ validate + rules + render_fidelity</span></div><div class="body"><code>rules/validation.py</code>: HTML vs locked template + <b>recompute cross-checks</b> (CFS, perf alpha, exposure sums, summary) + workbook membership. <b>Same module is the published-proposal eval layer.</b></div>
+<div class="io"><span><span class="lab">no violations</span><span class="arrow">→ node 11</span></span><span><span class="lab">violations</span><span class="arrow">→ node 10</span></span></div></div>
+<div class="conn">▼ / ↺</div>
+<div class="node llm"><div class="hd"><span class="t">10 · repair</span> <span class="chip c-llm">LLM — only on failure</span> <span class="chip c-test">✓ test_repair_node.py</span></div><div class="body">Asks the LLM to fix listed violations; bounded to 3 tries then <b>hard-fail</b>. Output loops back to node 9 for re-validation.</div></div>
+<div class="conn">▼</div>
+<div class="node det"><div class="hd"><span class="t">11 · emit</span> <span class="chip c-det">DET</span> <span class="chip c-test">✓ test_emit.py (10)</span></div><div class="body">Write versioned HTML.</div>
+<div class="io"><span><span class="lab">out</span><b>FundProposal_&lt;name|generic&gt;_&lt;risk&gt;_&lt;date&gt;_v&lt;ver&gt;.html</b></span></div></div>
+
+<div class="gap" style="border-left-color:var(--accent);background:linear-gradient(0deg,rgba(78,161,255,.05),rgba(78,161,255,.05)),var(--panel)">
+<span class="g" style="color:var(--accent)">Where the LLM is (and isn't):</span> the <strong>only prose author is node 8</strong>; the <strong>only reactive LLM is node 10 (repair)</strong>; <strong>macro (5) is LLM only in <code>--macro live</code></strong>. Everything else is pure Python.
+<code>CONSULTANT_ENGINE_FAKE_LLM=1</code> stubs all three (prose → <code>[KEY narrative]</code>, macro → fixture, repair → canned) so the whole graph runs deterministically offline.
+</div>
+
+<!-- ================= EVAL ================= -->
+<a id="eval"></a>
+<h2><span class="num">Testing &amp; Eval</span> — what's real vs. planned</h2>
+<p class="sub">The confusing part, made explicit. The branch <code>track-a-eval-harness</code> is currently identical to <code>main</code> — <strong>100% of testing today is deterministic. No LLM-as-judge runs anywhere yet.</strong></p>
+
+<div class="cols">
+  <div class="col now">
+    <h3>Exists today — deterministic, in CI (<code>pytest</code>, ~200 tests)</h3>
+    <div class="cap">Three tiers, all hard assertions.</div>
+    <div class="tier"><span class="tt">① Per-node unit tests</span> <span class="f">tests/consultant_engine/* (~30 files)</span><br>each node's logic in isolation — load_profile · load_funds · filter_universe · cfs · build_portfolio · invariants · review_gate · macro · generate · validate · repair · emit</div>
+    <div class="tier"><span class="tt">② End-to-end determinism guards</span> <span class="f">test_determinism_guard.py · test_render_fidelity.py</span><br>run the full graph under fake-LLM, then <em>corrupt a value and assert the guard catches it</em></div>
+    <div class="tier"><span class="tt">③ Published-proposal recompute</span> <span class="f">test_proposal_validation.py + rules/validation.py</span><br>over example HTML: CFS · perf · exposure · summary recompute · template order · workbook membership · retail eligibility · disclosures</div>
+    <div class="tier"><span class="tt">＋ Screening + relabel</span> <span class="f">test_pipeline.py · test_relabel.py</span><br>weighted-alpha math, qualification rule, workbook shape; relabel enum conformance</div>
+  </div>
+  <div class="col soon">
+    <h3>Planned — not built <span class="chip c-plan">branch == main</span></h3>
+    <div class="cap">Reserved for the <strong>fuzzy prose surface</strong> the recompute tests structurally can't see.</div>
+    <div class="tier plan"><span class="tt">🔮 LLM-as-judge (Track A-a)</span> <span class="f">docs/tasks.md 295–301</span><br>prose surface only — tone, relevance, no hallucinated claims; calibrated vs human labels, report agreement rate</div>
+    <div class="tier plan"><span class="tt">🔮 Prose-NUMBER rubric (ENH-10)</span> <span class="f">docs/tasks.md 495–534</span><br>judge fed the deterministic figures as ground truth, asks "is every number written in the prose entailed?" — offline gate, not a per-run guard</div>
+    <div class="tier plan"><span class="tt">🔮 RAG triad (Track A-b)</span> <span class="f">future regulatory corpus</span><br>faithfulness / context relevance over PHS · prospectus · SC · LHDN passages</div>
+  </div>
+</div>
+
+<h3 style="font-size:15px;color:#fff;margin-top:22px">How each kind of content is (or will be) checked</h3>
+<table>
+<tr><th>Content kind</th><th>Owner</th><th>How it's checked</th><th>Status</th></tr>
+<tr><td>Numbers in tables / cards / charts (CFS, alpha, allocation, exposure, fees, RSP)</td><td><span class="chip c-det">Python</span></td><td>Deterministic <b>recompute + assert</b> within tolerance</td><td><span class="chip c-test">✓ built, CI</span></td></tr>
+<tr><td>Locked template, disclosures, version stamp, retail eligibility, unfilled slots</td><td><span class="chip c-det">Python</span></td><td>Structural assertions / set-membership</td><td><span class="chip c-test">✓ built, CI</span></td></tr>
+<tr><td>4 categorical labels (asset_class, geography, objective, phs_fund_type) <span style="color:var(--warn)">▶ relabel <a href="#decision" style="color:var(--warn)">retired</a> in target</span></td><td><span class="chip c-llm">LLM 1.5</span> → <span class="chip c-det">Python</span></td><td>Today: enum-conformance + pinned corrections. Target: 2 fields dropped, 2 deterministic from PHS</td><td><span class="chip c-test">✓ built, CI</span></td></tr>
+<tr><td>Numbers <em>inside</em> free-text prose (no HTML anchor)</td><td><span class="chip c-llm">LLM prose</span></td><td>Judge fed real figures → "is this entailed?"</td><td><span class="chip c-plan">planned</span></td></tr>
+<tr><td>Qualitative prose (why-this-fund, what-to-watch)</td><td><span class="chip c-llm">LLM prose</span></td><td>Judge on a rubric vs human labels</td><td><span class="chip c-plan">planned</span></td></tr>
+<tr><td>Prose claims needing a regulatory source passage</td><td><span class="chip c-llm">LLM prose</span></td><td>RAG triad (faithfulness / relevance)</td><td><span class="chip c-plan">planned</span></td></tr>
+</table>
+
+<div class="gap"><span class="g">Why the split sits exactly there.</span> A recompute is a <em>hard assertion</em> — the right tool for a number the system already knows exactly. An LLM-judge is <em>fuzzy, probabilistic judgement</em> — the wrong tool for a hard number, but the <strong>only</strong> tool for free-text prose the deterministic validator structurally cannot see. So: every number with an HTML anchor is recomputed deterministically; the judge is reserved for the prose surface (and prose-embedded numbers with no anchor). <span style="color:var(--muted)">Source: <code>docs/tasks.md</code> 272-277, 295-301, 495-534.</span></div>
+
+<p class="foot">Generated as the HTML companion to <code>docs/pipeline-determinism-map.draft.md</code> · self-contained, no external assets · dark-theme, matches the repo's spec-companion convention.</p>
+
+</div></body></html>
