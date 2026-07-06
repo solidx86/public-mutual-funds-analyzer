@@ -113,9 +113,29 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <tr><td>1</td><td><b>First judge = prose-NUMBER entailment</b> (ENH-10), not the qualitative judge. Cleanest ground truth; no human-labeling bottleneck.</td></tr>
 <tr><td>2</td><td><b>Harness = Promptfoo.</b> Config-driven <code>llm-rubric</code> assertions, multi-sample runs, CI-gateable pass/fail. Adds a Node/<code>npx</code> dependency. Portfolio value (legible eval tooling is a named JD gap) + ENH-10 names it.</td></tr>
 <tr><td>3</td><td><b>Fixtures-first, live-later.</b> A <b>frozen</b> corpus validates the <b>judge itself</b> before it gates. Live regeneration is a later phase.</td></tr>
-<tr><td>4a</td><td><b>Allow derived-but-consistent numbers.</b> Prose may introduce numbers not literally in a slot (e.g. an average) as long as they're consistent. The judge checks <em>consistency, not novelty</em> — forbidding new numbers would gut synthesis prose.</td></tr>
+<tr><td>4a</td><td><b>Allow derived-but-consistent numbers.</b> Prose may introduce numbers not literally in a slot (e.g. an average) as long as they're consistent. The judge checks <em>consistency, not novelty</em> — forbidding new numbers would gut synthesis prose. <b>See §4a</b> for the precise definition.</td></tr>
 <tr><td>4b</td><td><b>Holistic per slot-instance.</b> One judge call per slot instance, given that slot's prose + figures, returning <code>{entailed, offending_sentence}</code>. <b>No</b> brittle number-extraction pre-step — the LLM finds <em>and</em> checks each number. Rubric <b>must</b> say "check EACH numeric claim independently before answering."</td></tr>
 </table>
+
+<h3>§4a — What "consistent" means</h3>
+<p>The judge's question about any number in the prose is <b>not</b> "is this number literally in the figure set?" (that would reject legitimate synthesis such as averages) but <b>"can I trace this number back to the figures, and does it clash with any of them?"</b> A number is <b>consistent</b> if it falls into one of three cases:</p>
+<ol>
+<li><b>Restatement</b> — the number <em>is</em> one of the figures. PAPFF's 3yr alpha is <code>2.1%</code>; prose says "outperformed by 2.1%." Trivially consistent.</li>
+<li><b>Correct derivation</b> — not in the figure set but a valid arithmetic/logical result of it:
+<ul>
+<li><em>average</em> — "its three equity funds average ~1.9% alpha" when the figures are <code>2.1, 1.8, 1.8</code> → mean <code>1.9</code> ✓</li>
+<li><em>rounding</em> — figure <code>2.13%</code>, prose "about 2.1%" ✓</li>
+<li><em>rank / superlative</em> — "the top performer of the three" when it genuinely holds the highest alpha ✓</li>
+<li><em>direction</em> — "outperformed its benchmark" when alpha &gt; 0 ✓</li>
+</ul></li>
+<li><b>Non-contradiction band</b> — an approximate/soft number the judge cannot derive exactly but that conflicts with nothing. "A modest ~2% edge" against an actual <code>2.1%</code> ✓.</li>
+</ol>
+<p>A number is <b>inconsistent</b> (the complement) when it either:</p>
+<ul>
+<li><b>contradicts</b> a figure — "a 9% edge" when alpha is <code>2.1%</code>; or</li>
+<li><b>cannot be traced to any figure</b> — fabricated with no derivation path (prose cites a Sharpe ratio or an "8% annual return" when state holds no such number). <b>Unverifiable-as-stated-fact is treated as inconsistent</b>, because it cannot be confirmed and reads as a hard claim.</li>
+</ul>
+<div class="gap"><span class="g">The wrongly-derived trap.</span> The subtle boundary — and the reason the seeded-bad fixtures exist — is prose that claims a derivation the figures don't support ("average 3%" when the true mean is <code>1.9%</code>). This is case-2-<em>shaped</em> but <b>inconsistent</b>, because the <em>claimed</em> relationship to the figures is false. The judge must catch it, not wave it through as "a new number."</div>
 
 <h2><span class="num">§5</span> The 1:1 mapping</h2>
 <pre>one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one SLOT INSTANCE

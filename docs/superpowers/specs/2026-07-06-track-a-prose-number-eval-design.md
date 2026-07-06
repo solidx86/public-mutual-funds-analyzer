@@ -55,8 +55,26 @@ The **genuine-synthesis prose slots** — the judged surface — are exactly:
 1. **First judge = prose-NUMBER entailment (ENH-10)**, not the qualitative judge. Cleanest ground truth; no human-labeling bottleneck.
 2. **Harness = Promptfoo.** Config-driven `llm-rubric` assertions, multi-sample runs, CI-gateable pass/fail. Adds a Node / `npx` dependency alongside the Python repo. Chosen for portfolio value (legible eval tooling is a named JD gap) and because ENH-10 names it.
 3. **Data sourcing = fixtures-first, live-later.** Build a **frozen** fixture corpus that validates the **judge itself** before trusting it to gate anything. Live multi-sample proposal regeneration is a later phase.
-4. **Rubric policy (a) — allow derived-but-consistent numbers.** Prose **may** introduce numbers not literally in a slot (e.g. an average of three funds' alphas) as long as they are **consistent** with the figures. The judge checks *consistency, not novelty* — forbidding new numbers would gut synthesis prose.
+4. **Rubric policy (a) — allow derived-but-consistent numbers.** Prose **may** introduce numbers not literally in a slot (e.g. an average of three funds' alphas) as long as they are **consistent** with the figures. The judge checks *consistency, not novelty* — forbidding new numbers would gut synthesis prose. See §4a for the precise definition of "consistent".
 5. **Rubric policy (b) — holistic per slot-instance.** One judge call per slot instance (e.g. `why.PAPFF`), given **that slot's prose + that slot's relevant figures**, returning `{entailed: bool, offending_sentence: string|null}`. **No** brittle number-extraction / parsing pre-step — the LLM does both "find the numbers" *and* "map + check against figures", which is the part a regex cannot do. The rubric prompt **must** instruct the judge to *"check EACH numeric claim independently before answering"* to mitigate the holistic blind spot (§7).
+
+### 4a. What "consistent" means
+
+The judge's question about any number in the prose is **not** "is this number literally in the figure set?" (that would reject legitimate synthesis such as averages) but **"can I trace this number back to the figures, and does it clash with any of them?"** A number is **consistent** if it falls into one of three cases:
+
+1. **Restatement** — the number *is* one of the figures. PAPFF's 3yr alpha is `2.1%`; prose says "outperformed by 2.1%." Trivially consistent.
+2. **Correct derivation** — the number is not in the figure set but is a valid arithmetic/logical result of it:
+   - *average* — "its three equity funds average ~1.9% alpha" when the figures are `2.1, 1.8, 1.8` → mean `1.9` ✓
+   - *rounding* — figure `2.13%`, prose "about 2.1%" ✓
+   - *rank / superlative* — "the top performer of the three" when it genuinely holds the highest alpha ✓
+   - *direction* — "outperformed its benchmark" when alpha > 0 ✓
+3. **Non-contradiction band** — an approximate/soft number the judge cannot derive exactly but that conflicts with nothing. "A modest ~2% edge" against an actual `2.1%` ✓.
+
+A number is **inconsistent** (the complement) when it either:
+- **contradicts** a figure — "a 9% edge" when alpha is `2.1%`; or
+- **cannot be traced to any figure** — fabricated with no derivation path (prose cites a Sharpe ratio or an "8% annual return" when state holds no such number). **Unverifiable-as-stated-fact is treated as inconsistent**, because it cannot be confirmed and reads as a hard claim.
+
+The subtle boundary — and the reason the seeded-bad fixtures exist — is the **wrongly-derived trap**: prose claims a derivation the figures don't support ("average 3%" when the true mean is `1.9%`). This is case-2-shaped but **inconsistent**, because the *claimed* relationship to the figures is false. The judge must catch it, not wave it through as "a new number."
 
 ## 5. The 1:1 mapping
 
