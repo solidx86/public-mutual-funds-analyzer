@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Track A — Prose-Number Entailment Eval (plan)</title>
+<title>Prose-Number Entailment Eval (plan)</title>
 <style>
 :root{
   --bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
@@ -63,7 +63,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 .arrow{color:var(--accent);font-weight:700}
 </style></head><body><div class="wrap">
 
-<h1>Track A — Prose-Number Entailment Eval <span style="font-size:15px;color:var(--muted)">(implementation plan)</span></h1>
+<h1>Prose-Number Entailment Eval <span style="font-size:15px;color:var(--muted)">(implementation plan)</span></h1>
 <p class="sub">HTML companion to <code>2026-07-06-track-a-prose-number-eval.md</code>; markdown is the source of truth.</p>
 
 <div class="reqskill"><b>For agentic workers:</b> REQUIRED SUB-SKILL — use <code>superpowers:subagent-driven-development</code> (recommended) or <code>superpowers:executing-plans</code> to implement this plan task-by-task.</div>
@@ -99,28 +99,28 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <h2>File structure</h2>
 <table>
 <tr><th>Path</th><th>Change</th><th>Responsibility</th></tr>
-<tr><td><code>evals/track_a/</code></td><td>Create</td><td>Track-A eval root.</td></tr>
-<tr><td><code>evals/track_a/figures_extractor.py</code> <span style="color:var(--muted)">(or <code>consultant_engine/evals/</code>)</span></td><td>Create</td><td>Pure <code>extract_figures(state) -&gt; dict</code>; the ground-truth surface.</td></tr>
-<tr><td><code>evals/track_a/fixtures/*.json</code></td><td>Create</td><td>Frozen <code>(slot_key, figures, prose, expect, offending_sentence?, category)</code> records.</td></tr>
-<tr><td><code>evals/track_a/prompts/judge.md</code></td><td>Create</td><td>Rubric (JSON contract + "check EACH numeric claim independently").</td></tr>
-<tr><td><code>evals/track_a/promptfooconfig.yaml</code></td><td>Create</td><td>One test case per fixture; parse verdict; assert vs <code>expect</code>; multi-sample.</td></tr>
-<tr><td><code>evals/track_a/package.json</code></td><td>Create</td><td>Promptfoo dev-dependency + <code>npm run eval</code>.</td></tr>
-<tr><td><code>evals/track_a/README.md</code></td><td>Create</td><td>Local-run instructions + API-key story.</td></tr>
-<tr><td><code>Makefile</code> / root script</td><td>Modify</td><td><code>make eval-track-a</code> → runs the suite.</td></tr>
+<tr><td><code>evals/prose_numbers/</code></td><td>Create</td><td>Prose-number eval root.</td></tr>
+<tr><td><code>evals/prose_numbers/figures_extractor.py</code> <span style="color:var(--muted)">(or <code>consultant_engine/evals/</code>)</span></td><td>Create</td><td>Pure <code>extract_figures(state) -&gt; dict</code>; the ground-truth surface.</td></tr>
+<tr><td><code>evals/prose_numbers/fixtures/*.json</code></td><td>Create</td><td>Frozen <code>(slot_key, figures, prose, expect, offending_sentence?, category)</code> records.</td></tr>
+<tr><td><code>evals/prose_numbers/prompts/judge.md</code></td><td>Create</td><td>Rubric (JSON contract + "check EACH numeric claim independently").</td></tr>
+<tr><td><code>evals/prose_numbers/promptfooconfig.yaml</code></td><td>Create</td><td>One test case per fixture; parse verdict; assert vs <code>expect</code>; multi-sample.</td></tr>
+<tr><td><code>evals/prose_numbers/package.json</code></td><td>Create</td><td>Promptfoo dev-dependency + <code>npm run eval</code>.</td></tr>
+<tr><td><code>evals/prose_numbers/README.md</code></td><td>Create</td><td>Local-run instructions + API-key story.</td></tr>
+<tr><td><code>Makefile</code> / root script</td><td>Modify</td><td><code>make eval-prose-numbers</code> → runs the suite.</td></tr>
 <tr><td><code>tests/evals/test_figures_extractor.py</code></td><td>Create</td><td>Python unit test for the extractor.</td></tr>
 <tr><td><code>.github/workflows/ci.yml</code> (or new)</td><td>Modify</td><td>CI job: promptfoo eval + secret + threshold.</td></tr>
 </table>
 
 <div class="phase p0"><h2>Phase 0 — Scaffold &amp; toolchain</h2>
-<div class="goal">Stand up the <code>evals/track_a/</code> layout and make Promptfoo runnable locally with one command, before any judge logic exists.</div>
+<div class="goal">Stand up the <code>evals/prose_numbers/</code> layout and make Promptfoo runnable locally with one command, before any judge logic exists.</div>
 <ul>
-<li>Create <code>evals/track_a/{fixtures,prompts}/</code> + <code>README.md</code>.</li>
+<li>Create <code>evals/prose_numbers/{fixtures,prompts}/</code> + <code>README.md</code>.</li>
 <li><code>package.json</code> with <code>promptfoo</code> dev-dependency + script <code>"eval": "promptfoo eval -c promptfooconfig.yaml"</code>; prefer <code>npx promptfoo</code> (no global install).</li>
-<li>Root <code>make eval-track-a</code> (or npm script) that runs the eval.</li>
+<li>Root <code>make eval-prose-numbers</code> (or npm script) that runs the eval.</li>
 <li><code>README.md</code>: local run, <code>ANTHROPIC_API_KEY</code> requirement, the "offline regression layer, not a per-run guard" framing.</li>
 <li>Placeholder <code>promptfooconfig.yaml</code> with zero tests so <code>npx promptfoo eval</code> exits cleanly.</li>
 </ul>
-<div class="done"><b>Done when:</b> <code>make eval-track-a</code> runs to a clean exit with no tests defined; README documents the local run + API-key requirement. Committed.</div></div>
+<div class="done"><b>Done when:</b> <code>make eval-prose-numbers</code> runs to a clean exit with no tests defined; README documents the local run + API-key requirement. Committed.</div></div>
 
 <div class="phase p1"><h2>Phase 1 — figures_extractor</h2>
 <div class="goal">A pure, unit-tested <code>state → figures</code> function exposing only the judge-relevant deterministic numbers.</div>
@@ -157,12 +157,12 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <li>Run locally; inspect that <code>good</code> pass, <code>seeded-bad-single</code> fail-as-contradicted, and the <b>buried-error set is caught</b>.</li>
 </ul>
 <div class="crux"><span class="g">If the buried errors are missed:</span> first tighten the rubric (strengthen the "check each claim" instruction / add a worked example); if still missed, escalate to a per-number extraction step. <b>Do not</b> paper over a miss by loosening the fixture.</div>
-<div class="done"><b>Done when:</b> <code>cd evals/track_a &amp;&amp; ANTHROPIC_API_KEY=… npx promptfoo eval</code> runs all fixtures; every <code>good</code> is <code>entailed</code>, every <code>seeded-bad-*</code> is <code>contradicted</code> including the buried set, across samples. Committed.</div></div>
+<div class="done"><b>Done when:</b> <code>cd evals/prose_numbers &amp;&amp; ANTHROPIC_API_KEY=… npx promptfoo eval</code> runs all fixtures; every <code>good</code> is <code>entailed</code>, every <code>seeded-bad-*</code> is <code>contradicted</code> including the buried set, across samples. Committed.</div></div>
 
 <div class="phase p4"><h2>Phase 4 — CI gate</h2>
 <div class="goal">A GitHub Actions job green only when every verdict matches its fixture's <code>expect</code> within the stated threshold.</div>
 <ul>
-<li>Add the job: set up Node, <code>npx promptfoo eval -c evals/track_a/promptfooconfig.yaml</code>, fail on any assertion failure.</li>
+<li>Add the job: set up Node, <code>npx promptfoo eval -c evals/prose_numbers/promptfooconfig.yaml</code>, fail on any assertion failure.</li>
 <li><b>API-key story</b> (spec §8): CI runs the judge <b>live</b> via an <code>ANTHROPIC_API_KEY</code> repo secret; the small frozen set keeps cost trivial. Document the committed-cache alternative as a brittle fallback.</li>
 <li><b>Pass threshold:</b> catch <b>100% of <code>seeded-bad-*</code></b>, pass <b>100% of <code>good</code></b> across N samples; any miss fails the job.</li>
 <li>Scope the trigger honestly: offline regression layer → run on generation-prompt/model or eval-asset changes (and on demand), not every unrelated push if token budget matters.</li>
@@ -173,8 +173,8 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <h2>Deferred / phase-2 items</h2>
 <ul>
 <li><b>Live multi-sample proposal regeneration</b> — this slice freezes inputs instead.</li>
-<li><b>The qualitative-prose judge</b> (tone/relevance/no-hallucination — Track A "wave a").</li>
-<li><b>RAG / retrieval evals</b> (Track A "wave b") — blocked on Track B (no corpus yet).</li>
+<li><b>The qualitative-prose judge</b> (tone/relevance/no-hallucination).</li>
+<li><b>RAG / retrieval evals</b> — blocked on the regulatory-RAG workstream (no corpus yet).</li>
 <li><b>Human-label calibration set</b> — not needed for prose-number entailment.</li>
 <li><b>Committed-response-cache CI mode</b> — documented as a fallback; live judging is the default.</li>
 </ul>

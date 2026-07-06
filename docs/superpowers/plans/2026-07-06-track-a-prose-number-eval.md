@@ -1,10 +1,10 @@
-# Track A — Prose-Number Entailment Eval Implementation Plan
+# Prose-Number Entailment Eval — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Spec:** `docs/superpowers/specs/2026-07-06-track-a-prose-number-eval-design.md` (read it first — this plan implements it).
 
-**Goal:** Ship the first buildable slice of Track A (ENH-10): an LLM-as-judge that checks prose-embedded numbers for entailment against the engine's deterministic figures, driven by Promptfoo, gated in CI over a frozen fixture corpus that **proves the judge itself** (via seeded good / single-error / buried-error fixtures) before it is trusted to gate.
+**Goal:** Ship the first buildable slice of the consultant_engine evals suite (ENH-10): an LLM-as-judge that checks prose-embedded numbers for entailment against the engine's deterministic figures, driven by Promptfoo, gated in CI over a frozen fixture corpus that **proves the judge itself** (via seeded good / single-error / buried-error fixtures) before it is trusted to gate.
 
 **Architecture:** Four units — (1) a pure `figures_extractor` (`ConsultantState → flat figures dict`); (2) a frozen hand-authored fixture corpus (`good` / `seeded-bad-single` / `seeded-bad-buried`); (3) a Promptfoo config + rubric wrapping one Claude judge call per fixture; (4) a CI gate green only when every verdict matches its fixture's `expect`. The eval is an **offline regression layer** run on prompt/model change — the runtime `validate → repair` loop stays the per-run guard for structured values.
 
@@ -26,36 +26,36 @@
 
 | Path | Change | Responsibility |
 |---|---|---|
-| `evals/track_a/` | Create | Track-A eval root (layout below). |
-| `evals/track_a/figures_extractor.py` (or `consultant_engine/evals/figures_extractor.py`) | Create | Pure `extract_figures(state) -> dict`; the ground-truth surface. |
-| `evals/track_a/fixtures/*.json` | Create | Frozen `(slot_key, figures, prose, expect, offending_sentence?, category)` records. |
-| `evals/track_a/prompts/judge.md` | Create | The rubric prompt (JSON output contract + "check EACH numeric claim independently"). |
-| `evals/track_a/promptfooconfig.yaml` | Create | One test case per fixture; parse verdict; assert against `expect`; multi-sample. |
-| `evals/track_a/package.json` | Create | Promptfoo dev-dependency + an `npm run eval` script. |
-| `evals/track_a/README.md` | Create | Local-run instructions + the API-key story. |
-| `Makefile` (root) or `package.json` script | Modify/Create | `make eval-track-a` → runs the promptfoo suite. |
+| `evals/prose_numbers/` | Create | Prose-number eval root (layout below). |
+| `evals/prose_numbers/figures_extractor.py` (or `consultant_engine/evals/figures_extractor.py`) | Create | Pure `extract_figures(state) -> dict`; the ground-truth surface. |
+| `evals/prose_numbers/fixtures/*.json` | Create | Frozen `(slot_key, figures, prose, expect, offending_sentence?, category)` records. |
+| `evals/prose_numbers/prompts/judge.md` | Create | The rubric prompt (JSON output contract + "check EACH numeric claim independently"). |
+| `evals/prose_numbers/promptfooconfig.yaml` | Create | One test case per fixture; parse verdict; assert against `expect`; multi-sample. |
+| `evals/prose_numbers/package.json` | Create | Promptfoo dev-dependency + an `npm run eval` script. |
+| `evals/prose_numbers/README.md` | Create | Local-run instructions + the API-key story. |
+| `Makefile` (root) or `package.json` script | Modify/Create | `make eval-prose-numbers` → runs the promptfoo suite. |
 | `tests/evals/test_figures_extractor.py` (or `tests/consultant_engine/`) | Create | Python unit test for the extractor. |
-| `.github/workflows/ci.yml` (or a new `track-a-eval.yml`) | Modify/Create | CI job running the promptfoo eval with the API-key secret + threshold. |
+| `.github/workflows/ci.yml` (or a new `prose-numbers-eval.yml`) | Modify/Create | CI job running the promptfoo eval with the API-key secret + threshold. |
 
-*(Resolve the extractor's exact home — `evals/track_a/` vs `consultant_engine/evals/` — in Phase 1 Step 1; the plan is written to work either way.)*
+*(Resolve the extractor's exact home — `evals/prose_numbers/` vs `consultant_engine/evals/` — in Phase 1 Step 1; the plan is written to work either way.)*
 
 ---
 
 ## Phase 0 — Scaffold & toolchain
 
-**Goal:** stand up the `evals/track_a/` layout and make Promptfoo runnable locally with one command, before any judge logic exists.
+**Goal:** stand up the `evals/prose_numbers/` layout and make Promptfoo runnable locally with one command, before any judge logic exists.
 
 **Steps:**
 
-- [ ] Create the directory layout: `evals/track_a/{fixtures,prompts}/` + `evals/track_a/README.md`.
-- [ ] Add `evals/track_a/package.json` with `promptfoo` as a dev-dependency and a script `"eval": "promptfoo eval -c promptfooconfig.yaml"`. Prefer `npx promptfoo` so contributors need no global install.
-- [ ] Add a root convenience target — `make eval-track-a` (or an npm script) — that `cd`s into `evals/track_a` and runs the eval.
-- [ ] Write `evals/track_a/README.md`: how to run locally (`npx promptfoo eval`), that it needs `ANTHROPIC_API_KEY` in the environment, and the one-line "this is an offline regression layer, not a per-run guard" framing.
+- [ ] Create the directory layout: `evals/prose_numbers/{fixtures,prompts}/` + `evals/prose_numbers/README.md`.
+- [ ] Add `evals/prose_numbers/package.json` with `promptfoo` as a dev-dependency and a script `"eval": "promptfoo eval -c promptfooconfig.yaml"`. Prefer `npx promptfoo` so contributors need no global install.
+- [ ] Add a root convenience target — `make eval-prose-numbers` (or an npm script) — that `cd`s into `evals/prose_numbers` and runs the eval.
+- [ ] Write `evals/prose_numbers/README.md`: how to run locally (`npx promptfoo eval`), that it needs `ANTHROPIC_API_KEY` in the environment, and the one-line "this is an offline regression layer, not a per-run guard" framing.
 - [ ] Add a placeholder `promptfooconfig.yaml` with zero tests so `npx promptfoo eval` exits cleanly (proves the toolchain is wired).
 
-**Files touched:** `evals/track_a/package.json`, `evals/track_a/promptfooconfig.yaml` (stub), `evals/track_a/README.md`, root `Makefile`/`package.json`.
+**Files touched:** `evals/prose_numbers/package.json`, `evals/prose_numbers/promptfooconfig.yaml` (stub), `evals/prose_numbers/README.md`, root `Makefile`/`package.json`.
 
-**Done when / how verified:** `make eval-track-a` (or `cd evals/track_a && npx promptfoo eval`) runs to a clean exit with no tests defined, and the README documents the local run + API-key requirement. Committed.
+**Done when / how verified:** `make eval-prose-numbers` (or `cd evals/prose_numbers && npx promptfoo eval`) runs to a clean exit with no tests defined, and the README documents the local run + API-key requirement. Committed.
 
 ---
 
@@ -65,7 +65,7 @@
 
 **Steps:**
 
-- [ ] Decide the extractor's home (`evals/track_a/figures_extractor.py` vs `consultant_engine/evals/figures_extractor.py`) and record it in the file header. Prefer engine-side if it must import engine types; otherwise keep it under `evals/track_a/`.
+- [ ] Decide the extractor's home (`evals/prose_numbers/figures_extractor.py` vs `consultant_engine/evals/figures_extractor.py`) and record it in the file header. Prefer engine-side if it must import engine types; otherwise keep it under `evals/prose_numbers/`.
 - [ ] Define the exact **figures schema** (flat dict). Concretely, at minimum:
   - **Per-fund:** `cfs`, `rank`, `weighted_alpha`, `allocation_pct`, and per-fund `exposure_pct` (asset-class / geo as available).
   - **Portfolio-level weighted aggregates:** weighted-average alpha, weighted CFS, asset-class + geo exposure totals, and the count / share of funds beating their benchmark.
@@ -85,14 +85,14 @@
 
 **Steps:**
 
-- [ ] Document the fixture JSON schema in `evals/track_a/fixtures/README.md` (or a header comment): `{ slot_key, figures, prose, expect: "entailed"|"contradicted", offending_sentence?: string, category: "good"|"seeded-bad-single"|"seeded-bad-buried" }`.
+- [ ] Document the fixture JSON schema in `evals/prose_numbers/fixtures/README.md` (or a header comment): `{ slot_key, figures, prose, expect: "entailed"|"contradicted", offending_sentence?: string, category: "good"|"seeded-bad-single"|"seeded-bad-buried" }`.
 - [ ] Author `good` fixtures — real, correct prose/figure pairs across `why.*`, `watch.*`, and `macro.impact`, spanning **several funds**. Include **at least a couple of derived-but-consistent** cases (policy 4a): prose that states, e.g., an *average* of three funds' alphas that is not literally any single slot figure but is consistent with them — so the judge is proven **not over-strict**.
 - [ ] Author `seeded-bad-single` fixtures — take a good pair, plant exactly one wrong number, set `expect: "contradicted"` and fill `offending_sentence`.
 - [ ] Author `seeded-bad-buried` fixtures — a slot with **several correct numbers plus exactly one** planted wrong one; `expect: "contradicted"`, `offending_sentence` = the buried-wrong one. This category is **mandatory** and is the crux.
 - [ ] Make each `figures` block consistent with what `figures_extractor` would emit for that slot (hand-derive or extract-then-freeze).
 - [ ] Sanity-check coverage: every slot family (`why` / `watch` / `macro.impact`) appears in every category; multiple funds represented.
 
-**Files touched:** `evals/track_a/fixtures/*.json` + a schema note.
+**Files touched:** `evals/prose_numbers/fixtures/*.json` + a schema note.
 
 **Done when / how verified:** the corpus contains all three categories across all three slot families and several funds; each record is schema-valid JSON; the derived-but-consistent `good` cases and the buried-error cases both exist. (A tiny Python/`jq` lint over the fixtures confirming required keys + category coverage is worth adding.) Committed.
 
@@ -104,7 +104,7 @@
 
 **Steps:**
 
-- [ ] Author `evals/track_a/prompts/judge.md`: give the judge the slot's prose + that slot's figures, and instruct it to **check EACH numeric claim independently before answering** (the mitigation for the holistic blind spot). Allow **derived-but-consistent** numbers (policy 4a): the judge checks *consistency, not novelty*.
+- [ ] Author `evals/prose_numbers/prompts/judge.md`: give the judge the slot's prose + that slot's figures, and instruct it to **check EACH numeric claim independently before answering** (the mitigation for the holistic blind spot). Allow **derived-but-consistent** numbers (policy 4a): the judge checks *consistency, not novelty*.
 - [ ] Lock the **output contract**: strict JSON `{ "entailed": boolean, "offending_sentence": string|null }`, nothing else.
 - [ ] Pick and **pin** a concrete Anthropic Claude judge model (recommend a current Sonnet-class id) in `promptfooconfig.yaml`.
 - [ ] Wire `promptfooconfig.yaml`: load each fixture as a test case (prose + figures → prompt vars); assert the parsed verdict. Prefer a `javascript`/`python` assertion that parses the judge JSON and checks: `entailed == (expect == "entailed")`, and for `seeded-bad-*` that `offending_sentence` is non-null (bonus: matches the fixture's). An `llm-rubric` assertion is the fallback if JSON parsing proves awkward.
@@ -113,9 +113,9 @@
 
 **The acceptance crux (state explicitly):** if the buried-error fixtures are **caught**, the holistic no-extraction shortcut is validated. If they are **missed**, first tighten the rubric (strengthen the "check EACH numeric claim independently" instruction / add a worked example); if still missed, escalate to a per-number extraction step. Do **not** paper over a miss by loosening the fixture.
 
-**Files touched:** `evals/track_a/prompts/judge.md`, `evals/track_a/promptfooconfig.yaml`.
+**Files touched:** `evals/prose_numbers/prompts/judge.md`, `evals/prose_numbers/promptfooconfig.yaml`.
 
-**Done when / how verified:** `cd evals/track_a && ANTHROPIC_API_KEY=… npx promptfoo eval` runs all fixtures; every `good` verdict is `entailed`, every `seeded-bad-*` is `contradicted` **including the buried-error set**, across the configured samples. Committed.
+**Done when / how verified:** `cd evals/prose_numbers && ANTHROPIC_API_KEY=… npx promptfoo eval` runs all fixtures; every `good` verdict is `entailed`, every `seeded-bad-*` is `contradicted` **including the buried-error set**, across the configured samples. Committed.
 
 ---
 
@@ -125,13 +125,13 @@
 
 **Steps:**
 
-- [ ] Add the job to `.github/workflows/ci.yml` (or a dedicated `track-a-eval.yml`): set up Node, `npx promptfoo eval -c evals/track_a/promptfooconfig.yaml`, fail the job on any assertion failure.
+- [ ] Add the job to `.github/workflows/ci.yml` (or a dedicated `prose-numbers-eval.yml`): set up Node, `npx promptfoo eval -c evals/prose_numbers/promptfooconfig.yaml`, fail the job on any assertion failure.
 - [ ] Wire the **API-key story** (per spec §8): CI runs the judge live using an `ANTHROPIC_API_KEY` **repo secret**; the small frozen fixture set keeps cost/latency trivial. (Document the committed-response-cache alternative in the README as a fallback, noting it must be regenerated on any prompt/model change.)
 - [ ] Set the **pass threshold**: the judge must catch **100% of `seeded-bad-*`** and pass **100% of `good`** across N samples; any miss fails the job. Encode the threshold in the promptfoo assertions / a small wrapper check.
 - [ ] Scope the trigger honestly: this is an **offline regression layer**, so run it on changes to the generation prompt/model or the eval assets (and on demand), **not** on every unrelated push if token budget matters. Document the trigger choice.
 - [ ] Make the job **required** for merge once green and stable.
 
-**Files touched:** `.github/workflows/ci.yml` (or a new workflow), `evals/track_a/README.md` (secret + threshold note).
+**Files touched:** `.github/workflows/ci.yml` (or a new workflow), `evals/prose_numbers/README.md` (secret + threshold note).
 
 **Done when / how verified:** the CI job runs the eval with the secret, is green on the current fixtures, and goes **red** if a `seeded-bad-buried` fixture's planted error is missed (verify by temporarily corrupting the judge to prove the gate bites). Committed; job marked required.
 
@@ -142,8 +142,8 @@
 Called out here so the slice's boundary is unambiguous (mirrors spec §10):
 
 - **Live multi-sample proposal regeneration** — running the real generator repeatedly and judging fresh prose (this slice freezes inputs instead).
-- **The qualitative-prose judge** (tone / relevance / no-hallucination — Track A "wave a").
-- **RAG / retrieval evals** (Track A "wave b") — blocked on Track B (no corpus yet).
+- **The qualitative-prose judge** (tone / relevance / no-hallucination).
+- **RAG / retrieval evals** — blocked on the regulatory-RAG workstream (no corpus yet).
 - **Human-label calibration set** — not needed for prose-number entailment; deferred.
 - **Committed-response-cache CI mode** — documented as a fallback; live judging is the recommended default.
 

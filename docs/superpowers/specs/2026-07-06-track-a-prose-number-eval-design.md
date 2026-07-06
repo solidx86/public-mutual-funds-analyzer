@@ -1,9 +1,9 @@
-# Track A — Prose-Number Entailment Eval (design)
+# Prose-Number Entailment Eval (design)
 
 **Date:** 2026-07-06
 **Status:** Design — approved from brainstorming, pending spec review → writing-plans
-**Tracking:** `docs/tasks.md` ENH-10 (prose-authored-number drift), ENH-5 Track A (evals master)
-**Scope:** The first buildable slice of **Track A — Evals** for the `consultant_engine/` package: an LLM-as-judge that checks prose-embedded numbers for **entailment** against the deterministic figures the engine already computes. This is exactly ENH-10.
+**Tracking:** `docs/tasks.md` ENH-10 (prose-authored-number drift), ENH-5 (evals master)
+**Scope:** The first buildable slice of the **evals suite** for the `consultant_engine/` package: an LLM-as-judge that checks prose-embedded numbers for **entailment** against the deterministic figures the engine already computes. This is exactly ENH-10.
 
 ---
 
@@ -13,7 +13,7 @@ Build an **LLM-as-judge** that answers one question over the consultant engine's
 
 It is an **offline regression layer**, run when the generation prompt or model changes — *not* a per-run production guard. The runtime `validate → repair` loop remains the per-run guard for structured (data-slot-bound) values; this eval measures the one surface that loop structurally cannot see.
 
-This is the first of the Track-A judges deliberately, because prose-number entailment has the cleanest possible ground truth (the deterministic figures) and needs **no human-labeling bottleneck** — unlike the qualitative-prose judge (tone/relevance), which is deferred.
+This is deliberately the engine's first prose judge, because prose-number entailment has the cleanest possible ground truth (the deterministic figures) and needs **no human-labeling bottleneck** — unlike the qualitative-prose judge (tone/relevance), which is deferred.
 
 ## 2. The gap this closes
 
@@ -93,13 +93,13 @@ one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one 
 - **Purpose:** expose *only* the judge-relevant deterministic numbers as a flat dict, ready to inject into the judge prompt as ground truth.
 - **Interface:** `extract_figures(state: ConsultantState) -> dict` (pure function, no I/O).
 - **Fields exposed:** per-fund CFS + rank, weighted alpha, allocation %, exposure %, and portfolio-level weighted aggregates (see §9 for the exact schema).
-- **Home:** engine-side, `consultant_engine/evals/` (or `evals/track_a/` — resolve in the plan). Unit-tested in Python.
+- **Home:** engine-side, `consultant_engine/evals/` (or `evals/prose_numbers/` — resolve in the plan). Unit-tested in Python.
 - **Dependency:** reads a `ConsultantState`; depends on nothing outside the engine. Its output is what gets injected into the judge prompt.
 
 ### 6.2 Fixture corpus — the frozen judged inputs
 
 - **Purpose:** freeze a hand-authored set of `(prose, figures, expected verdict)` triples that **proves the judge** across good/bad cases before it gates.
-- **Layout:** `evals/track_a/fixtures/*.json`, each record:
+- **Layout:** `evals/prose_numbers/fixtures/*.json`, each record:
 
 ```json
 {
@@ -193,8 +193,8 @@ State clearly in the docs — this slice does **not** own:
 - **Correctness of the state figures themselves.** Already covered by the three deterministic tiers (§2). The judge **reuses** the already-verified `ConsultantState` figures as trusted ground truth. **This is not circular:** state is independently verified against the *source workbook* by `test_proposal_validation.py`; the judge only asks whether the *prose* is consistent with those verified figures.
 - **The fact-slot guardrail** (that the LLM can't overwrite Python-filled slots) — already enforced structurally: the LLM emits keyed fragments, not the document; the `[UNFILLED:KEY]` sentinel catches missing slots; and `check_render_fidelity` reconciles every data-slot. Not this slice's job.
 - **Live multi-sample proposal regeneration** — deferred to a phase 2.
-- **The qualitative-prose judge** (tone / relevance / no-hallucination — Track A "wave a") — deferred.
-- **RAG / retrieval evals** (Track A "wave b") — **blocked on Track B**, which has no corpus yet.
+- **The qualitative-prose judge** (tone / relevance / no-hallucination) — deferred.
+- **RAG / retrieval evals** — **blocked on the regulatory-RAG workstream**, which has no corpus yet.
 - **Human-label calibration set** — deferred (a strength of this slice is that it needs none).
 
 ## 11. Deliverable & success criteria
@@ -206,11 +206,11 @@ State clearly in the docs — this slice does **not** own:
 - A Promptfoo config + rubric with a pinned Claude judge model, multi-sample repeats, and a parsed `{entailed, offending_sentence}` verdict asserted against each fixture's `expect`.
 - A CI job that is green only when every verdict matches within the stated threshold — the buried-error catch being the acceptance crux.
 
-This deliverable also **feeds the eventual "published eval case study"** named in `docs/tasks.md` (Track A).
+This deliverable also **feeds the eventual "published eval case study"** named in `docs/tasks.md`.
 
 ## 12. Open items to settle during writing-plans
 
-- Exact home for the extractor + fixtures (`consultant_engine/evals/` vs `evals/track_a/`) and how Promptfoo (Node) sits beside the Python repo.
+- Exact home for the extractor + fixtures (`consultant_engine/evals/` vs `evals/prose_numbers/`) and how Promptfoo (Node) sits beside the Python repo.
 - The precise `figures_extractor` field names and rounding/tolerance the judge is told to accept.
 - Concrete judge-model id + sample count `N` + the pass threshold numbers.
 - Whether the verdict assertion is `llm-rubric` or a `javascript`/`python` assertion parsing the judge JSON (the latter gives crisper control over the `offending_sentence` check).

@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Track A — Prose-Number Entailment Eval (design)</title>
+<title>Prose-Number Entailment Eval (design)</title>
 <style>
 :root{
   --bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
@@ -64,13 +64,13 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 .foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 </style></head><body><div class="wrap">
 
-<h1>Track A — Prose-Number Entailment Eval <span style="font-size:16px;color:var(--muted)">(design)</span></h1>
-<p class="sub">The first buildable slice of Track A — an LLM-as-judge that checks prose-embedded numbers for entailment against the engine's deterministic figures. HTML companion to <code>2026-07-06-track-a-prose-number-eval-design.md</code>; markdown is the source of truth.</p>
+<h1>Prose-Number Entailment Eval <span style="font-size:16px;color:var(--muted)">(design)</span></h1>
+<p class="sub">The first buildable slice of the consultant_engine evals suite — an LLM-as-judge that checks prose-embedded numbers for entailment against the engine's deterministic figures. HTML companion to <code>2026-07-06-track-a-prose-number-eval-design.md</code>; markdown is the source of truth.</p>
 
 <div class="meta">
   <div><span class="k">Date</span> 2026-07-06</div>
   <div><span class="k">Status</span> Design — approved from brainstorming, pending spec review → writing-plans</div>
-  <div><span class="k">Tracking</span> <code>docs/tasks.md</code> ENH-10 · ENH-5 Track A (evals master)</div>
+  <div><span class="k">Tracking</span> <code>docs/tasks.md</code> ENH-10 · ENH-5 (evals master)</div>
   <div><span class="k">Scope</span> <code>consultant_engine/</code> LLM prose surface — the ~9 genuine-synthesis slots. This is exactly ENH-10.</div>
 </div>
 
@@ -149,10 +149,10 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
     <div class="l"><b>Purpose:</b> expose only the judge-relevant deterministic numbers as a flat dict, ready to inject as ground truth.<br>
     <b>Interface:</b> <code>extract_figures(state) -&gt; dict</code> — pure, no I/O.<br>
     <b>Fields:</b> per-fund CFS+rank, weighted alpha, allocation %, exposure %; portfolio-level weighted aggregates.<br>
-    <b>Home:</b> engine-side (<code>consultant_engine/evals/</code>) or <code>evals/track_a/</code>; unit-tested.</div></div>
+    <b>Home:</b> engine-side (<code>consultant_engine/evals/</code>) or <code>evals/prose_numbers/</code>; unit-tested.</div></div>
   <div class="unit u2"><h4>2 · Fixture corpus <span class="chip c-data">frozen JSON</span></h4>
     <div class="l"><b>Purpose:</b> freeze <code>(prose, figures, verdict)</code> triples that prove the judge before it gates.<br>
-    <b>Layout:</b> <code>evals/track_a/fixtures/*.json</code>.<br>
+    <b>Layout:</b> <code>evals/prose_numbers/fixtures/*.json</code>.<br>
     <b>Categories:</b> <span class="chip c-good">good</span> (incl. derived-but-consistent) · <span class="chip c-bad">seeded-bad-single</span> · <span class="chip c-bad">seeded-bad-buried</span>.<br>
     <b>Coverage:</b> <code>why.*</code>/<code>watch.*</code>/<code>macro.impact</code>, multiple funds.</div></div>
   <div class="unit u3"><h4>3 · Judge prompt + Promptfoo config <span class="chip c-llm">Claude judge</span></h4>
@@ -211,8 +211,8 @@ hand-authored prose ────────────────────
 <li><b>Correctness of the state figures themselves</b> — covered by the three deterministic tiers (§2). The judge reuses verified state as trusted ground truth (see §9: not circular).</li>
 <li><b>The fact-slot guardrail</b> (LLM can't overwrite Python-filled slots) — already enforced structurally (keyed fragments, <code>[UNFILLED:KEY]</code> sentinel, <code>check_render_fidelity</code>).</li>
 <li><b>Live multi-sample proposal regeneration</b> — deferred to phase 2.</li>
-<li><b>The qualitative-prose judge</b> (tone/relevance/no-hallucination — Track A "wave a") — deferred.</li>
-<li><b>RAG / retrieval evals</b> (Track A "wave b") — blocked on Track B, no corpus yet.</li>
+<li><b>The qualitative-prose judge</b> (tone/relevance/no-hallucination) — deferred.</li>
+<li><b>RAG / retrieval evals</b> — blocked on the regulatory-RAG workstream, no corpus yet.</li>
 <li><b>Human-label calibration set</b> — deferred (a strength of this slice is that it needs none).</li>
 </ul>
 
@@ -221,7 +221,7 @@ hand-authored prose ────────────────────
 
 <h2><span class="num">§12</span> Open items for writing-plans</h2>
 <ul>
-<li>Extractor + fixtures home (<code>consultant_engine/evals/</code> vs <code>evals/track_a/</code>) and how Promptfoo (Node) sits beside the Python repo.</li>
+<li>Extractor + fixtures home (<code>consultant_engine/evals/</code> vs <code>evals/prose_numbers/</code>) and how Promptfoo (Node) sits beside the Python repo.</li>
 <li>Precise <code>figures_extractor</code> field names and the rounding/tolerance the judge is told to accept.</li>
 <li>Concrete judge-model id + sample count <code>N</code> + the pass-threshold numbers.</li>
 <li>Verdict assertion via <code>llm-rubric</code> vs a <code>javascript</code>/<code>python</code> parse of the judge JSON (the latter gives crisper control over the <code>offending_sentence</code> check).</li>
