@@ -126,9 +126,9 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <div class="goal">A pure, unit-tested <code>state → figures</code> function exposing only the judge-relevant deterministic numbers.</div>
 <ul>
 <li>Decide the extractor's home (record it in the file header); prefer engine-side if it must import engine types.</li>
-<li>Define the exact <b>figures schema</b> (flat dict): <b>per-fund</b> <code>cfs</code>, <code>rank</code>, <code>weighted_alpha</code>, <code>allocation_pct</code>, per-fund <code>exposure_pct</code>; <b>portfolio-level</b> weighted-avg alpha, weighted CFS, asset-class/geo exposure totals, count/share beating benchmark.</li>
-<li>Implement <code>extract_figures(state) -&gt; dict</code> — pure, no I/O; read from <code>cfs_scores</code>, <code>portfolio</code>, exposure compute.</li>
-<li>Write <code>tests/evals/test_figures_extractor.py</code>: constructed <code>ConsultantState</code> → assert schema fields + values; assert purity (no input mutation).</li>
+<li>Define the exact <b>figures schema</b> (flat dict): <b>per-fund</b> <code>cfs</code>, <code>rank</code>, <code>weighted_alpha</code>, <code>allocation_pct</code>, per-fund <code>exposure_pct</code>; <b>portfolio-level weighted aggregates — pre-computed on purpose (spec §4a):</b> per-sleeve + portfolio weighted-avg alpha, weighted CFS, asset-class/geo exposure totals, and the count/share of funds beating benchmark. These are the derivations a consultant states in prose, so emitting them means the judge checks a prose number for <em>membership</em> against a ready value instead of doing the arithmetic itself (the least reliable thing to delegate to an LLM). <b>Adding a derived field here is cheaper/safer than trusting the judge to compute it.</b></li>
+<li>Implement <code>extract_figures(state) -&gt; dict</code> — pure, no I/O; read from <code>cfs_scores</code>, <code>portfolio</code>, exposure compute; <b>compute the derived aggregates deterministically here</b>.</li>
+<li>Write <code>tests/evals/test_figures_extractor.py</code>: constructed <code>ConsultantState</code> → assert schema fields + values <b>including the derived aggregates (verify the averages/shares against hand-computed numbers)</b>; assert purity (no input mutation).</li>
 <li>Docstring states explicitly: reuses verified state as ground truth; does <b>not</b> re-verify against the workbook.</li>
 </ul>
 <div class="done"><b>Done when:</b> <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/evals/test_figures_extractor.py -v</code> green; schema fields are exactly those a prose judge could be checked against. Committed.</div></div>
@@ -137,7 +137,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <div class="goal">A frozen, hand-authored corpus that proves the judge across all three categories — the buried-error set is the crux.</div>
 <ul>
 <li>Document the JSON schema: <code>{ slot_key, figures, prose, expect, offending_sentence?, category }</code>.</li>
-<li><span class="chip c-good">good</span> — real correct pairs across <code>why.*</code>/<code>watch.*</code>/<code>macro.impact</code>, several funds. Include <b>≥2 derived-but-consistent</b> cases (policy 4a) so the judge is proven <b>not over-strict</b>.</li>
+<li><span class="chip c-good">good</span> — real correct pairs across <code>why.*</code>/<code>watch.*</code>/<code>macro.impact</code>, several funds. <b>Mandatory: include adversarial-but-correct derived cases</b> (policy 4a) — prose stating an <em>average</em>/<em>rounding</em>/<em>subset-weighted</em> number not literally any single slot figure but consistent with them (ideally matching a Phase-1 pre-computed aggregate). These <b>measure the judge's precision / false-positive rate</b>, not just recall on planted errors: a judge that flags every novel number would pass a good-set of only verbatim restatements yet be useless. Make the good-set hard enough to catch that.</li>
 <li><span class="chip c-bad">seeded-bad-single</span> — a good pair with exactly one planted wrong number; <code>expect:"contradicted"</code> + <code>offending_sentence</code>.</li>
 <li><span class="chip c-bad">seeded-bad-buried</span> — several correct numbers <b>plus exactly one</b> planted wrong; <b>mandatory</b> category, the crux.</li>
 <li>Each <code>figures</code> block consistent with what <code>figures_extractor</code> would emit for that slot.</li>
@@ -149,14 +149,14 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <div class="phase p3"><h2>Phase 3 — Judge prompt + Promptfoo config</h2>
 <div class="goal">One Claude judge call per fixture; parse the verdict; assert it equals <code>expect</code>; multi-sample repeats surface non-determinism.</div>
 <ul>
-<li><code>prompts/judge.md</code>: give the slot's prose + figures; instruct <b>"check EACH numeric claim independently before answering"</b>; allow derived-but-consistent numbers (consistency, not novelty).</li>
-<li>Lock the output contract: strict JSON <code>{ "entailed": boolean, "offending_sentence": string|null }</code>, nothing else.</li>
+<li><code>prompts/judge.md</code>: give the slot's prose + figures; instruct <b>"check EACH numeric claim independently before answering"</b>; allow derived-but-consistent numbers (consistency, not novelty). <b>Write the rubric as richly as an atomic-decomposition prompt</b> — spell out the per-claim procedure and a worked example; the industry holistic-vs-atomic parity result only holds when the holistic rubric is that detailed. Tell the judge to <b>prefer the pre-computed aggregates</b> in the figures over doing its own arithmetic.</li>
+<li>Lock the output contract: strict JSON with a <b>per-claim verdict list</b> — <code>{ "claims": [ { "text": string, "verdict": "entailed"|"contradicted"|"underivable" }, … ], "entailed": boolean, "offending_sentence": string|null }</code>. <code>entailed</code> is reduced <b>in the assertion code</b> (false if any claim is not <code>entailed</code>); <code>offending_sentence</code> = the first failing claim's sentence. <b>Enumerating every claim before the boolean is the structural mitigation for the buried-error blind spot</b> (spec §6.3/§7) — the judge cannot return <code>entailed:true</code> without a verdict on the buried number.</li>
 <li>Pick and <b>pin</b> a concrete Claude judge model (a current Sonnet-class id) in the config.</li>
-<li>Wire <code>promptfooconfig.yaml</code>: each fixture → a test case (prose + figures → vars); prefer a <code>javascript</code>/<code>python</code> assertion parsing the judge JSON: <code>entailed == (expect=="entailed")</code>, and for <code>seeded-bad-*</code> that <code>offending_sentence</code> is non-null. <code>llm-rubric</code> is the fallback.</li>
-<li>Enable <b>multi-sample repeats</b> so flakiness shows up as a pass rate.</li>
+<li>Wire <code>promptfooconfig.yaml</code>: each fixture → a test case (prose + figures → vars); use a <code>javascript</code>/<code>python</code> assertion (not a bare <code>llm-rubric</code>) that parses the per-claim JSON, reduces <code>entailed</code>, and checks <code>entailed == (expect=="entailed")</code> — and for <code>seeded-bad-*</code> that the <b>planted claim specifically</b> is the one flagged <code>contradicted</code>/<code>underivable</code> and <code>offending_sentence</code> is surfaced.</li>
+<li>Enable <b>multi-sample repeats</b> and fix the <b>aggregation rule explicitly</b> — majority-vote-of-N (or pass@k) with a stated N and k — so flakiness shows up as a defined pass rate, not an ad-hoc average or a single coin-flip.</li>
 <li>Run locally; inspect that <code>good</code> pass, <code>seeded-bad-single</code> fail-as-contradicted, and the <b>buried-error set is caught</b>.</li>
 </ul>
-<div class="crux"><span class="g">If the buried errors are missed:</span> first tighten the rubric (strengthen the "check each claim" instruction / add a worked example); if still missed, escalate to a per-number extraction step. <b>Do not</b> paper over a miss by loosening the fixture.</div>
+<div class="crux"><span class="g">Acceptance crux.</span> The per-claim verdict list + rich rubric are already the structural defenses (baked into the contract, not a later add-on). If the buried errors are <b>caught</b>, the holistic no-regex-extraction approach is validated. If they are <b>missed</b> despite those defenses, the only remaining lever is a <b>deterministic per-number extraction step ahead of the judge</b> — <b>do not</b> paper over a miss by loosening the fixture or the threshold.</div>
 <div class="done"><b>Done when:</b> <code>cd evals/prose_numbers &amp;&amp; ANTHROPIC_API_KEY=… npx promptfoo eval</code> runs all fixtures; every <code>good</code> is <code>entailed</code>, every <code>seeded-bad-*</code> is <code>contradicted</code> including the buried set, across samples. Committed.</div></div>
 
 <div class="phase p4"><h2>Phase 4 — CI gate</h2>
@@ -164,7 +164,8 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <ul>
 <li>Add the job: set up Node, <code>npx promptfoo eval -c evals/prose_numbers/promptfooconfig.yaml</code>, fail on any assertion failure.</li>
 <li><b>API-key story</b> (spec §8): CI runs the judge <b>live</b> via an <code>ANTHROPIC_API_KEY</code> repo secret; the small frozen set keeps cost trivial. Document the committed-cache alternative as a brittle fallback.</li>
-<li><b>Pass threshold:</b> catch <b>100% of <code>seeded-bad-*</code></b>, pass <b>100% of <code>good</code></b> across N samples; any miss fails the job.</li>
+<li><b>Pass threshold, under the Phase-3 aggregation rule:</b> catch <b>100% of <code>seeded-bad-*</code></b> (recall) and pass <b>100% of <code>good</code></b> (precision) across the N samples per the majority/pass@k rule; any miss fails the job.</li>
+<li><b>Report both metrics, not just pass/fail</b> — recall on <code>seeded-bad-*</code> and precision on <code>good</code> (false-positive rate) — so a regression in either direction is visible in the job output, not hidden behind a green/red bit.</li>
 <li>Scope the trigger honestly: offline regression layer → run on generation-prompt/model or eval-asset changes (and on demand), not every unrelated push if token budget matters.</li>
 <li>Make the job <b>required</b> for merge once green and stable.</li>
 </ul>
@@ -175,7 +176,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <li><b>Live multi-sample proposal regeneration</b> — this slice freezes inputs instead.</li>
 <li><b>The qualitative-prose judge</b> (tone/relevance/no-hallucination).</li>
 <li><b>RAG / retrieval evals</b> — blocked on the regulatory-RAG workstream (no corpus yet).</li>
-<li><b>Human-label calibration set</b> — not needed for prose-number entailment.</li>
+<li><b>Human-agreement gate (κ) — the phase-2 criterion to trust the judge beyond fixtures.</b> Phase 1's synthetic fixtures prove recall on <em>imagined</em> error types and precision on <em>hand-built</em> good cases, but not agreement with a human on <em>real generated</em> prose. Before live use, label a small real-generation sample and require inter-rater agreement <b>κ ≥ ~0.6</b> (the accepted meta-evaluation floor). Not a phase-1 blocker; phase 1 ships on fixtures alone.</li>
 <li><b>Committed-response-cache CI mode</b> — documented as a fallback; live judging is the default.</li>
 </ul>
 
@@ -183,9 +184,9 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <ul>
 <li>Phases 0–4 landed, each commit green.</li>
 <li><code>figures_extractor</code> implemented + unit-tested (schema per spec §9); reuses verified state, doesn't re-verify.</li>
-<li>Frozen corpus across all three categories, slot families, several funds, incl. derived-but-consistent <code>good</code> cases.</li>
-<li>Promptfoo config + rubric with a pinned Claude model, multi-sample, parsed <code>{entailed, offending_sentence}</code> asserted vs each <code>expect</code>.</li>
-<li>CI job green only within threshold; the buried-error catch is proven to make the gate bite.</li>
+<li>Frozen corpus across all three categories, slot families, several funds, with <b>adversarial-but-correct derived <code>good</code> cases</b> that measure precision.</li>
+<li>Promptfoo config + rubric with a pinned Claude model, multi-sample under an <b>explicit aggregation rule</b> (majority/pass@k), and a <b>per-claim</b> JSON verdict (<code>claims[]</code> → reduced <code>entailed</code> + <code>offending_sentence</code>) parsed and asserted vs each <code>expect</code>.</li>
+<li>CI job green only within threshold, <b>reporting both recall (seeded-bad) and precision (good)</b>; the buried-error catch is proven to make the gate bite.</li>
 <li>API-key story stated honestly (live + repo secret recommended; cache a brittle fallback).</li>
 <li>HTML companion regenerated (mirrors this markdown; markdown is the source of truth).</li>
 </ul>

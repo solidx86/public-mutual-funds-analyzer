@@ -56,7 +56,7 @@ The **genuine-synthesis prose slots** — the judged surface — are exactly:
 2. **Harness = Promptfoo.** Config-driven `llm-rubric` assertions, multi-sample runs, CI-gateable pass/fail. Adds a Node / `npx` dependency alongside the Python repo. Chosen for portfolio value (legible eval tooling is a named JD gap) and because ENH-10 names it.
 3. **Data sourcing = fixtures-first, live-later.** Build a **frozen** fixture corpus that validates the **judge itself** before trusting it to gate anything. Live multi-sample proposal regeneration is a later phase.
 4. **Rubric policy (a) — allow derived-but-consistent numbers.** Prose **may** introduce numbers not literally in a slot (e.g. an average of three funds' alphas) as long as they are **consistent** with the figures. The judge checks *consistency, not novelty* — forbidding new numbers would gut synthesis prose. See §4a for the precise definition of "consistent".
-5. **Rubric policy (b) — holistic per slot-instance.** One judge call per slot instance (e.g. `why.PAPFF`), given **that slot's prose + that slot's relevant figures**, returning `{entailed: bool, offending_sentence: string|null}`. **No** brittle number-extraction / parsing pre-step — the LLM does both "find the numbers" *and* "map + check against figures", which is the part a regex cannot do. The rubric prompt **must** instruct the judge to *"check EACH numeric claim independently before answering"* to mitigate the holistic blind spot (§7).
+5. **Rubric policy (b) — holistic per slot-instance.** One judge call per slot instance (e.g. `why.PAPFF`), given **that slot's prose + that slot's relevant figures**, emitting a **per-claim verdict list that reduces to** `{entailed: bool, offending_sentence: string|null}` (the reduction runs in the assertion code — see §6.3). **No** brittle number-extraction / parsing pre-step — the LLM does both "find the numbers" *and* "map + check against figures", which is the part a regex cannot do. The per-claim enumeration plus the rubric instruction to *"check EACH numeric claim independently before answering"* are the mitigations for the holistic blind spot (§7).
 
 ### 4a. What "consistent" means
 
@@ -76,6 +76,8 @@ A number is **inconsistent** (the complement) when it either:
 
 The subtle boundary — and the reason the seeded-bad fixtures exist — is the **wrongly-derived trap**: prose claims a derivation the figures don't support ("average 3%" when the true mean is `1.9%`). This is case-2-shaped but **inconsistent**, because the *claimed* relationship to the figures is false. The judge must catch it, not wave it through as "a new number."
 
+**Keep the arithmetic in Python, not the judge.** Asking an LLM to *verify* a derivation ("is 4.1 the mean of 4.0/4.1/4.2?") is the least reliable thing to delegate to it — LLMs are weak arithmetic checkers, an industry-recognized failure mode. So `figures_extractor` **pre-computes the derivations a consultant is likely to state** — per-sleeve and portfolio weighted-average alpha, weighted CFS, benchmark beat count/share — directly into the figure set (§6.1, §9). The judge then usually checks a prose number for **membership / non-contradiction against an enriched figure set**, rather than re-deriving it. Fresh arithmetic by the judge shrinks to the residual long tail; this is the deliberate hybrid (deterministic math + LLM semantic mapping) that the pure-LLM alternative would get wrong.
+
 ## 5. The 1:1 mapping
 
 The core discipline of the design — everything lines up one-to-one:
@@ -93,6 +95,7 @@ one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one 
 - **Purpose:** expose *only* the judge-relevant deterministic numbers as a flat dict, ready to inject into the judge prompt as ground truth.
 - **Interface:** `extract_figures(state: ConsultantState) -> dict` (pure function, no I/O).
 - **Fields exposed:** per-fund CFS + rank, weighted alpha, allocation %, exposure %, and portfolio-level weighted aggregates (see §9 for the exact schema).
+- **Pre-computes the likely derivations.** Beyond the raw per-fund figures, the extractor emits the **aggregates a consultant would state in prose** — portfolio and per-sleeve weighted-average alpha, weighted CFS, benchmark beat count/share — so the judge checks membership against them instead of doing the arithmetic itself (see the §4a hybrid note). Adding a derived field here is cheaper and safer than trusting the judge to compute it.
 - **Home:** engine-side, `consultant_engine/evals/` (or `evals/prose_numbers/` — resolve in the plan). Unit-tested in Python.
 - **Dependency:** reads a `ConsultantState`; depends on nothing outside the engine. Its output is what gets injected into the judge prompt.
 
@@ -113,7 +116,7 @@ one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one 
 ```
 
 - **Categories (all three required):**
-  - `good` — real, correct prose/figure pairs (incl. **derived-but-consistent** cases per policy 4a, so the judge isn't over-strict).
+  - `good` — real, correct prose/figure pairs. **Must include adversarial-but-correct derived cases** (rounding, subset/weighted averages, superlatives per policy 4a) — these are what measure the judge's **false-positive rate / precision**, not just its recall on planted errors. A judge that flags every novel number would sail through a good-set that only holds verbatim restatements.
   - `seeded-bad-single` — a slot with exactly one planted wrong number.
   - `seeded-bad-buried` — a slot with several correct numbers **plus exactly one** planted wrong one (the §7 crux).
 - **Coverage:** spans `why.*` / `watch.*` / `macro.impact`, and multiple funds.
@@ -123,8 +126,22 @@ one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one 
 
 - **Purpose:** turn each fixture into a test case and assert the judge's verdict equals the fixture's `expect`.
 - **Files:** `promptfooconfig.yaml` + the rubric prompt.
-- **Judge output contract:** strict JSON `{ "entailed": bool, "offending_sentence": string|null }`.
-- **Assertion:** an `llm-rubric` (or a `javascript` / `python` assertion that parses the judge's JSON) asserts `entailed` matches `expect`, and — for `seeded-bad-*` — that an offending sentence is surfaced.
+- **Judge output contract:** strict JSON with a **per-claim verdict list**, reduced to the slot verdict:
+
+  ```json
+  {
+    "claims": [
+      { "text": "outperformed by 2.1%", "verdict": "entailed" },
+      { "text": "top performer of the three", "verdict": "entailed" },
+      { "text": "a 9% edge", "verdict": "contradicted" }
+    ],
+    "entailed": false,
+    "offending_sentence": "…a 9% edge over its benchmark."
+  }
+  ```
+
+  Per-claim `verdict ∈ {entailed, contradicted, underivable}`. `entailed` is the **reduction** — `false` if any claim is `contradicted` or `underivable`; `offending_sentence` is the sentence of the first failing claim. **Enumerating every numeric claim before reducing is the structural mitigation for the buried-error blind spot (§7)** — it forces the judge to render a verdict on each number rather than emit one holistic boolean it can reach by reading only the first plausible claim. This is stronger than the rubric instruction alone, and keeps the no-regex-extraction property: the judge still finds the claims itself.
+- **Assertion:** a `javascript` / `python` assertion parses the judge's JSON and asserts the reduced `entailed` matches `expect`; for `seeded-bad-*`, it asserts the planted claim is the one flagged (`contradicted`/`underivable`) and an offending sentence is surfaced. (Preferred over a bare `llm-rubric` for this crisper control.)
 - **Judge model:** a concrete Anthropic **Claude** model (recommend a current Sonnet-class model; pin the exact id in the config). Stated, not left implicit.
 - **Non-determinism:** configure **multi-sample repeats** so judge flakiness surfaces as a measured pass rate rather than a single coin-flip.
 - **Dependency:** consumes the fixtures + rubric; needs a model API key at run time (§8).
@@ -145,7 +162,7 @@ hand-authored prose ────────────────────
                                      promptfooconfig.yaml + rubric prompt
                                                                  │  (one test case per fixture)
                                                                  ▼
-                                            Claude judge call → {entailed, offending_sentence}
+                                Claude judge call → {claims[], entailed, offending_sentence}
                                                                  │
                                                                  ▼
                                         assert verdict == fixture.expect  → CI green / red
@@ -153,14 +170,17 @@ hand-authored prose ────────────────────
 
 ## 7. The judge's known blind spot + the buried-error experiment
 
-**The blind spot.** A single slot's prose often contains several numbers. A holistic judge (policy 4b) could rubber-stamp `entailed: true` when **one** number is wrong but "buried among several" correct ones — the whole point of *not* doing per-number extraction is that the LLM must find *and* check each number itself, and it can get lazy.
+**The blind spot.** A single slot's prose often contains several numbers. A holistic judge (policy 4b) could rubber-stamp `entailed: true` when **one** number is wrong but "buried among several" correct ones. This is the eval-side face of the well-documented *lost-in-the-middle* weakness — a judge that reasons over a list tends to miss the one bad item among many good ones. Collapsing a multi-number slot to a single boolean *invites* it: the judge can settle on a first plausible reading and stop.
 
-**The safety check.** The fixture corpus therefore **requires** the `seeded-bad-buried` category: a slot with multiple correct numbers plus exactly one planted wrong one. This is the **acceptance crux** for the whole holistic bet:
+**Three layers of defense, structural first.**
 
-- If the judge **catches** the buried errors → the holistic, no-extraction shortcut is validated; ship it.
-- If the judge **misses** them → the suite goes **red** and the holistic bet is **falsified**. Fallback: tighten the rubric (the *"check EACH numeric claim independently"* instruction is the first lever), and if that fails, move to a per-number extraction step.
+1. **Per-claim verdict list (structural, baked into the output contract, §6.3).** The judge must emit a verdict for *every* numeric claim before the boolean is reduced from that list in code. It cannot return `entailed: true` without having rendered a verdict on the buried number. This is the primary mitigation — a schema constraint, not a plea.
+2. **Rubric instruction.** The prompt still says *"check EACH numeric claim independently before answering"* — reinforcing (1), and (per the industry parity result) the rubric must be as detailed as an atomic-decomposition prompt to earn holistic parity.
+3. **The `seeded-bad-buried` fixtures — the acceptance crux.** A slot with multiple correct numbers plus exactly one planted wrong one, proving the two layers above actually work:
+   - Judge **catches** the buried errors → the holistic, no-regex-extraction approach is validated; ship it.
+   - Judge **misses** them → the suite goes **red** and the bet is **falsified**. Last-resort fallback: a deterministic per-number extraction step ahead of the judge.
 
-This experiment is deliberate and must be made explicit in the plan: it **proves or kills the holistic shortcut before it gates.**
+This experiment is deliberate and must be explicit in the plan: it **proves or kills the holistic approach before it gates.** Note the mild regime in our favor — slots are short (a few sentences, ~1–4 numbers), so this is far from the long-list stress case where lost-in-the-middle is worst.
 
 ## 8. CI / API-key story (stated honestly)
 
@@ -184,7 +204,7 @@ The flat dict the extractor emits (exact field names resolved in the plan). It e
 | Per-fund | `cfs`, `rank`, `weighted_alpha`, `allocation_pct`, per-fund `exposure_pct` | `cfs_scores`, `portfolio`, exposure compute |
 | Portfolio-level | weighted-average alpha, weighted CFS, asset-class / geo exposure aggregates, count/share of funds beating benchmark | derived from the portfolio + per-fund figures |
 
-The extractor is **not** re-deriving these from the workbook — that is `test_proposal_validation.py`'s job (§10). It re-reads the already-verified state figures and reshapes them.
+The extractor is **not** re-deriving these from the workbook — that is `test_proposal_validation.py`'s job (§10). It re-reads the already-verified state figures and reshapes them. The **portfolio-level aggregates are pre-computed on purpose** (§4a): they are the derivations a consultant states in prose, so surfacing them here means the judge checks membership against a ready number instead of doing the arithmetic itself.
 
 ## 10. Explicitly out of scope
 
@@ -195,23 +215,27 @@ State clearly in the docs — this slice does **not** own:
 - **Live multi-sample proposal regeneration** — deferred to a phase 2.
 - **The qualitative-prose judge** (tone / relevance / no-hallucination) — deferred.
 - **RAG / retrieval evals** — **blocked on the regulatory-RAG workstream**, which has no corpus yet.
-- **Human-label calibration set** — deferred (a strength of this slice is that it needs none).
+- **Human-label calibration set** — deferred to phase 2, not skipped. Phase 1's synthetic fixtures prove the judge catches *the error types we imagined* and pass *hand-built* good cases; they do **not** measure agreement with a human on real generated prose. That agreement check (a small labelled real-generation sample with a stated κ floor) is the phase-2 gate for trusting the judge beyond fixtures — see §11.
 
 ## 11. Deliverable & success criteria
 
 **Success** = a *trustworthy* prose-number entailment judge, **gated in CI**, over a fixture corpus that **proves** the judge (via seeded `good` / `seeded-bad-single` / `seeded-bad-buried` fixtures). Concretely:
 
-- `figures_extractor` implemented + Python-unit-tested.
-- A frozen fixture corpus spanning all three categories, `why.*` / `watch.*` / `macro.impact`, and several funds — including derived-but-consistent `good` cases.
-- A Promptfoo config + rubric with a pinned Claude judge model, multi-sample repeats, and a parsed `{entailed, offending_sentence}` verdict asserted against each fixture's `expect`.
-- A CI job that is green only when every verdict matches within the stated threshold — the buried-error catch being the acceptance crux.
+- `figures_extractor` implemented + Python-unit-tested, **including the pre-computed derived aggregates** (§4a) so the judge does minimal arithmetic.
+- A frozen fixture corpus spanning all three categories, `why.*` / `watch.*` / `macro.impact`, and several funds — with the `good` set **carrying adversarial-but-correct derived cases** so the suite measures **precision (false-positive rate), not only recall** on planted errors.
+- A Promptfoo config + rubric with a pinned Claude judge model, multi-sample repeats, and a parsed **per-claim verdict** (§6.3) whose reduced `entailed` is asserted against each fixture's `expect`.
+- An **explicit aggregation rule** over the N samples — majority-vote-of-N (or pass@k) with stated N, k, and pass threshold — not an ad-hoc average.
+- A CI job that is green only when every verdict matches within that threshold — the buried-error catch being the acceptance crux.
+- **Reported metrics, not just pass/fail:** recall on `seeded-bad-*` and precision on `good`, so a regression in either direction is visible.
+
+**Phase-2 gate (not phase 1):** before the judge is trusted beyond fixtures, a small **human-labelled real-generation sample** with **inter-rater agreement κ ≥ ~0.6** against the judge — the accepted meta-evaluation floor. Phase 1 ships on fixtures alone; this is what earns live use.
 
 This deliverable also **feeds the eventual "published eval case study"** named in `docs/tasks.md`.
 
 ## 12. Open items to settle during writing-plans
 
 - Exact home for the extractor + fixtures (`consultant_engine/evals/` vs `evals/prose_numbers/`) and how Promptfoo (Node) sits beside the Python repo.
-- The precise `figures_extractor` field names and rounding/tolerance the judge is told to accept.
-- Concrete judge-model id + sample count `N` + the pass threshold numbers.
-- Whether the verdict assertion is `llm-rubric` or a `javascript`/`python` assertion parsing the judge JSON (the latter gives crisper control over the `offending_sentence` check).
+- The precise `figures_extractor` field names, the exact set of pre-computed derived aggregates (§4a), and the rounding/tolerance band the judge is told to accept.
+- Concrete judge-model id + sample count `N` + the aggregation rule (majority-of-N vs pass@k) + the pass threshold numbers.
+- Verdict assertion is a `javascript`/`python` assertion parsing the per-claim JSON (§6.3) — confirm over a bare `llm-rubric`.
 - Cache-vs-live final call for CI (recommendation stands: live).
