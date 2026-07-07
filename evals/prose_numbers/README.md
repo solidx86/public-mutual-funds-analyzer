@@ -16,13 +16,26 @@ Design docs (read first for the full architecture):
 - `docs/superpowers/specs/2026-07-06-track-a-prose-number-eval-design.md`
 - `docs/superpowers/plans/2026-07-06-track-a-prose-number-eval.md`
 
-## Status: Phase 0 scaffold only
+## Status: Phase 3 — judge wired, live run UNVERIFIED (no API key yet)
 
-There are no fixtures, no judge rubric, and no real test cases yet — those
-land in Phases 1–3 of the plan above. `promptfooconfig.yaml` currently only
-proves the toolchain is wired: it points at a no-op `echo` provider with
-zero test cases defined, so it needs no network call and no API key. That
-changes once Phase 3 wires in the real judge model.
+`promptfooconfig.yaml` now points at the real judge
+(`anthropic:messages:claude-sonnet-5`, pinned) with `repeat: 5` and loads all
+19 frozen `fixtures/*.json` records 1:1 as test cases via
+`tests/load-fixtures.js`. Each test case's assertion is the `javascript` type
+(`assert.js`), which parses the judge's per-claim JSON, reduces `entailed` in
+code (never trusting the judge's own top-level boolean), and asserts it
+against the fixture's `expect` — see `prompts/judge.md` for the rubric and
+`assert.js`'s module docstring for the reduction contract.
+
+**The acceptance crux — does the judge actually catch the
+`seeded-bad-buried` fixtures? — is UNVERIFIED.** This environment has no
+`ANTHROPIC_API_KEY`, so the live judge has never been run. `assert.js`'s
+reduction logic is proven offline with hand-written mock judge outputs (see
+`assert.test.js`, runnable with `node --test evals/prose_numbers/assert.test.js`,
+no network/API key needed) — that proves the deterministic half (the
+reduction code), not the LLM half (whether claude-sonnet-5 reliably emits
+correct per-claim verdicts on real prose). Run the command below with a real
+key before trusting this gate.
 
 ## Running it
 
