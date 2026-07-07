@@ -287,6 +287,13 @@ test("runGate fails closed when a fixture has fewer than EXPECTED_REPEAT samples
           vars: { category: "good", fixture_id: "g1" },
           success: true,
         })),
+        // A complete seeded-bad-* bucket, so this test isolates the
+        // short-sample-count path from the (separately tested) empty-bucket
+        // fail-closed guard.
+        ...Array.from({ length: 5 }, () => ({
+          vars: { category: "seeded-bad-single", fixture_id: "b1" },
+          success: true,
+        })),
       ],
     },
   };
@@ -300,4 +307,53 @@ test("runGate fails closed when a fixture has fewer than EXPECTED_REPEAT samples
 
 test("runGate throws (fails closed) when the results.json file does not exist", () => {
   assert.throws(() => runGate("/nonexistent/path/results.json"));
+});
+
+// ── Fail-closed hardening: an empty bucket or an unrecognized category must
+//    never produce a vacuous green gate ────────────────────────────────────
+
+test("runGate fails closed when the seeded-bad-* bucket is empty (only good fixtures present)", () => {
+  const tmpFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gate-test-")), "results.json");
+  const outputFile = {
+    results: {
+      results: Array.from({ length: 5 }, () => ({
+        vars: { category: "good", fixture_id: "g1" },
+        success: true,
+      })),
+    },
+  };
+  fs.writeFileSync(tmpFile, JSON.stringify(outputFile));
+
+  // Without the seeded-bad-* bucket, computeGateMetrics would report a
+  // vacuous 100% recall over 0 fixtures — runGate must reject that instead
+  // of letting it read as a real green.
+  assert.throws(() => runGate(tmpFile), /seeded-bad-\* bucket is empty/);
+});
+
+test("runGate fails closed when a result carries an unrecognized category value", () => {
+  const tmpFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gate-test-")), "results.json");
+  const outputFile = {
+    results: {
+      results: [
+        ...Array.from({ length: 5 }, () => ({
+          vars: { category: "good", fixture_id: "g1" },
+          success: true,
+        })),
+        ...Array.from({ length: 5 }, () => ({
+          vars: { category: "seeded-bad-single", fixture_id: "b1" },
+          success: true,
+        })),
+        // A typo'd/unwired category — matches neither the "good" nor the
+        // "seeded-bad-*" filter in computeGateMetrics, so it would silently
+        // vanish from both denominators if runGate did not police it.
+        ...Array.from({ length: 5 }, () => ({
+          vars: { category: "seeded-vad-single", fixture_id: "typo1" },
+          success: false,
+        })),
+      ],
+    },
+  };
+  fs.writeFileSync(tmpFile, JSON.stringify(outputFile));
+
+  assert.throws(() => runGate(tmpFile), /unrecognized category/);
 });

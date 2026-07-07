@@ -43,6 +43,14 @@ const fs = require("node:fs");
 const EXPECTED_REPEAT = 5;
 const MIN_SAMPLES_FOR_MAJORITY = 3; // >= 3 of 5 samples passing = majority.
 
+// Category values this gate understands. `computeGateMetrics` buckets
+// verdicts by `category.startsWith("seeded-bad-")` / `=== "good"`; a typo'd
+// or otherwise unrecognized category value matches neither filter and would
+// silently vanish from both the recall and precision denominators. `runGate`
+// enforces every verdict's category is one of these before trusting the
+// metrics, so an unrecognized category fails closed instead of being dropped.
+const RECOGNIZED_CATEGORIES = ["good", "seeded-bad-single", "seeded-bad-buried"];
+
 /**
  * Groups per-sample pass/fail results by fixture and computes each
  * fixture's majority verdict.
@@ -92,9 +100,10 @@ function computeMajorityVerdicts(perSampleResults) {
  * fixtures) from majority verdicts, plus the overall gate pass/fail.
  *
  * Recall/precision are reported even when the relevant fixture set is
- * empty (defaulting to 1 = vacuously satisfied) so a caller with a partial
- * fixture set never crashes — `runGate`'s caller decides whether an empty
- * set itself is suspicious.
+ * empty (defaulting to 1 = vacuously satisfied) so this function never
+ * crashes on a partial fixture set — it is `runGate`'s job, not this pure
+ * function's, to police that `badTotal`/`goodTotal` are non-zero before
+ * trusting the resulting metrics as a real green.
  *
  * @param {Array<{fixture_id: string, category: string, majorityPass: boolean}>} majorityVerdicts
  * @returns {{recall: number, precision: number, badTotal: number, badCaught: number, goodTotal: number, goodPassed: number, recallMisses: string[], precisionMisses: string[], gatePass: boolean}}
@@ -232,7 +241,35 @@ function runGate(resultsJsonPath) {
     fixture_id: v.fixture_id,
     total: v.total,
   }));
+
+  // Fail closed on a category value neither bucket recognizes (a typo, or a
+  // fixture whose `category` was never wired through by
+  // tests/load-fixtures.js) — otherwise it would silently drop out of BOTH
+  // computeGateMetrics denominators and never be graded at all.
+  const unrecognized = verdicts.filter((v) => !RECOGNIZED_CATEGORIES.includes(v.category));
+  if (unrecognized.length > 0) {
+    const names = unrecognized.map((v) => `${v.fixture_id}="${v.category}"`).join(", ");
+    throw new Error(
+      `::error::runGate: unrecognized category value(s), failing closed rather than dropping them from grading: ${names}`
+    );
+  }
+
   const metrics = computeGateMetrics(verdicts);
+
+  // Fail closed if either bucket the gate's threshold depends on is empty —
+  // recall=100%/precision=100% is otherwise vacuously true over zero
+  // fixtures (see computeGateMetrics), which would print a green gate
+  // having graded nothing on that side (a dropped category, a promptfoo
+  // partial-output file, etc).
+  if (metrics.badTotal === 0) {
+    throw new Error(
+      "::error::runGate: the seeded-bad-* bucket is empty — recall cannot be certified, failing closed"
+    );
+  }
+  if (metrics.goodTotal === 0) {
+    throw new Error("::error::runGate: the good bucket is empty — precision cannot be certified, failing closed");
+  }
+
   return { metrics, verdicts, shortGroups, gatePass: metrics.gatePass && shortGroups.length === 0 };
 }
 
