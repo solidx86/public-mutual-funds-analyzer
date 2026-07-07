@@ -35,6 +35,21 @@
 #     seeded-bad-* ... across N samples") — the acceptance crux is whether
 #     the buried-error fixtures are caught, not just whether they clear a
 #     bare majority.
+#
+# IMPLEMENTED (Phase 4): `gate.js` (same directory) is the deterministic
+# wrapper that consumes `promptfoo eval --output results.json`, groups
+# results by `vars.fixture_id` (NOT `slot_key`, which repeats across
+# fixtures — see `gate.js`'s docstring), computes each fixture's
+# majority-of-5 verdict, then requires the CI threshold stated above: 100%
+# recall on `seeded-bad-*` (every planted error caught) AND 100% precision
+# on `good` (no false positives) — a miss on either side exits non-zero.
+# `gate.js`'s aggregation/threshold constants (`EXPECTED_REPEAT = 5`,
+# `MIN_SAMPLES_FOR_MAJORITY = 3`) MUST stay consistent with this `repeat: 5`
+# and with the "majority-of-5" language in README.md — if N ever changes,
+# update all three together. See `.github/workflows/prose-numbers-eval.yml`
+# for how the CI job wires `promptfoo eval` -> `gate.js`, and `gate.test.js`
+# for the offline proof that this aggregation logic actually goes red when
+# a `seeded-bad-buried` fixture's majority verdict is wrong.
 description: "Prose-number entailment eval — Claude judge over the 19 frozen prose-number fixtures (why.*/watch.*/macro.impact.*, good/seeded-bad-single/seeded-bad-buried)."
 
 prompts:

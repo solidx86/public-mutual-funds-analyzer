@@ -18,6 +18,14 @@
  * Object]`). Every other fixture field passes through unmodified so the
  * frozen fixture JSON remains the single source of truth (see
  * `evals/prose_numbers/fixtures/README.md`).
+ *
+ * `vars.fixture_id` (the frozen file's basename minus `.json`) is added
+ * on top of the fixture's own fields. It exists solely so Phase 4's
+ * `gate.js` can group Promptfoo's `repeat: 5` results back into one row
+ * per fixture: `slot_key` is deliberately NOT unique across fixtures (e.g.
+ * `why.PCSF` is both a `good` and a `seeded-bad-single` fixture, probing
+ * the same slot both ways), so it cannot be used as the grouping key —
+ * only the filename can.
  */
 
 const fs = require("node:fs");
@@ -58,6 +66,9 @@ function loadFixtureTestCases() {
         expect: fixture.expect,
         offending_sentence: fixture.offending_sentence,
         category: fixture.category,
+        // Unique per-fixture grouping key for gate.js (see the module
+        // docstring above) — deliberately NOT slot_key, which repeats.
+        fixture_id: path.basename(file, ".json"),
       },
       assert: [
         {

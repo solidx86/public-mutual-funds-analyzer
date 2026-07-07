@@ -16,12 +16,13 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const assertEntryPoint = require("./assert.js");
 const {
   parseJudgeOutput,
   reduceClaims,
   gradeJudgeOutput,
   plantedClaimIsFlagged,
-} = require("./assert.js");
+} = assertEntryPoint;
 
 const FIXTURES_DIR = path.join(__dirname, "fixtures");
 
@@ -257,4 +258,61 @@ test("plantedClaimIsFlagged is false for unrelated sentences", () => {
     plantedClaimIsFlagged("PIATAF has an 86 CFS score.", "PSTIF allocates 35% to fixed income."),
     false
   );
+});
+
+// ── Promptfoo ENTRY-POINT wrapper (`module.exports` itself) ───────────────
+//
+// Carried over from the Phase 3 review: everything above calls
+// `gradeJudgeOutput` directly, but Promptfoo's `javascript` assertion
+// (`value: file://assert.js`, no `:functionName` suffix — see
+// `loadFromJavaScriptFile` in promptfoo's evaluator) actually invokes
+// `module.exports` itself as `(output, context) => GradingResult`,
+// destructuring `context.vars`. That thin wrapper
+// (`assertProseNumberEntailment` in assert.js) was previously untested.
+
+test("(entry point) module.exports itself grades a realistic promptfoo (output, context) call", () => {
+  const fixture = loadFixture("why_PIATAF_good_verbatim.json");
+  const mockJudgeOutput = JSON.stringify({
+    claims: [
+      { text: "Composite Fund Score of 86 out of 100", verdict: "entailed" },
+      { text: "6.2% weighted alpha versus its benchmark", verdict: "entailed" },
+    ],
+    entailed: true,
+    offending_sentence: null,
+  });
+  // Realistic promptfoo assertion-call shape: `context` carries `vars` plus
+  // other fields (prompt/test/etc.) assert.js doesn't need and must ignore.
+  const context = {
+    vars: fixtureVars(fixture),
+    prompt: { raw: "judge prompt text", label: "judge.md" },
+    test: { description: "good: why.PIATAF" },
+  };
+
+  const result = assertEntryPoint(mockJudgeOutput, context);
+  assert.equal(result.pass, true, result.reason);
+  assert.equal(result.metadata.reducedEntailed, true);
+});
+
+test("(entry point) a missing context fails closed rather than throwing", () => {
+  const mockJudgeOutput = JSON.stringify({
+    claims: [{ text: "some claim", verdict: "entailed" }],
+    entailed: true,
+    offending_sentence: null,
+  });
+
+  // No context at all — assertProseNumberEntailment must default vars to
+  // {} rather than throwing on `context.vars`.
+  const result = assertEntryPoint(mockJudgeOutput, undefined);
+  assert.equal(result.pass, false, "with no fixture context, expect/category are undefined and must not vacuously pass");
+});
+
+test("(entry point) a malformed context (vars is null) fails closed rather than throwing", () => {
+  const mockJudgeOutput = JSON.stringify({
+    claims: [{ text: "some claim", verdict: "entailed" }],
+    entailed: true,
+    offending_sentence: null,
+  });
+
+  const result = assertEntryPoint(mockJudgeOutput, { vars: null });
+  assert.equal(result.pass, false);
 });

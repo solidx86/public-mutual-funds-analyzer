@@ -16,7 +16,7 @@ Design docs (read first for the full architecture):
 - `docs/superpowers/specs/2026-07-06-track-a-prose-number-eval-design.md`
 - `docs/superpowers/plans/2026-07-06-track-a-prose-number-eval.md`
 
-## Status: Phase 3 — judge wired, live run UNVERIFIED (no API key yet)
+## Status: Phase 4 — CI gate built, live run UNVERIFIED (no API key yet)
 
 `promptfooconfig.yaml` now points at the real judge
 (`anthropic:messages:claude-sonnet-5`, pinned) with `repeat: 5` and loads all
@@ -29,13 +29,15 @@ against the fixture's `expect` — see `prompts/judge.md` for the rubric and
 
 **The acceptance crux — does the judge actually catch the
 `seeded-bad-buried` fixtures? — is UNVERIFIED.** This environment has no
-`ANTHROPIC_API_KEY`, so the live judge has never been run. `assert.js`'s
-reduction logic is proven offline with hand-written mock judge outputs (see
-`assert.test.js`, runnable with `node --test evals/prose_numbers/assert.test.js`,
-no network/API key needed) — that proves the deterministic half (the
-reduction code), not the LLM half (whether claude-sonnet-5 reliably emits
-correct per-claim verdicts on real prose). Run the command below with a real
-key before trusting this gate.
+`ANTHROPIC_API_KEY`, so the live judge has never been run, and neither has
+the real GitHub Actions job below. `assert.js`'s reduction logic and
+`gate.js`'s majority-vote/threshold logic are both proven offline with
+hand-written synthetic data (see `assert.test.js` and `gate.test.js`,
+runnable with `node --test evals/prose_numbers/*.test.js`, no network/API
+key needed) — that proves the deterministic half (the reduction code +
+aggregation logic), not the LLM half (whether claude-sonnet-5 reliably emits
+correct per-claim verdicts on real prose, including buried errors). Run the
+command below with a real key before trusting this gate end-to-end.
 
 ## Running it
 
@@ -57,9 +59,87 @@ resolved from a local `node_modules` instead of npx's on-demand fetch.
 
 ## API key
 
-**Once the real judge lands (Phase 3+), running this suite needs a model
-API key.** The judge is a real LLM call — fixtures-first design freezes the
-eval's *inputs*, not the judge itself — so this is explicitly **not** a
-"no API key needed" tool. Set `ANTHROPIC_API_KEY` in your environment (see
-the repo root's `.env.example`) to run it locally. CI supplies the key from
-a repo secret (Phase 4).
+**Running this suite needs a model API key.** The judge is a real LLM call
+— fixtures-first design freezes the eval's *inputs*, not the judge itself —
+so this is explicitly **not** a "no API key needed" tool. Set
+`ANTHROPIC_API_KEY` in your environment (see the repo root's `.env.example`)
+to run it locally. CI supplies the key from the `ANTHROPIC_API_KEY` repo
+secret (Settings → Secrets and variables → Actions).
+
+## Gate: majority-of-5, 100% recall + 100% precision
+
+A single judge call is noisy, so this eval never gates on one sample.
+`promptfooconfig.yaml` sets `repeat: 5` (5 independent judge calls per
+fixture); `gate.js` groups those 5 samples per fixture by `vars.fixture_id`
+(the frozen fixture's filename — **not** `slot_key`, which several fixtures
+intentionally reuse across `good`/`seeded-bad-*` variants) and applies:
+
+- **Majority vote**: a fixture's verdict is correct iff **≥ 3 of its 5**
+  samples pass their per-sample assertion (`assert.js`).
+- **Threshold**: the gate is green only when, across all 19 fixtures under
+  majority vote — **100% recall on `seeded-bad-*`** (every planted error,
+  including the buried ones, is caught) **and 100% precision on `good`**
+  (no false positives on correct prose). A single miss on either side fails
+  the job.
+
+Both `N = 5` and the `MIN_SAMPLES_FOR_MAJORITY = 3` threshold are stated in
+three places that must stay in lockstep if they ever change: the
+`promptfooconfig.yaml` header comment, `gate.js`'s constants, and this
+section.
+
+Run it locally against a fresh `results.json`:
+
+```bash
+cd evals/prose_numbers
+npx promptfoo eval -c promptfooconfig.yaml --output results.json
+node gate.js results.json   # prints recall + precision, exits non-zero on a miss
+```
+
+`gate.js`'s aggregation/threshold logic (not the live judge) is proven
+offline in `gate.test.js` — including a synthetic case where a
+`seeded-bad-buried` fixture's majority verdict is wrong, to prove the gate
+actually goes red on a missed buried error rather than rubber-stamping.
+
+## CI
+
+`.github/workflows/prose-numbers-eval.yml` (a workflow **separate** from
+the root `ci.yml` Python/pytest gate, on purpose — this one is judge-call
+gated and shouldn't run on every push) does:
+
+`npm ci` → `npx promptfoo eval -c promptfooconfig.yaml --output results.json`
+→ `node gate.js results.json`, then uploads `results.json` as a build
+artifact regardless of outcome.
+
+**Trigger scope** — this is an offline regression layer, not a per-commit
+guard, so it does **not** run on every push. It runs on:
+
+- `workflow_dispatch` — manual, any time.
+- `push` / `pull_request` to `main`, but only when paths under
+  `evals/prose_numbers/**` (the harness: fixtures, judge prompt, promptfoo
+  config, `assert.js`, `gate.js`) or `consultant_engine/evals/**`
+  (`figures_extractor`, the ground-truth surface the fixtures were frozen
+  against) change.
+
+**Secret handling** — the job requires the `ANTHROPIC_API_KEY` repo secret.
+If it's absent, the job **fails loudly** with an explicit `::error::`
+annotation rather than silently skipping — a green "skipped" run would be a
+worse signal than an honest red build. Add the secret under repo
+Settings → Secrets and variables → Actions before the job can run for real.
+
+**Status of the CI job itself**: built and YAML/schema-validated offline in
+this environment (no `ANTHROPIC_API_KEY` here to trigger a real run) — see
+the "Status" section above. Once it has run green against a real key,
+consider marking it a required check for `main` in branch protection
+settings (a GitHub admin action, not something this repo's files control).
+
+### Fallback: committed response cache (not currently used)
+
+If judge-call cost/latency or availability ever becomes a blocker for CI,
+an alternative is committing Promptfoo's response cache (`~/.promptfoo/cache`
+via `PROMPTFOO_CACHE_PATH`, or `--no-cache` disabled) so CI replays recorded
+judge responses instead of calling the API. This is **not** wired up today,
+and is a deliberately brittle fallback: a cached response set silently goes
+stale the moment `prompts/judge.md`, the judge model, or a fixture changes,
+so anyone adopting it must regenerate the cache on every such change — there
+is no automatic staleness check. Prefer the live-call path above unless a
+concrete cost/availability problem forces the tradeoff.
