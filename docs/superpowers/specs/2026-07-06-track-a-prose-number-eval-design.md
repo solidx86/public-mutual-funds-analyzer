@@ -96,7 +96,7 @@ one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one 
 - **Interface:** `extract_figures(state: ConsultantState) -> dict` (pure function, no I/O).
 - **Fields exposed:** per-fund CFS + rank, weighted alpha, allocation %, exposure %, and portfolio-level weighted aggregates (see §9 for the exact schema).
 - **Pre-computes the likely derivations.** Beyond the raw per-fund figures, the extractor emits the **aggregates a consultant would state in prose** — portfolio and per-sleeve weighted-average alpha, weighted CFS, benchmark beat count/share — so the judge checks membership against them instead of doing the arithmetic itself (see the §4a hybrid note). Adding a derived field here is cheaper and safer than trusting the judge to compute it.
-- **Home:** engine-side, `consultant_engine/evals/` (or `evals/prose_numbers/` — resolve in the plan). Unit-tested in Python.
+- **Home (decided):** `consultant_engine/evals/figures_extractor.py`, unit-tested at `tests/evals/test_figures_extractor.py`. It is the one engine-coupled Python piece (imports `ConsultantState`), so it lives with the package for frictionless imports; the language-agnostic harness (fixtures, judge prompt, promptfoo config, CI) lives separately under `evals/prose_numbers/`. The two halves are joined only by the frozen fixture JSON — the seam the fixtures-first design already draws.
 - **Dependency:** reads a `ConsultantState`; depends on nothing outside the engine. Its output is what gets injected into the judge prompt.
 
 ### 6.2 Fixture corpus — the frozen judged inputs
@@ -142,7 +142,7 @@ one fixture record  ↔  one Promptfoo test case  ↔  one judge call  ↔  one 
 
   Per-claim `verdict ∈ {entailed, contradicted, underivable}`. `entailed` is the **reduction** — `false` if any claim is `contradicted` or `underivable`; `offending_sentence` is the sentence of the first failing claim. **Enumerating every numeric claim before reducing is the structural mitigation for the buried-error blind spot (§7)** — it forces the judge to render a verdict on each number rather than emit one holistic boolean it can reach by reading only the first plausible claim. This is stronger than the rubric instruction alone, and keeps the no-regex-extraction property: the judge still finds the claims itself.
 - **Assertion:** a `javascript` / `python` assertion parses the judge's JSON and asserts the reduced `entailed` matches `expect`; for `seeded-bad-*`, it asserts the planted claim is the one flagged (`contradicted`/`underivable`) and an offending sentence is surfaced. (Preferred over a bare `llm-rubric` for this crisper control.)
-- **Judge model:** a concrete Anthropic **Claude** model (recommend a current Sonnet-class model; pin the exact id in the config). Stated, not left implicit.
+- **Judge model (decided):** pinned **`claude-sonnet-5`** (promptfoo `anthropic:messages:claude-sonnet-5`) — the Sonnet tier is the standard judge choice (strong enough for entailment, cheap/fast enough to multi-sample). Pinned, not a floating "latest" alias, so a silent model refresh cannot move verdicts. **Record the generator model id alongside it** in the config header so self-preference bias is detectable; if the judge is ever seen rubber-stamping its own generator's prose, switch it to a different/stronger model.
 - **Non-determinism:** configure **multi-sample repeats** so judge flakiness surfaces as a measured pass rate rather than a single coin-flip.
 - **Dependency:** consumes the fixtures + rubric; needs a model API key at run time (§8).
 
@@ -234,8 +234,8 @@ This deliverable also **feeds the eventual "published eval case study"** named i
 
 ## 12. Open items to settle during writing-plans
 
-- Exact home for the extractor + fixtures (`consultant_engine/evals/` vs `evals/prose_numbers/`) and how Promptfoo (Node) sits beside the Python repo.
+- ~~Exact home for the extractor~~ — **decided:** extractor at `consultant_engine/evals/`, harness at `evals/prose_numbers/` (§6.1). Still to settle: how Promptfoo (Node) is wired beside the Python repo (§6.3/Phase 0).
 - The precise `figures_extractor` field names, the exact set of pre-computed derived aggregates (§4a), and the rounding/tolerance band the judge is told to accept.
-- Concrete judge-model id + sample count `N` + the aggregation rule (majority-of-N vs pass@k) + the pass threshold numbers.
+- ~~Judge-model id~~ — **decided: pinned `claude-sonnet-5`** (§6.3). Still to settle: sample count `N` + the aggregation rule (majority-of-N vs pass@k) + the pass threshold numbers.
 - Verdict assertion is a `javascript`/`python` assertion parsing the per-claim JSON (§6.3) — confirm over a bare `llm-rubric`.
 - Cache-vs-live final call for CI (recommendation stands: live).

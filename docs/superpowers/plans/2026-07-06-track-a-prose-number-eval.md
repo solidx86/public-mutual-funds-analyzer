@@ -27,7 +27,7 @@
 | Path | Change | Responsibility |
 |---|---|---|
 | `evals/prose_numbers/` | Create | Prose-number eval root (layout below). |
-| `evals/prose_numbers/figures_extractor.py` (or `consultant_engine/evals/figures_extractor.py`) | Create | Pure `extract_figures(state) -> dict`; the ground-truth surface. |
+| `consultant_engine/evals/figures_extractor.py` | Create | Pure `extract_figures(state) -> dict`; the ground-truth surface. Engine-coupled Python, lives with the package (decided). |
 | `evals/prose_numbers/fixtures/*.json` | Create | Frozen `(slot_key, figures, prose, expect, offending_sentence?, category)` records. |
 | `evals/prose_numbers/prompts/judge.md` | Create | The rubric prompt (JSON output contract + "check EACH numeric claim independently"). |
 | `evals/prose_numbers/promptfooconfig.yaml` | Create | One test case per fixture; parse verdict; assert against `expect`; multi-sample. |
@@ -37,7 +37,7 @@
 | `tests/evals/test_figures_extractor.py` (or `tests/consultant_engine/`) | Create | Python unit test for the extractor. |
 | `.github/workflows/ci.yml` (or a new `prose-numbers-eval.yml`) | Modify/Create | CI job running the promptfoo eval with the API-key secret + threshold. |
 
-*(Resolve the extractor's exact home — `evals/prose_numbers/` vs `consultant_engine/evals/` — in Phase 1 Step 1; the plan is written to work either way.)*
+*(Extractor home is **decided**: `consultant_engine/evals/figures_extractor.py` — the one engine-coupled Python piece lives with the package for frictionless imports; the language-agnostic harness stays under `evals/prose_numbers/`, joined only by the frozen fixture JSON.)*
 
 ---
 
@@ -65,7 +65,7 @@
 
 **Steps:**
 
-- [ ] Decide the extractor's home (`evals/prose_numbers/figures_extractor.py` vs `consultant_engine/evals/figures_extractor.py`) and record it in the file header. Prefer engine-side if it must import engine types; otherwise keep it under `evals/prose_numbers/`.
+- [ ] Create the extractor at **`consultant_engine/evals/figures_extractor.py`** (decided — engine-coupled Python lives with the package for frictionless imports; add `consultant_engine/evals/__init__.py`). State in the file header that the language-agnostic harness lives under `evals/prose_numbers/`, joined by the frozen fixture JSON.
 - [ ] Define the exact **figures schema** (flat dict). Concretely, at minimum:
   - **Per-fund:** `cfs`, `rank`, `weighted_alpha`, `allocation_pct`, and per-fund `exposure_pct` (asset-class / geo as available).
   - **Portfolio-level weighted aggregates — pre-computed on purpose (spec §4a):** weighted-average alpha, weighted CFS, per-sleeve averages, asset-class + geo exposure totals, and the count / share of funds beating their benchmark. These are the derivations a consultant states in prose; emitting them here means the judge checks a prose number for *membership* against a ready value instead of doing the arithmetic itself (the least reliable thing to delegate to an LLM). **Adding a derived field here is cheaper and safer than trusting the judge to compute it** — when in doubt, pre-compute it.
@@ -106,7 +106,7 @@
 
 - [ ] Author `evals/prose_numbers/prompts/judge.md`: give the judge the slot's prose + that slot's figures, and instruct it to **check EACH numeric claim independently before answering** (a mitigation for the holistic blind spot). Allow **derived-but-consistent** numbers (policy 4a): the judge checks *consistency, not novelty*. **Write the rubric as richly as an atomic-decomposition prompt would be** — spell out the per-claim procedure and a worked example; the industry holistic-vs-atomic parity result only holds when the holistic rubric is that detailed. Tell the judge to prefer the pre-computed aggregates in the figures over doing its own arithmetic.
 - [ ] Lock the **output contract**: strict JSON with a **per-claim verdict list**, `{ "claims": [ { "text": string, "verdict": "entailed"|"contradicted"|"underivable" }, ... ], "entailed": boolean, "offending_sentence": string|null }`. `entailed` is reduced **in the assertion code** (false if any claim is not `entailed`); `offending_sentence` = the first failing claim's sentence. **Enumerating every claim before the boolean is the structural mitigation for the buried-error blind spot** (spec §6.3/§7) — the judge cannot return `entailed:true` without a verdict on the buried number.
-- [ ] Pick and **pin** a concrete Anthropic Claude judge model (recommend a current Sonnet-class id) in `promptfooconfig.yaml`.
+- [ ] **Pin** the judge model **`claude-sonnet-5`** (promptfoo `anthropic:messages:claude-sonnet-5`) in `promptfooconfig.yaml` — pinned, not a floating "latest" alias, for reproducibility. **Record the generator model id** in a config-header comment beside it so self-preference bias stays detectable.
 - [ ] Wire `promptfooconfig.yaml`: load each fixture as a test case (prose + figures → prompt vars); use a `javascript`/`python` assertion (the chosen mechanism, not a bare `llm-rubric`) that parses the per-claim JSON, reduces `entailed`, and checks `entailed == (expect == "entailed")` — and for `seeded-bad-*` that the **planted claim specifically** is the one flagged `contradicted`/`underivable` and `offending_sentence` is surfaced.
 - [ ] Enable **multi-sample repeats** (`repeat`/`numSamples`) and fix the **aggregation rule explicitly** — majority-vote-of-N (or pass@k) with a stated N and k — so judge flakiness shows up as a defined pass rate, not an ad-hoc average or a single coin-flip.
 - [ ] Run locally against the fixtures and inspect: do the `good` pass, the `seeded-bad-single` fail-as-contradicted, and crucially the **`seeded-bad-buried` get caught**?

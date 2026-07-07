@@ -151,7 +151,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
     <b>Interface:</b> <code>extract_figures(state) -&gt; dict</code> — pure, no I/O.<br>
     <b>Fields:</b> per-fund CFS+rank, weighted alpha, allocation %, exposure %; portfolio-level weighted aggregates.<br>
     <b>Pre-computes the likely derivations</b> into the figure set — per-sleeve + portfolio weighted-avg alpha, weighted CFS, benchmark beat count/share — so the judge checks membership, not arithmetic. Adding a derived field is cheaper/safer than trusting the judge to compute it.<br>
-    <b>Home:</b> engine-side (<code>consultant_engine/evals/</code>) or <code>evals/prose_numbers/</code>; unit-tested.</div></div>
+    <b>Home (decided):</b> <code>consultant_engine/evals/figures_extractor.py</code>, unit-tested at <code>tests/evals/test_figures_extractor.py</code>. The one engine-coupled Python piece (imports <code>ConsultantState</code>) so it lives with the package for frictionless imports; the language-agnostic harness (fixtures, judge prompt, promptfoo config, CI) stays under <code>evals/prose_numbers/</code>, joined only by the frozen fixture JSON.</div></div>
   <div class="unit u2"><h4>2 · Fixture corpus <span class="chip c-data">frozen JSON</span></h4>
     <div class="l"><b>Purpose:</b> freeze <code>(prose, figures, verdict)</code> triples that prove the judge before it gates.<br>
     <b>Layout:</b> <code>evals/prose_numbers/fixtures/*.json</code>.<br>
@@ -162,7 +162,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
     <div class="l"><b>Files:</b> <code>promptfooconfig.yaml</code> + rubric prompt.<br>
     <b>Output contract:</b> strict JSON with a <b>per-claim verdict list</b> reduced to the slot verdict (see §6.3 below).<br>
     <b>Assertion:</b> a <code>javascript</code>/<code>python</code> parse of that JSON (preferred over a bare <code>llm-rubric</code>) that the reduced verdict equals the fixture's <code>expect</code> and, for <code>seeded-bad-*</code>, that the planted claim is the flagged one.<br>
-    <b>Model:</b> a pinned Anthropic Claude (Sonnet-class) id. <b>Multi-sample</b> repeats surface non-determinism.</div></div>
+    <b>Model (decided):</b> pinned <code>claude-sonnet-5</code> (promptfoo <code>anthropic:messages:claude-sonnet-5</code>) — the Sonnet tier is the standard judge choice, pinned not a floating "latest" alias so a silent refresh can't move verdicts. Record the generator model id alongside it so self-preference bias is detectable; switch to a different/stronger model if it's seen rubber-stamping. <b>Multi-sample</b> repeats surface non-determinism.</div></div>
   <div class="unit u4"><h4>4 · CI gate <span class="chip c-plan">GitHub Actions</span></h4>
     <div class="l"><b>Purpose:</b> green only when every verdict matches its fixture's <code>expect</code> within a stated threshold.<br>
     <b>Threshold:</b> catch 100% of <code>seeded-bad-*</code>, pass 100% of <code>good</code>, across N samples.<br>
@@ -252,9 +252,9 @@ hand-authored prose ────────────────────
 
 <h2><span class="num">§12</span> Open items for writing-plans</h2>
 <ul>
-<li>Extractor + fixtures home (<code>consultant_engine/evals/</code> vs <code>evals/prose_numbers/</code>) and how Promptfoo (Node) sits beside the Python repo.</li>
+<li><s>Exact home for the extractor</s> — <b>decided:</b> extractor at <code>consultant_engine/evals/</code>, harness at <code>evals/prose_numbers/</code> (§6.1). Still to settle: how Promptfoo (Node) is wired beside the Python repo.</li>
 <li>Precise <code>figures_extractor</code> field names, the exact set of <b>pre-computed derived aggregates</b> (§4a), and the rounding/tolerance band the judge is told to accept.</li>
-<li>Concrete judge-model id + sample count <code>N</code> + the aggregation rule (majority-of-N vs pass@k) + the pass threshold numbers.</li>
+<li><s>Judge-model id</s> — <b>decided: pinned <code>claude-sonnet-5</code></b> (§6.3). Still to settle: sample count <code>N</code> + the aggregation rule (majority-of-N vs pass@k) + the pass threshold numbers.</li>
 <li>Verdict assertion is a <code>javascript</code>/<code>python</code> parse of the per-claim JSON (§6.3) — confirm over a bare <code>llm-rubric</code>.</li>
 <li>Cache-vs-live final call for CI (recommendation stands: live).</li>
 </ul>

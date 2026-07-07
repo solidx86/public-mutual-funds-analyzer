@@ -100,7 +100,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <table>
 <tr><th>Path</th><th>Change</th><th>Responsibility</th></tr>
 <tr><td><code>evals/prose_numbers/</code></td><td>Create</td><td>Prose-number eval root.</td></tr>
-<tr><td><code>evals/prose_numbers/figures_extractor.py</code> <span style="color:var(--muted)">(or <code>consultant_engine/evals/</code>)</span></td><td>Create</td><td>Pure <code>extract_figures(state) -&gt; dict</code>; the ground-truth surface.</td></tr>
+<tr><td><code>consultant_engine/evals/figures_extractor.py</code></td><td>Create</td><td>Pure <code>extract_figures(state) -&gt; dict</code>; the ground-truth surface. Engine-coupled Python, lives with the package (decided).</td></tr>
 <tr><td><code>evals/prose_numbers/fixtures/*.json</code></td><td>Create</td><td>Frozen <code>(slot_key, figures, prose, expect, offending_sentence?, category)</code> records.</td></tr>
 <tr><td><code>evals/prose_numbers/prompts/judge.md</code></td><td>Create</td><td>Rubric (JSON contract + "check EACH numeric claim independently").</td></tr>
 <tr><td><code>evals/prose_numbers/promptfooconfig.yaml</code></td><td>Create</td><td>One test case per fixture; parse verdict; assert vs <code>expect</code>; multi-sample.</td></tr>
@@ -110,6 +110,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <tr><td><code>tests/evals/test_figures_extractor.py</code></td><td>Create</td><td>Python unit test for the extractor.</td></tr>
 <tr><td><code>.github/workflows/ci.yml</code> (or new)</td><td>Modify</td><td>CI job: promptfoo eval + secret + threshold.</td></tr>
 </table>
+<p class="sub"><em>Extractor home is <b>decided</b>: <code>consultant_engine/evals/figures_extractor.py</code> — the one engine-coupled Python piece lives with the package for frictionless imports; the language-agnostic harness stays under <code>evals/prose_numbers/</code>, joined only by the frozen fixture JSON.</em></p>
 
 <div class="phase p0"><h2>Phase 0 — Scaffold &amp; toolchain</h2>
 <div class="goal">Stand up the <code>evals/prose_numbers/</code> layout and make Promptfoo runnable locally with one command, before any judge logic exists.</div>
@@ -125,7 +126,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <div class="phase p1"><h2>Phase 1 — figures_extractor</h2>
 <div class="goal">A pure, unit-tested <code>state → figures</code> function exposing only the judge-relevant deterministic numbers.</div>
 <ul>
-<li>Decide the extractor's home (record it in the file header); prefer engine-side if it must import engine types.</li>
+<li>Create the extractor at <b><code>consultant_engine/evals/figures_extractor.py</code></b> (decided — engine-coupled Python lives with the package for frictionless imports; add <code>consultant_engine/evals/__init__.py</code>). The file header notes the language-agnostic harness lives under <code>evals/prose_numbers/</code>, joined by the frozen fixture JSON.</li>
 <li>Define the exact <b>figures schema</b> (flat dict): <b>per-fund</b> <code>cfs</code>, <code>rank</code>, <code>weighted_alpha</code>, <code>allocation_pct</code>, per-fund <code>exposure_pct</code>; <b>portfolio-level weighted aggregates — pre-computed on purpose (spec §4a):</b> per-sleeve + portfolio weighted-avg alpha, weighted CFS, asset-class/geo exposure totals, and the count/share of funds beating benchmark. These are the derivations a consultant states in prose, so emitting them means the judge checks a prose number for <em>membership</em> against a ready value instead of doing the arithmetic itself (the least reliable thing to delegate to an LLM). <b>Adding a derived field here is cheaper/safer than trusting the judge to compute it.</b></li>
 <li>Implement <code>extract_figures(state) -&gt; dict</code> — pure, no I/O; read from <code>cfs_scores</code>, <code>portfolio</code>, exposure compute; <b>compute the derived aggregates deterministically here</b>.</li>
 <li>Write <code>tests/evals/test_figures_extractor.py</code>: constructed <code>ConsultantState</code> → assert schema fields + values <b>including the derived aggregates (verify the averages/shares against hand-computed numbers)</b>; assert purity (no input mutation).</li>
@@ -151,7 +152,7 @@ pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:1
 <ul>
 <li><code>prompts/judge.md</code>: give the slot's prose + figures; instruct <b>"check EACH numeric claim independently before answering"</b>; allow derived-but-consistent numbers (consistency, not novelty). <b>Write the rubric as richly as an atomic-decomposition prompt</b> — spell out the per-claim procedure and a worked example; the industry holistic-vs-atomic parity result only holds when the holistic rubric is that detailed. Tell the judge to <b>prefer the pre-computed aggregates</b> in the figures over doing its own arithmetic.</li>
 <li>Lock the output contract: strict JSON with a <b>per-claim verdict list</b> — <code>{ "claims": [ { "text": string, "verdict": "entailed"|"contradicted"|"underivable" }, … ], "entailed": boolean, "offending_sentence": string|null }</code>. <code>entailed</code> is reduced <b>in the assertion code</b> (false if any claim is not <code>entailed</code>); <code>offending_sentence</code> = the first failing claim's sentence. <b>Enumerating every claim before the boolean is the structural mitigation for the buried-error blind spot</b> (spec §6.3/§7) — the judge cannot return <code>entailed:true</code> without a verdict on the buried number.</li>
-<li>Pick and <b>pin</b> a concrete Claude judge model (a current Sonnet-class id) in the config.</li>
+<li><b>Pin</b> the judge model <b><code>claude-sonnet-5</code></b> (promptfoo <code>anthropic:messages:claude-sonnet-5</code>) in the config — pinned, not a floating "latest" alias. <b>Record the generator model id</b> in a config-header comment beside it so self-preference bias stays detectable.</li>
 <li>Wire <code>promptfooconfig.yaml</code>: each fixture → a test case (prose + figures → vars); use a <code>javascript</code>/<code>python</code> assertion (not a bare <code>llm-rubric</code>) that parses the per-claim JSON, reduces <code>entailed</code>, and checks <code>entailed == (expect=="entailed")</code> — and for <code>seeded-bad-*</code> that the <b>planted claim specifically</b> is the one flagged <code>contradicted</code>/<code>underivable</code> and <code>offending_sentence</code> is surfaced.</li>
 <li>Enable <b>multi-sample repeats</b> and fix the <b>aggregation rule explicitly</b> — majority-vote-of-N (or pass@k) with a stated N and k — so flakiness shows up as a defined pass rate, not an ad-hoc average or a single coin-flip.</li>
 <li>Run locally; inspect that <code>good</code> pass, <code>seeded-bad-single</code> fail-as-contradicted, and the <b>buried-error set is caught</b>.</li>
