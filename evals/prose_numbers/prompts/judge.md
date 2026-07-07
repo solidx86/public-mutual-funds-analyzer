@@ -113,39 +113,41 @@ Figures (abbreviated):
 ```json
 {
   "funds": {
-    "FundA": {"weighted_alpha": 4.0, "allocation_pct": 60.0},
-    "FundB": {"weighted_alpha": 2.0, "allocation_pct": 40.0}
+    "FundX": {"weighted_alpha": 5.0, "allocation_pct": 70.0},
+    "FundY": {"weighted_alpha": 1.0, "allocation_pct": 30.0}
   },
-  "portfolio": {"weighted_alpha": 3.2}
+  "portfolio": {"weighted_alpha": 3.8}
 }
 ```
 
-Prose: `"FundA delivered a 4.0% weighted alpha, the stronger of the two core
-holdings. FundB, at a smaller 40% allocation, contributed a steady 2.0%.
-Combined, the two holdings blend to a portfolio-wide weighted alpha of about
-3.6%."`
+Prose: `"FundX is the larger of the pair at 70% allocation, and it posted a
+5.0% weighted alpha. FundY makes up the remaining 30% and added a modest
+1.0%. Together, the pairing's overall weighted alpha works out to roughly
+4.9%."`
 
 Reasoning:
-- Claim 1: "FundA delivered a 4.0% weighted alpha" → restatement of
-  `funds.FundA.weighted_alpha = 4.0` → **entailed**.
-- Claim 2: "the stronger of the two core holdings" → superlative; 4.0 > 2.0,
-  genuinely true → **entailed**.
-- Claim 3: "FundB, at a smaller 40% allocation, contributed a steady 2.0%" →
-  restatement of `funds.FundB.allocation_pct = 40.0` and
-  `funds.FundB.weighted_alpha = 2.0` → **entailed**.
-- Claim 4: "Combined... a portfolio-wide weighted alpha of about 3.6%" → this
-  is the trap. A naive reader might mentally average 4.0 and 2.0 unweighted
-  (→3.0) or guess a number that "sounds like" a blend. The figures already
-  have `portfolio.weighted_alpha = 3.2` — the authoritative, pre-computed
-  portfolio-wide weighted alpha. The prose's "3.6%" does not match it and is
+- Claim 1: "FundX is the larger of the pair at 70% allocation" → restatement
+  of `funds.FundX.allocation_pct = 70.0` (and implicitly a superlative,
+  70 > 30, genuinely true) → **entailed**.
+- Claim 2: "it posted a 5.0% weighted alpha" → restatement of
+  `funds.FundX.weighted_alpha = 5.0` → **entailed**.
+- Claim 3: "FundY makes up the remaining 30% and added a modest 1.0%" →
+  restatement of `funds.FundY.allocation_pct = 30.0` and
+  `funds.FundY.weighted_alpha = 1.0` → **entailed**.
+- Claim 4: "the pairing's overall weighted alpha works out to roughly 4.9%"
+  → this is the trap. A naive reader might mentally average 5.0 and 1.0
+  unweighted (→3.0), or simply reach for a number that "sounds like" a
+  reasonable blend of the two. The figures already have
+  `portfolio.weighted_alpha = 3.8` — the authoritative, pre-computed
+  portfolio-wide weighted alpha. The prose's "4.9%" does not match it and is
   not a valid alternative derivation (the true allocation-weighted mean of
-  4.0×0.6 + 2.0×0.4 = 3.2, not 3.6). This claim **contradicts** the figures →
-  **contradicted**.
+  5.0×0.70 + 1.0×0.30 = 3.8, not 4.9). This claim **contradicts** the
+  figures → **contradicted**.
 
 Reduction: not every claim is `entailed` (claim 4 fails) → slot `entailed:
-false`, `offending_sentence`: `"Combined, the two holdings blend to a
-portfolio-wide weighted alpha of about 3.6%."` (the sentence carrying claim
-4 — the first, and only, failing claim).
+false`, `offending_sentence`: `"Together, the pairing's overall weighted
+alpha works out to roughly 4.9%."` (the sentence carrying claim 4 — the
+first, and only, failing claim).
 
 This is exactly the shape of trap you must catch even when it is the *last*
 of several otherwise-correct claims, or buried in the *middle* of the
