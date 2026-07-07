@@ -19,13 +19,21 @@ itself uses. That is a stateless categorical classification, not a re-check of
 a verified performance number, so it does not violate the reuse-not-re-verify
 rule.
 
-**Portfolio- and sleeve-level aggregates are pre-computed on purpose** (spec
-§4a): weighted-average alpha, weighted CFS, per-sleeve (per derived-class)
-averages, asset-class/geo exposure totals, and the benchmark-beat count/share
-are exactly the derivations a consultant states in prose. Emitting them here
-means the later LLM judge checks a prose number for *membership* against a
-ready value instead of doing the arithmetic itself — arithmetic is the least
+**Portfolio- and per-derived-class aggregates are pre-computed on purpose**
+(spec §4a): weighted-average alpha, weighted CFS, per-derived-class averages,
+asset-class/geo exposure totals, and the benchmark-beat count/share are
+exactly the derivations a consultant states in prose. Emitting them here means
+the later LLM judge checks a prose number for *membership* against a ready
+value instead of doing the arithmetic itself — arithmetic is the least
 reliable thing to delegate to an LLM.
+
+Note: the ``"by_derived_class"`` grouping below buckets holdings by CFS
+``derived_class`` (Equity-equivalent / Balanced / Defensive). This is a
+different dimension from ``consultant_engine.portfolio``'s role-based
+"sleeves" (``structural:gold``, ``structural:money_market``, etc.) — the two
+groupings partition the portfolio along unrelated axes, so this module
+deliberately avoids the word "sleeve" for its own grouping to keep the two
+concepts from being conflated.
 
 This module is engine-coupled Python and lives inside the ``consultant_engine``
 package for frictionless imports. The language-agnostic eval harness (fixtures,
@@ -98,9 +106,10 @@ def extract_figures(state: ConsultantState) -> dict[str, Any]:
           ``consultant_engine.exposure``, the same module that renders the real
           proposal's exposure pies, so these numbers match what a proposal
           actually shows).
-        - ``"sleeves"``: the same weighted-average alpha/CFS aggregates as
-          ``"portfolio"``, but grouped by ``derived_class`` (Equity-equivalent /
-          Balanced / Defensive) and renormalized within each group.
+        - ``"by_derived_class"``: the same weighted-average alpha/CFS aggregates
+          as ``"portfolio"``, but grouped by ``derived_class`` (Equity-equivalent /
+          Balanced / Defensive) and renormalized within each group. (Not to be
+          confused with ``consultant_engine.portfolio``'s role-based "sleeves".)
     """
     portfolio: list = state.get("portfolio") or []
     eligible_funds: list = state.get("eligible_funds") or []
@@ -112,17 +121,18 @@ def extract_figures(state: ConsultantState) -> dict[str, Any]:
 
     funds_out: dict[str, dict] = {}
 
-    # Running numerators/denominators for the portfolio- and sleeve-level
-    # weighted averages. Weights are allocation fractions (allocation_pct/100),
-    # matching the pattern already used by generate_proposal._compute_portfolio_metrics.
+    # Running numerators/denominators for the portfolio- and
+    # per-derived-class-level weighted averages. Weights are allocation
+    # fractions (allocation_pct/100), matching the pattern already used by
+    # generate_proposal._compute_portfolio_metrics.
     weighted_alpha_num = 0.0
     weighted_cfs_num = 0.0
     beat_count = 0
 
-    sleeve_alloc: dict[str, float] = {}
-    sleeve_alpha_num: dict[str, float] = {}
-    sleeve_cfs_num: dict[str, float] = {}
-    sleeve_count: dict[str, int] = {}
+    class_alloc: dict[str, float] = {}
+    class_alpha_num: dict[str, float] = {}
+    class_cfs_num: dict[str, float] = {}
+    class_count: dict[str, int] = {}
 
     for holding in portfolio:
         abbr = holding.get("abbr")
@@ -133,14 +143,20 @@ def extract_figures(state: ConsultantState) -> dict[str, Any]:
         cfs_entry = cfs_by_abbr.get(abbr)
         cfs_composite = cfs_entry.get("composite") if cfs_entry else None
         rank = rank_by_abbr.get(abbr)
+        # This is the screener's blended weighted_alpha (col-14, the YTD/1Y/3Y/
+        # 5Y/10Y weighted figure) — distinct from generate_proposal.py's 3Y-only
+        # weighted_alpha_3y, which is what the real HTML's portfolio.weighted_alpha
+        # slot renders (see generate_proposal.py, rules/validation.py). Both are
+        # legitimately named "weighted_alpha"; this module intentionally exposes
+        # the screener's blended figure as ground truth for the prose-number eval.
         weighted_alpha = fund.get("weighted_alpha")
 
-        sleeve = cfs_entry.get("derived_class") if cfs_entry else None
-        if sleeve is None and fund.get("assets"):
+        dclass = cfs_entry.get("derived_class") if cfs_entry else None
+        if dclass is None and fund.get("assets"):
             # Fallback for a holding absent from cfs_scores (e.g. a structural
             # sleeve that never entered CFS ranking) — a pure classification,
             # not a re-verification of a performance figure (see module docstring).
-            sleeve = _derived_class(fund)
+            dclass = _derived_class(fund)
 
         funds_out[abbr] = {
             "cfs": cfs_composite,
@@ -148,7 +164,7 @@ def extract_figures(state: ConsultantState) -> dict[str, Any]:
             "weighted_alpha": weighted_alpha,
             "allocation_pct": allocation_pct,
             "role": holding.get("role"),
-            "derived_class": sleeve,
+            "derived_class": dclass,
             "exposure_pct": {
                 "assets": dict(fund.get("assets") or {}),
                 "geo": dict(fund.get("geo") or {}),
@@ -160,20 +176,20 @@ def extract_figures(state: ConsultantState) -> dict[str, Any]:
         if _num(weighted_alpha) > 0:
             beat_count += 1
 
-        if sleeve is not None:
-            sleeve_alloc[sleeve] = sleeve_alloc.get(sleeve, 0.0) + alloc
-            sleeve_alpha_num[sleeve] = sleeve_alpha_num.get(sleeve, 0.0) + _num(weighted_alpha) * alloc
-            sleeve_cfs_num[sleeve] = sleeve_cfs_num.get(sleeve, 0.0) + _num(cfs_composite) * alloc
-            sleeve_count[sleeve] = sleeve_count.get(sleeve, 0) + 1
+        if dclass is not None:
+            class_alloc[dclass] = class_alloc.get(dclass, 0.0) + alloc
+            class_alpha_num[dclass] = class_alpha_num.get(dclass, 0.0) + _num(weighted_alpha) * alloc
+            class_cfs_num[dclass] = class_cfs_num.get(dclass, 0.0) + _num(cfs_composite) * alloc
+            class_count[dclass] = class_count.get(dclass, 0) + 1
 
     n_holdings = len(portfolio)
 
-    sleeves_out: dict[str, dict] = {}
-    for sleeve, alloc_total in sleeve_alloc.items():
-        sleeves_out[sleeve] = {
-            "n": sleeve_count[sleeve],
-            "weighted_alpha": round(sleeve_alpha_num[sleeve] / alloc_total, 4) if alloc_total else 0.0,
-            "weighted_cfs": round(sleeve_cfs_num[sleeve] / alloc_total, 4) if alloc_total else 0.0,
+    by_derived_class_out: dict[str, dict] = {}
+    for dclass, alloc_total in class_alloc.items():
+        by_derived_class_out[dclass] = {
+            "n": class_count[dclass],
+            "weighted_alpha": round(class_alpha_num[dclass] / alloc_total, 4) if alloc_total else 0.0,
+            "weighted_cfs": round(class_cfs_num[dclass] / alloc_total, 4) if alloc_total else 0.0,
         }
 
     # Exposure look-through reuses consultant_engine.exposure's own deterministic
@@ -194,5 +210,5 @@ def extract_figures(state: ConsultantState) -> dict[str, Any]:
             "asset_exposure_pct": asset_exposure_pct,
             "geo_exposure_pct": geo_exposure_pct,
         },
-        "sleeves": sleeves_out,
+        "by_derived_class": by_derived_class_out,
     }

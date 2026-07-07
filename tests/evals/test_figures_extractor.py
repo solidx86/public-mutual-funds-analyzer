@@ -3,7 +3,7 @@
 Builds a small hand-constructed ConsultantState (a plain dict literal — no engine
 run, no fixtures, no LLM) and checks that ``extract_figures`` reshapes it into the
 figures schema with exactly the values a hand computation predicts, including the
-portfolio- and sleeve-level derived aggregates (§4a of the prose-number eval spec).
+portfolio- and per-derived-class derived aggregates (§4a of the prose-number eval spec).
 A purity test confirms the input state is never mutated.
 """
 
@@ -141,29 +141,31 @@ def test_portfolio_benchmark_beat_count_and_share():
     assert portfolio["benchmark_beat_share_pct"] == 75.0
 
 
-# ── Sleeve (derived_class) aggregates (hand-computed) ─────────────────────────
+# ── Per-derived-class aggregates (hand-computed) ──────────────────────────────
+# (Grouped by CFS derived_class — not to be confused with consultant_engine.
+# portfolio's role-based "sleeves"; see figures_extractor.py's module docstring.)
 #
 # Equity-equivalent = {FA} alone -> weighted_alpha 6.0, weighted_cfs 70.0, n=1
-# Balanced = {FB (.30), PeEMAS (.20)}, sleeve alloc total = .50
+# Balanced = {FB (.30), PeEMAS (.20)}, class alloc total = .50
 #   weighted_alpha = (2.0*.30 + 0.5*.20) / .50 = (0.6+0.1)/0.5 = 1.4
 #   weighted_cfs   = (50*.30 + 10*.20) / .50   = (15+2)/0.5   = 34.0
 # Defensive = {PeCDF-A} alone -> weighted_alpha -0.1, weighted_cfs 5.0, n=1
 
-def test_sleeve_aggregates():
+def test_by_derived_class_aggregates():
     figures = extract_figures(_make_state())
-    sleeves = figures["sleeves"]
+    by_derived_class = figures["by_derived_class"]
 
-    assert sleeves["Equity-equivalent"]["n"] == 1
-    assert round(sleeves["Equity-equivalent"]["weighted_alpha"], 4) == 6.0
-    assert round(sleeves["Equity-equivalent"]["weighted_cfs"], 4) == 70.0
+    assert by_derived_class["Equity-equivalent"]["n"] == 1
+    assert round(by_derived_class["Equity-equivalent"]["weighted_alpha"], 4) == 6.0
+    assert round(by_derived_class["Equity-equivalent"]["weighted_cfs"], 4) == 70.0
 
-    assert sleeves["Balanced"]["n"] == 2
-    assert round(sleeves["Balanced"]["weighted_alpha"], 4) == 1.4
-    assert round(sleeves["Balanced"]["weighted_cfs"], 4) == 34.0
+    assert by_derived_class["Balanced"]["n"] == 2
+    assert round(by_derived_class["Balanced"]["weighted_alpha"], 4) == 1.4
+    assert round(by_derived_class["Balanced"]["weighted_cfs"], 4) == 34.0
 
-    assert sleeves["Defensive"]["n"] == 1
-    assert round(sleeves["Defensive"]["weighted_alpha"], 4) == -0.1
-    assert round(sleeves["Defensive"]["weighted_cfs"], 4) == 5.0
+    assert by_derived_class["Defensive"]["n"] == 1
+    assert round(by_derived_class["Defensive"]["weighted_alpha"], 4) == -0.1
+    assert round(by_derived_class["Defensive"]["weighted_cfs"], 4) == 5.0
 
 
 # ── Exposure aggregates (hand-computed against consultant_engine.exposure) ────
@@ -237,4 +239,4 @@ def test_empty_portfolio_does_not_crash():
     assert figures["portfolio"]["n_holdings"] == 0
     assert figures["portfolio"]["weighted_alpha"] == 0.0
     assert figures["portfolio"]["benchmark_beat_share_pct"] == 0.0
-    assert figures["sleeves"] == {}
+    assert figures["by_derived_class"] == {}
