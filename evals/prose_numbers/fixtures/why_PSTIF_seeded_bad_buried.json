@@ -1,0 +1,127 @@
+{
+  "slot_key": "why.PSTIF",
+  "figures": {
+    "funds": {
+      "PBLNF": {
+        "cfs": 60,
+        "rank": 1,
+        "weighted_alpha": 3.0,
+        "allocation_pct": 45.0,
+        "role": "core",
+        "derived_class": "Balanced",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 35,
+            "for_equity": 25,
+            "fi": 25,
+            "mm": 10,
+            "deposits": 5,
+            "other": 0
+          },
+          "geo": {
+            "USA": 18,
+            "Japan": 8
+          }
+        }
+      },
+      "PSTIF": {
+        "cfs": 45,
+        "rank": 2,
+        "weighted_alpha": 1.2,
+        "allocation_pct": 35.0,
+        "role": "core",
+        "derived_class": "Defensive",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 10,
+            "for_equity": 10,
+            "fi": 65,
+            "mm": 10,
+            "deposits": 5,
+            "other": 0
+          },
+          "geo": {
+            "USA": 6,
+            "Korea": 4
+          }
+        }
+      },
+      "PeEMAS": {
+        "cfs": 22,
+        "rank": 3,
+        "weighted_alpha": 0.8,
+        "allocation_pct": 10.0,
+        "role": "structural:gold",
+        "derived_class": "Balanced",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 0,
+            "for_equity": 0,
+            "fi": 0,
+            "mm": 0,
+            "deposits": 0,
+            "other": 95
+          },
+          "geo": {
+            "USA": 91
+          }
+        }
+      },
+      "PeCDF-A": {
+        "cfs": 12,
+        "rank": 4,
+        "weighted_alpha": -0.2,
+        "allocation_pct": 10.0,
+        "role": "structural:money_market",
+        "derived_class": "Defensive",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 0,
+            "for_equity": 0,
+            "fi": 0,
+            "mm": 100,
+            "deposits": 0,
+            "other": 0
+          },
+          "geo": {}
+        }
+      }
+    },
+    "portfolio": {
+      "n_holdings": 4,
+      "weighted_alpha": 1.83,
+      "weighted_cfs": 46.15,
+      "benchmark_beat_count": 3,
+      "benchmark_beat_share_pct": 75.0,
+      "asset_exposure_pct": {
+        "exposure.asset.domestic_equity_pct": 19.2,
+        "exposure.asset.foreign_equity_pct": 14.8,
+        "exposure.asset.fixed_income_pct": 34.0,
+        "exposure.asset.money_market_pct": 22.0,
+        "exposure.asset.gold_pct": 10.0
+      },
+      "geo_exposure_pct": {
+        "Malaysia": 44.2,
+        "USA": 44.3,
+        "Japan": 8.3,
+        "Other": 3.2
+      }
+    },
+    "by_derived_class": {
+      "Balanced": {
+        "n": 2,
+        "weighted_alpha": 2.6,
+        "weighted_cfs": 53.0909
+      },
+      "Defensive": {
+        "n": 2,
+        "weighted_alpha": 0.8889,
+        "weighted_cfs": 37.6667
+      }
+    }
+  },
+  "prose": "<strong>PSTIF</strong> ranks second in this portfolio by Composite Fund Score, at <strong>45</strong> out of 100. Its weighted alpha stands at <strong>1.2%</strong>, positive but more modest than PBLNF's contribution. Combined, PBLNF and PSTIF's Defensive-and-Balanced blend delivers a portfolio-wide weighted alpha of roughly <strong>4%</strong>. The fund allocates <strong>35%</strong> of the portfolio, the second-largest position after PBLNF. PSTIF's fixed-income tilt shows in its exposure mix, with <strong>65%</strong> in fixed income assets.",
+  "expect": "contradicted",
+  "offending_sentence": "Combined, PBLNF and PSTIF's Defensive-and-Balanced blend delivers a portfolio-wide weighted alpha of roughly <strong>4%</strong>.",
+  "category": "seeded-bad-buried"
+}

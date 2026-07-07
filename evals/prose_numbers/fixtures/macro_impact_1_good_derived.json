@@ -1,0 +1,134 @@
+{
+  "slot_key": "macro.impact.1",
+  "figures": {
+    "funds": {
+      "PIATAF": {
+        "cfs": 86,
+        "rank": 1,
+        "weighted_alpha": 6.2,
+        "allocation_pct": 40.0,
+        "role": "core",
+        "derived_class": "Equity-equivalent",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 20,
+            "for_equity": 60,
+            "fi": 10,
+            "mm": 5,
+            "deposits": 5,
+            "other": 0
+          },
+          "geo": {
+            "USA": 45,
+            "Taiwan": 15
+          }
+        }
+      },
+      "PCSF": {
+        "cfs": 68,
+        "rank": 2,
+        "weighted_alpha": 3.4,
+        "allocation_pct": 30.0,
+        "role": "core",
+        "derived_class": "Equity-equivalent",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 5,
+            "for_equity": 85,
+            "fi": 5,
+            "mm": 5,
+            "deposits": 0,
+            "other": 0
+          },
+          "geo": {
+            "China": 70,
+            "Singapore": 12
+          }
+        }
+      },
+      "PeEMAS": {
+        "cfs": 22,
+        "rank": 3,
+        "weighted_alpha": 0.8,
+        "allocation_pct": 15.0,
+        "role": "structural:gold",
+        "derived_class": "Balanced",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 0,
+            "for_equity": 0,
+            "fi": 0,
+            "mm": 0,
+            "deposits": 0,
+            "other": 95
+          },
+          "geo": {
+            "USA": 91
+          }
+        }
+      },
+      "PeCDF-A": {
+        "cfs": 12,
+        "rank": 4,
+        "weighted_alpha": -0.2,
+        "allocation_pct": 15.0,
+        "role": "structural:money_market",
+        "derived_class": "Defensive",
+        "exposure_pct": {
+          "assets": {
+            "dom_equity": 0,
+            "for_equity": 0,
+            "fi": 0,
+            "mm": 100,
+            "deposits": 0,
+            "other": 0
+          },
+          "geo": {}
+        }
+      }
+    },
+    "portfolio": {
+      "n_holdings": 4,
+      "weighted_alpha": 3.59,
+      "weighted_cfs": 59.9,
+      "benchmark_beat_count": 3,
+      "benchmark_beat_share_pct": 75.0,
+      "asset_exposure_pct": {
+        "exposure.asset.domestic_equity_pct": 9.5,
+        "exposure.asset.foreign_equity_pct": 49.5,
+        "exposure.asset.fixed_income_pct": 5.5,
+        "exposure.asset.money_market_pct": 20.5,
+        "exposure.asset.gold_pct": 15.0
+      },
+      "geo_exposure_pct": {
+        "Malaysia": 13.2,
+        "USA": 44.1,
+        "China": 29.3,
+        "Taiwan": 8.4,
+        "Singapore": 5.0,
+        "Other": 0.0
+      }
+    },
+    "by_derived_class": {
+      "Equity-equivalent": {
+        "n": 2,
+        "weighted_alpha": 5.0,
+        "weighted_cfs": 78.2857
+      },
+      "Balanced": {
+        "n": 1,
+        "weighted_alpha": 0.8,
+        "weighted_cfs": 22.0
+      },
+      "Defensive": {
+        "n": 1,
+        "weighted_alpha": -0.2,
+        "weighted_cfs": 12.0
+      }
+    }
+  },
+  "prose": "A weaker ringgit is a broad tailwind here: three of this portfolio's four holdings &mdash; <strong>75%</strong> of the lineup &mdash; are already beating their respective benchmarks, and a favourable currency backdrop should help sustain that.",
+  "expect": "entailed",
+  "offending_sentence": null,
+  "category": "good"
+}
