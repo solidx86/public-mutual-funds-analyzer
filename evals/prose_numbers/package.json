@@ -1,0 +1,12 @@
+{
+  "name": "prose-numbers-eval",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Promptfoo harness for the prose-number entailment eval (ENH-10). See README.md.",
+  "scripts": {
+    "eval": "npx promptfoo eval -c promptfooconfig.yaml"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.121.17"
+  }
+}

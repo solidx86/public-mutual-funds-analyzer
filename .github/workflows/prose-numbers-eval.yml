@@ -1,0 +1,85 @@
+name: Prose-Number Eval (CI gate)
+
+# ── Trigger scope: MANUAL-ONLY (workflow_dispatch) ───────────────────────
+#
+# This is an OFFLINE REGRESSION LAYER over a small, frozen 19-fixture corpus
+# (evals/prose_numbers/fixtures/*.json) — NOT a per-run production guard.
+# consultant_engine's own runtime validate/repair loop is what gates every
+# real proposal; this suite only catches regressions in *prose generation*
+# quality (does the judge still correctly entail/contradict numeric claims,
+# including a wrong number buried mid-passage) between changes to the
+# generation prompt/model or the eval assets themselves.
+#
+# Every run is a real Claude judge call (repeat: 5 per fixture = 95 calls) and
+# needs the ANTHROPIC_API_KEY secret, so by deliberate choice it runs ON DEMAND
+# ONLY — never automatically on push/PR (which would hard-fail every eval-path
+# PR until the secret is configured, and this is a public repo). Run it from the
+# Actions tab → "Run workflow" after changing the generation prompt/model or the
+# eval assets, once ANTHROPIC_API_KEY is set under Settings > Secrets > Actions.
+# You can also run the whole gate locally without CI — see
+# evals/prose_numbers/README.md ("Running the eval").
+on:
+  workflow_dispatch: {}
+
+jobs:
+  prose-numbers-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: evals/prose_numbers/package-lock.json
+
+      - name: Install harness dependencies
+        working-directory: evals/prose_numbers
+        run: npm ci
+
+      # Secret-handling story: this job needs a real Claude API key because
+      # the judge is a real LLM call (see the design constraint in
+      # README.md — never "no API key needed"). If ANTHROPIC_API_KEY is
+      # absent we fail LOUDLY and immediately, rather than silently skipping
+      # the eval and reporting a green job — a skipped gate that looks green
+      # is worse than an honest red build.
+      - name: Verify ANTHROPIC_API_KEY secret is configured
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY repo secret is not set. The prose-number eval judge is a real Claude API call and cannot run without it. Add the secret under Settings > Secrets and variables > Actions > New repository secret, or trigger this workflow only via workflow_dispatch once it is configured." >&2
+            exit 1
+          fi
+
+      # `promptfoo eval`'s own exit code reflects whether every individual
+      # sample passed its assertion — but the CI threshold here is
+      # majority-of-5 (>=3/5 samples per fixture), not "5/5 samples must all
+      # pass". gate.js (next step) is the authoritative pass/fail check, so
+      # a non-majority-affecting single-sample flake here must not abort the
+      # job before gate.js gets to grade the full results.json. `|| true`
+      # is deliberate: it hands the real gating decision to gate.js.
+      - name: Run the promptfoo eval (judge call, repeat=5 per fixture)
+        working-directory: evals/prose_numbers
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx promptfoo eval -c promptfooconfig.yaml --output results.json || true
+
+      # The authoritative gate: majority-of-5 aggregation, then require
+      # 100% recall on seeded-bad-* (every planted error caught) AND 100%
+      # precision on good (no false positives). Prints both metrics (not
+      # just pass/fail) so a regression in either direction is visible in
+      # the job log. See evals/prose_numbers/gate.js and gate.test.js (the
+      # offline proof that this logic actually goes red on a missed error).
+      - name: Apply the majority-of-5 gate (100% recall + 100% precision)
+        working-directory: evals/prose_numbers
+        run: node gate.js results.json
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prose-numbers-eval-results
+          path: evals/prose_numbers/results.json
+          retention-days: 30
+          if-no-files-found: warn

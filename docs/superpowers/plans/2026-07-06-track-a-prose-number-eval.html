@@ -1,0 +1,199 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prose-Number Entailment Eval (plan)</title>
+<style>
+:root{
+  --bg:#0f1419;--panel:#1a2129;--panel2:#212b35;--ink:#e6edf3;--muted:#9fb0c0;
+  --line:#2d3a47;--accent:#4ea1ff;
+  --det:#3fb950;--det-bg:#12331a;--det-ink:#a9f0bb;
+  --llm:#a371f7;--llm-bg:#241633;--llm-ink:#e0ccff;
+  --plan:#db61a2;--plan-bg:#33132a;--plan-ink:#ffc4e6;
+  --warn:#ffb454;--data:#5a6b82;--data-bg:#161d26;--data-ink:#c3d1e0;
+  --bad:#f0776a;--bad-bg:#2a1512;--bad-ink:#ffc4bb;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:1000px;margin:0 auto;padding:38px 24px 100px;}
+h1{font-size:26px;letter-spacing:-.3px;margin:0 0 6px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+h2{font-size:19px;margin:40px 0 6px;padding-top:12px;color:#fff}
+h3{font-size:14.5px;color:#fff;margin:22px 0 6px}
+.sub{color:var(--muted);margin:4px 0 16px;font-size:14px}
+p{margin:10px 0}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+  font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#cdd9e5}
+strong{color:#fff}a{color:var(--accent)}
+ul{margin:8px 0;padding-left:22px}li{margin:5px 0}
+.meta{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:16px 0;font-size:13.5px}
+.meta div{margin:3px 0}.meta .k{color:var(--muted);display:inline-block;min-width:88px}
+.reqskill{background:var(--panel2);border:1px dashed var(--line);border-radius:8px;padding:10px 14px;margin:14px 0;font-size:13px;color:var(--muted)}
+.lede{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:16px 0;font-size:14px}
+.chip{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
+  border-radius:999px;border:1px solid;white-space:nowrap;vertical-align:middle}
+.c-det{background:var(--det-bg);border-color:var(--det);color:var(--det-ink)}
+.c-llm{background:var(--llm-bg);border-color:var(--llm);color:var(--llm-ink)}
+.c-plan{background:var(--plan-bg);border-color:var(--plan);color:var(--plan-ink)}
+.c-data{background:var(--data-bg);border-color:var(--data);color:var(--data-ink)}
+.c-bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad-ink)}
+.c-good{background:var(--det-bg);border-color:var(--det);color:var(--det-ink)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.8px}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+td code{font-size:11.5px}
+pre{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;
+  font:12.5px/1.55 ui-monospace,Menlo,Consolas,monospace;color:#cdd9e5;margin:14px 0}
+.phase{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:10px;padding:14px 18px;margin:16px 0}
+.phase.p0{border-left-color:var(--data)}.phase.p1{border-left-color:var(--det)}
+.phase.p2{border-left-color:var(--warn)}.phase.p3{border-left-color:var(--llm)}
+.phase.p4{border-left-color:var(--plan)}
+.phase h2{margin:0 0 4px;padding:0;border:0;font-size:17px}
+.phase .goal{color:var(--muted);font-size:13.5px;margin:2px 0 10px}
+.done{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--det);border-radius:8px;
+  padding:9px 12px;margin:10px 0 0;font-size:12.8px}
+.done b{color:var(--det-ink)}
+.crux{border-left:4px solid var(--bad);background:linear-gradient(0deg,rgba(240,119,106,.06),rgba(240,119,106,.06)),var(--panel);
+  border-radius:0 10px 10px 0;padding:11px 15px;margin:12px 0;font-size:13px}
+.crux .g{color:var(--bad);font-weight:700}
+.gap{border-left:4px solid var(--warn);background:linear-gradient(0deg,rgba(255,180,84,.05),rgba(255,180,84,.05)),var(--panel);
+  border-radius:0 10px 10px 0;padding:11px 15px;margin:12px 0;font-size:13px}
+.gap .g{color:var(--warn);font-weight:700}
+.foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.flowline{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font:12.5px ui-monospace,Menlo,monospace;color:var(--muted);margin:8px 0}
+.arrow{color:var(--accent);font-weight:700}
+</style></head><body><div class="wrap">
+
+<h1>Prose-Number Entailment Eval <span style="font-size:15px;color:var(--muted)">(implementation plan)</span></h1>
+<p class="sub">HTML companion to <code>2026-07-06-track-a-prose-number-eval.md</code>; markdown is the source of truth.</p>
+
+<div class="reqskill"><b>For agentic workers:</b> REQUIRED SUB-SKILL — use <code>superpowers:subagent-driven-development</code> (recommended) or <code>superpowers:executing-plans</code> to implement this plan task-by-task.</div>
+
+<div class="meta">
+  <div><span class="k">Spec</span> <code>docs/superpowers/specs/2026-07-06-track-a-prose-number-eval-design.md</code> — read it first.</div>
+  <div><span class="k">Goal</span> Ship ENH-10: an LLM-as-judge for prose-embedded numbers, driven by Promptfoo, gated in CI over a frozen corpus that proves the judge itself.</div>
+  <div><span class="k">Stack</span> Python (extractor + test) · Node/<code>npx</code> Promptfoo · a Claude judge model · GitHub Actions.</div>
+</div>
+
+<div class="lede">
+  <b>Four units, four phases:</b>
+  <div class="flowline">
+    <span class="chip c-data">P0 scaffold</span><span class="arrow">→</span>
+    <span class="chip c-det">P1 figures_extractor</span><span class="arrow">→</span>
+    <span class="chip c-bad">P2 fixture corpus</span><span class="arrow">→</span>
+    <span class="chip c-llm">P3 judge + promptfoo</span><span class="arrow">→</span>
+    <span class="chip c-plan">P4 CI gate</span>
+  </div>
+  Offline regression layer, run on prompt/model change — the runtime <code>validate → repair</code> loop stays the per-run guard for structured values.
+</div>
+
+<h2>Global constraints</h2>
+<ul>
+<li><b>The judge is a real LLM call.</b> Fixtures-first freezes the eval's <em>inputs</em>, not the judge — running the suite needs a model API key. Do not build it as "no API key needed."</li>
+<li><b>The 1:1 mapping is load-bearing:</b> one fixture ↔ one Promptfoo test case ↔ one judge call ↔ one <b>slot instance</b>. Never per-proposal, never per-fund-type.</li>
+<li><b><code>figures_extractor</code> reuses verified state as ground truth — it does not re-verify it.</b> State correctness is owned by <code>test_proposal_validation.py</code>.</li>
+<li><b>Offline-only over tracked outputs.</b> Nothing here regenerates a committed example. The extractor reads a <code>ConsultantState</code> from a fixture or a throwaway fake-LLM run.</li>
+<li><b>The buried-error fixtures are the acceptance crux</b> (P2 + P4). If the judge can't catch them, the holistic no-extraction bet is falsified — the fallback is stated, not silently pinned away.</li>
+<li><b>HTML companion</b> regenerated whenever this markdown changes. <b>Conventional commits</b>, commit after every green phase.</li>
+</ul>
+
+<h2>File structure</h2>
+<table>
+<tr><th>Path</th><th>Change</th><th>Responsibility</th></tr>
+<tr><td><code>evals/prose_numbers/</code></td><td>Create</td><td>Prose-number eval root.</td></tr>
+<tr><td><code>consultant_engine/evals/figures_extractor.py</code></td><td>Create</td><td>Pure <code>extract_figures(state) -&gt; dict</code>; the ground-truth surface. Engine-coupled Python, lives with the package (decided).</td></tr>
+<tr><td><code>evals/prose_numbers/fixtures/*.json</code></td><td>Create</td><td>Frozen <code>(slot_key, figures, prose, expect, offending_sentence?, category)</code> records.</td></tr>
+<tr><td><code>evals/prose_numbers/prompts/judge.md</code></td><td>Create</td><td>Rubric (JSON contract + "check EACH numeric claim independently").</td></tr>
+<tr><td><code>evals/prose_numbers/promptfooconfig.yaml</code></td><td>Create</td><td>One test case per fixture; parse verdict; assert vs <code>expect</code>; multi-sample.</td></tr>
+<tr><td><code>evals/prose_numbers/package.json</code></td><td>Create</td><td>Promptfoo dev-dependency + <code>npm run eval</code>.</td></tr>
+<tr><td><code>evals/prose_numbers/README.md</code></td><td>Create</td><td>Local-run instructions + API-key story.</td></tr>
+<tr><td><code>Makefile</code> / root script</td><td>Modify</td><td><code>make eval-prose-numbers</code> → runs the suite.</td></tr>
+<tr><td><code>tests/evals/test_figures_extractor.py</code></td><td>Create</td><td>Python unit test for the extractor.</td></tr>
+<tr><td><code>.github/workflows/ci.yml</code> (or new)</td><td>Modify</td><td>CI job: promptfoo eval + secret + threshold.</td></tr>
+</table>
+<p class="sub"><em>Extractor home is <b>decided</b>: <code>consultant_engine/evals/figures_extractor.py</code> — the one engine-coupled Python piece lives with the package for frictionless imports; the language-agnostic harness stays under <code>evals/prose_numbers/</code>, joined only by the frozen fixture JSON.</em></p>
+
+<div class="phase p0"><h2>Phase 0 — Scaffold &amp; toolchain</h2>
+<div class="goal">Stand up the <code>evals/prose_numbers/</code> layout and make Promptfoo runnable locally with one command, before any judge logic exists.</div>
+<ul>
+<li>Create <code>evals/prose_numbers/{fixtures,prompts}/</code> + <code>README.md</code>.</li>
+<li><code>package.json</code> with <code>promptfoo</code> dev-dependency + script <code>"eval": "promptfoo eval -c promptfooconfig.yaml"</code>; prefer <code>npx promptfoo</code> (no global install).</li>
+<li>Root <code>make eval-prose-numbers</code> (or npm script) that runs the eval.</li>
+<li><code>README.md</code>: local run, <code>ANTHROPIC_API_KEY</code> requirement, the "offline regression layer, not a per-run guard" framing.</li>
+<li>Placeholder <code>promptfooconfig.yaml</code> with zero tests so <code>npx promptfoo eval</code> exits cleanly.</li>
+</ul>
+<div class="done"><b>Done when:</b> <code>make eval-prose-numbers</code> runs to a clean exit with no tests defined; README documents the local run + API-key requirement. Committed.</div></div>
+
+<div class="phase p1"><h2>Phase 1 — figures_extractor</h2>
+<div class="goal">A pure, unit-tested <code>state → figures</code> function exposing only the judge-relevant deterministic numbers.</div>
+<ul>
+<li>Create the extractor at <b><code>consultant_engine/evals/figures_extractor.py</code></b> (decided — engine-coupled Python lives with the package for frictionless imports; add <code>consultant_engine/evals/__init__.py</code>). The file header notes the language-agnostic harness lives under <code>evals/prose_numbers/</code>, joined by the frozen fixture JSON.</li>
+<li>Define the exact <b>figures schema</b> (flat dict): <b>per-fund</b> <code>cfs</code>, <code>rank</code>, <code>weighted_alpha</code>, <code>allocation_pct</code>, per-fund <code>exposure_pct</code>; <b>portfolio-level weighted aggregates — pre-computed on purpose (spec §4a):</b> per-sleeve + portfolio weighted-avg alpha, weighted CFS, asset-class/geo exposure totals, and the count/share of funds beating benchmark. These are the derivations a consultant states in prose, so emitting them means the judge checks a prose number for <em>membership</em> against a ready value instead of doing the arithmetic itself (the least reliable thing to delegate to an LLM). <b>Adding a derived field here is cheaper/safer than trusting the judge to compute it.</b></li>
+<li>Implement <code>extract_figures(state) -&gt; dict</code> — pure, no I/O; read from <code>cfs_scores</code>, <code>portfolio</code>, exposure compute; <b>compute the derived aggregates deterministically here</b>.</li>
+<li>Write <code>tests/evals/test_figures_extractor.py</code>: constructed <code>ConsultantState</code> → assert schema fields + values <b>including the derived aggregates (verify the averages/shares against hand-computed numbers)</b>; assert purity (no input mutation).</li>
+<li>Docstring states explicitly: reuses verified state as ground truth; does <b>not</b> re-verify against the workbook.</li>
+</ul>
+<div class="done"><b>Done when:</b> <code>CONSULTANT_ENGINE_FAKE_LLM=1 .venv/bin/python -m pytest tests/evals/test_figures_extractor.py -v</code> green; schema fields are exactly those a prose judge could be checked against. Committed.</div></div>
+
+<div class="phase p2"><h2>Phase 2 — Fixture corpus</h2>
+<div class="goal">A frozen, hand-authored corpus that proves the judge across all three categories — the buried-error set is the crux.</div>
+<ul>
+<li>Document the JSON schema: <code>{ slot_key, figures, prose, expect, offending_sentence?, category }</code>.</li>
+<li><span class="chip c-good">good</span> — real correct pairs across <code>why.*</code>/<code>watch.*</code>/<code>macro.impact</code>, several funds. <b>Mandatory: include adversarial-but-correct derived cases</b> (policy 4a) — prose stating an <em>average</em>/<em>rounding</em>/<em>subset-weighted</em> number not literally any single slot figure but consistent with them (ideally matching a Phase-1 pre-computed aggregate). These <b>measure the judge's precision / false-positive rate</b>, not just recall on planted errors: a judge that flags every novel number would pass a good-set of only verbatim restatements yet be useless. Make the good-set hard enough to catch that.</li>
+<li><span class="chip c-bad">seeded-bad-single</span> — a good pair with exactly one planted wrong number; <code>expect:"contradicted"</code> + <code>offending_sentence</code>.</li>
+<li><span class="chip c-bad">seeded-bad-buried</span> — several correct numbers <b>plus exactly one</b> planted wrong; <b>mandatory</b> category, the crux.</li>
+<li>Each <code>figures</code> block consistent with what <code>figures_extractor</code> would emit for that slot.</li>
+<li>Coverage check: every slot family × every category; multiple funds.</li>
+</ul>
+<div class="crux"><span class="g">Acceptance crux.</span> The <code>seeded-bad-buried</code> set is the falsifiable test of the holistic no-extraction bet. Authored here, verified in P3, proven to bite in P4.</div>
+<div class="done"><b>Done when:</b> all three categories across all three slot families + several funds; schema-valid JSON; derived-but-consistent and buried-error cases both present. A tiny lint over the fixtures confirming required keys + category coverage is worth adding. Committed.</div></div>
+
+<div class="phase p3"><h2>Phase 3 — Judge prompt + Promptfoo config</h2>
+<div class="goal">One Claude judge call per fixture; parse the verdict; assert it equals <code>expect</code>; multi-sample repeats surface non-determinism.</div>
+<ul>
+<li><code>prompts/judge.md</code>: give the slot's prose + figures; instruct <b>"check EACH numeric claim independently before answering"</b>; allow derived-but-consistent numbers (consistency, not novelty). <b>Write the rubric as richly as an atomic-decomposition prompt</b> — spell out the per-claim procedure and a worked example; the industry holistic-vs-atomic parity result only holds when the holistic rubric is that detailed. Tell the judge to <b>prefer the pre-computed aggregates</b> in the figures over doing its own arithmetic.</li>
+<li>Lock the output contract: strict JSON with a <b>per-claim verdict list</b> — <code>{ "claims": [ { "text": string, "verdict": "entailed"|"contradicted"|"underivable" }, … ], "entailed": boolean, "offending_sentence": string|null }</code>. <code>entailed</code> is reduced <b>in the assertion code</b> (false if any claim is not <code>entailed</code>); <code>offending_sentence</code> = the first failing claim's sentence. <b>Enumerating every claim before the boolean is the structural mitigation for the buried-error blind spot</b> (spec §6.3/§7) — the judge cannot return <code>entailed:true</code> without a verdict on the buried number.</li>
+<li><b>Pin</b> the judge model <b><code>claude-sonnet-5</code></b> (promptfoo <code>anthropic:messages:claude-sonnet-5</code>) in the config — pinned, not a floating "latest" alias. <b>Record the generator model id</b> in a config-header comment beside it so self-preference bias stays detectable.</li>
+<li>Wire <code>promptfooconfig.yaml</code>: each fixture → a test case (prose + figures → vars); use a <code>javascript</code>/<code>python</code> assertion (not a bare <code>llm-rubric</code>) that parses the per-claim JSON, reduces <code>entailed</code>, and checks <code>entailed == (expect=="entailed")</code> — and for <code>seeded-bad-*</code> that the <b>planted claim specifically</b> is the one flagged <code>contradicted</code>/<code>underivable</code> and <code>offending_sentence</code> is surfaced.</li>
+<li>Enable <b>multi-sample repeats</b> and fix the <b>aggregation rule explicitly</b> — majority-vote-of-N (or pass@k) with a stated N and k — so flakiness shows up as a defined pass rate, not an ad-hoc average or a single coin-flip.</li>
+<li>Run locally; inspect that <code>good</code> pass, <code>seeded-bad-single</code> fail-as-contradicted, and the <b>buried-error set is caught</b>.</li>
+</ul>
+<div class="crux"><span class="g">Acceptance crux.</span> The per-claim verdict list + rich rubric are already the structural defenses (baked into the contract, not a later add-on). If the buried errors are <b>caught</b>, the holistic no-regex-extraction approach is validated. If they are <b>missed</b> despite those defenses, the only remaining lever is a <b>deterministic per-number extraction step ahead of the judge</b> — <b>do not</b> paper over a miss by loosening the fixture or the threshold.</div>
+<div class="done"><b>Done when:</b> <code>cd evals/prose_numbers &amp;&amp; ANTHROPIC_API_KEY=… npx promptfoo eval</code> runs all fixtures; every <code>good</code> is <code>entailed</code>, every <code>seeded-bad-*</code> is <code>contradicted</code> including the buried set, across samples. Committed.</div></div>
+
+<div class="phase p4"><h2>Phase 4 — CI gate</h2>
+<div class="goal">A GitHub Actions job green only when every verdict matches its fixture's <code>expect</code> within the stated threshold.</div>
+<ul>
+<li>Add the job: set up Node, <code>npx promptfoo eval -c evals/prose_numbers/promptfooconfig.yaml</code>, fail on any assertion failure.</li>
+<li><b>API-key story</b> (spec §8): CI runs the judge <b>live</b> via an <code>ANTHROPIC_API_KEY</code> repo secret; the small frozen set keeps cost trivial. Document the committed-cache alternative as a brittle fallback.</li>
+<li><b>Pass threshold, under the Phase-3 aggregation rule:</b> catch <b>100% of <code>seeded-bad-*</code></b> (recall) and pass <b>100% of <code>good</code></b> (precision) across the N samples per the majority/pass@k rule; any miss fails the job.</li>
+<li><b>Report both metrics, not just pass/fail</b> — recall on <code>seeded-bad-*</code> and precision on <code>good</code> (false-positive rate) — so a regression in either direction is visible in the job output, not hidden behind a green/red bit.</li>
+<li>Scope the trigger honestly: offline regression layer → run on generation-prompt/model or eval-asset changes (and on demand), not every unrelated push if token budget matters.</li>
+<li>Make the job <b>required</b> for merge once green and stable.</li>
+</ul>
+<div class="done"><b>Done when:</b> the job runs the eval with the secret, is green on current fixtures, and goes <b>red</b> if a buried-error's planted error is missed (verify by temporarily corrupting the judge to prove the gate bites). Committed; job required.</div></div>
+
+<h2>Deferred / phase-2 items</h2>
+<ul>
+<li><b>Live multi-sample proposal regeneration</b> — this slice freezes inputs instead.</li>
+<li><b>The qualitative-prose judge</b> (tone/relevance/no-hallucination).</li>
+<li><b>RAG / retrieval evals</b> — blocked on the regulatory-RAG workstream (no corpus yet).</li>
+<li><b>Human-agreement gate (κ) — the phase-2 criterion to trust the judge beyond fixtures.</b> Phase 1's synthetic fixtures prove recall on <em>imagined</em> error types and precision on <em>hand-built</em> good cases, but not agreement with a human on <em>real generated</em> prose. Before live use, label a small real-generation sample and require inter-rater agreement <b>κ ≥ ~0.6</b> (the accepted meta-evaluation floor). Not a phase-1 blocker; phase 1 ships on fixtures alone.</li>
+<li><b>Committed-response-cache CI mode</b> — documented as a fallback; live judging is the default.</li>
+</ul>
+
+<h2>Definition of done</h2>
+<ul>
+<li>Phases 0–4 landed, each commit green.</li>
+<li><code>figures_extractor</code> implemented + unit-tested (schema per spec §9); reuses verified state, doesn't re-verify.</li>
+<li>Frozen corpus across all three categories, slot families, several funds, with <b>adversarial-but-correct derived <code>good</code> cases</b> that measure precision.</li>
+<li>Promptfoo config + rubric with a pinned Claude model, multi-sample under an <b>explicit aggregation rule</b> (majority/pass@k), and a <b>per-claim</b> JSON verdict (<code>claims[]</code> → reduced <code>entailed</code> + <code>offending_sentence</code>) parsed and asserted vs each <code>expect</code>.</li>
+<li>CI job green only within threshold, <b>reporting both recall (seeded-bad) and precision (good)</b>; the buried-error catch is proven to make the gate bite.</li>
+<li>API-key story stated honestly (live + repo secret recommended; cache a brittle fallback).</li>
+<li>HTML companion regenerated (mirrors this markdown; markdown is the source of truth).</li>
+</ul>
+
+<div class="gap"><span class="g">Self-review.</span> Every spec unit maps to a phase (extractor→P1, corpus→P2, judge+config→P3, CI+key story→P4, toolchain→P0); the 1:1 mapping + out-of-scope list ride as global constraints + the deferred section. The buried-error experiment is explicit in P2 (author), P3 (verify + fallback), P4 (prove the gate bites). Honesty checks: API-key requirement stated (not "no key"); extractor non-circularity (reuse ≠ re-verify); offline-not-per-run framing in P0 + P4.</div>
+
+<p class="foot">HTML companion to <code>docs/superpowers/plans/2026-07-06-track-a-prose-number-eval.md</code> · self-contained, no external assets · dark-theme, matches the repo's plan-companion convention.</p>
+
+</div></body></html>

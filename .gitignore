@@ -41,3 +41,11 @@ data/review/
 
 # Live macro pull (regenerable, time-sensitive; fixture is the offline/CI source of truth)
 data/cache/macro_results.json
+
+# Node deps for the prose-number eval's Promptfoo harness (evals/prose_numbers/)
+node_modules/
+npm-debug.log*
+
+# Local/CI promptfoo eval output (regenerable; CI uploads it as a build
+# artifact instead of committing it — see evals/prose_numbers/gate.js).
+evals/prose_numbers/results.json
