@@ -1,6 +1,6 @@
 name: Prose-Number Eval (CI gate)
 
-# ── Trigger scope (read this before "just widening" the paths) ────────────
+# ── Trigger scope: MANUAL-ONLY (workflow_dispatch) ───────────────────────
 #
 # This is an OFFLINE REGRESSION LAYER over a small, frozen 19-fixture corpus
 # (evals/prose_numbers/fixtures/*.json) — NOT a per-run production guard.
@@ -8,35 +8,18 @@ name: Prose-Number Eval (CI gate)
 # real proposal; this suite only catches regressions in *prose generation*
 # quality (does the judge still correctly entail/contradict numeric claims,
 # including a wrong number buried mid-passage) between changes to the
-# generation prompt/model or the eval assets themselves. Every run is a real
-# Claude judge call (repeat: 5 per fixture = 95 calls), so it deliberately
-# does NOT run on every unrelated push/PR — see evals/prose_numbers/README.md
-# ("Status") for the fuller rationale.
+# generation prompt/model or the eval assets themselves.
 #
-# Runs on:
-#   - workflow_dispatch: manual, on demand, any time.
-#   - push/pull_request to main, but ONLY when paths that could change the
-#     eval's inputs or judged surface change:
-#       evals/prose_numbers/**   the harness itself (fixtures, judge prompt,
-#                                 promptfoo config, assert.js, gate.js)
-#       consultant_engine/evals/**  figures_extractor — the ground-truth
-#                                 surface the fixtures were frozen against
-#     A change to consultant_engine's generation prompt (generate_proposal.py)
-#     is NOT in this path filter today; if that prompt starts drifting
-#     without a corresponding fixture/harness change, widen the filter to
-#     include it (or run this workflow manually via workflow_dispatch).
+# Every run is a real Claude judge call (repeat: 5 per fixture = 95 calls) and
+# needs the ANTHROPIC_API_KEY secret, so by deliberate choice it runs ON DEMAND
+# ONLY — never automatically on push/PR (which would hard-fail every eval-path
+# PR until the secret is configured, and this is a public repo). Run it from the
+# Actions tab → "Run workflow" after changing the generation prompt/model or the
+# eval assets, once ANTHROPIC_API_KEY is set under Settings > Secrets > Actions.
+# You can also run the whole gate locally without CI — see
+# evals/prose_numbers/README.md ("Running the eval").
 on:
   workflow_dispatch: {}
-  push:
-    branches: [main]
-    paths:
-      - "evals/prose_numbers/**"
-      - "consultant_engine/evals/**"
-  pull_request:
-    branches: [main]
-    paths:
-      - "evals/prose_numbers/**"
-      - "consultant_engine/evals/**"
 
 jobs:
   prose-numbers-eval:

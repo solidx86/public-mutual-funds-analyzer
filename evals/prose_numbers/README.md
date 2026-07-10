@@ -110,21 +110,20 @@ gated and shouldn't run on every push) does:
 → `node gate.js results.json`, then uploads `results.json` as a build
 artifact regardless of outcome.
 
-**Trigger scope** — this is an offline regression layer, not a per-commit
-guard, so it does **not** run on every push. It runs on:
-
-- `workflow_dispatch` — manual, any time.
-- `push` / `pull_request` to `main`, but only when paths under
-  `evals/prose_numbers/**` (the harness: fixtures, judge prompt, promptfoo
-  config, `assert.js`, `gate.js`) or `consultant_engine/evals/**`
-  (`figures_extractor`, the ground-truth surface the fixtures were frozen
-  against) change.
+**Trigger scope — MANUAL-ONLY (`workflow_dispatch`).** This is an offline
+regression layer, not a per-commit guard, and every run is a real Claude
+judge call needing the `ANTHROPIC_API_KEY` secret — so it runs **on demand
+only**, never automatically on push/PR. Auto-running on eval-path PRs would
+hard-fail every one of them until the secret is configured, and this is a
+public repo. Run it from the **Actions tab → "Run workflow"** after changing
+the generation prompt/model or the eval assets. (Prefer running the gate
+locally — see "Running the eval" above — for quick iteration.)
 
 **Secret handling** — the job requires the `ANTHROPIC_API_KEY` repo secret.
-If it's absent, the job **fails loudly** with an explicit `::error::`
-annotation rather than silently skipping — a green "skipped" run would be a
-worse signal than an honest red build. Add the secret under repo
-Settings → Secrets and variables → Actions before the job can run for real.
+If it's absent when you dispatch the job, it **fails loudly** with an explicit
+`::error::` annotation rather than silently skipping — a green "skipped" run
+would be a worse signal than an honest red build. Add the secret under repo
+Settings → Secrets and variables → Actions before dispatching.
 
 **Status of the CI job itself**: built and YAML/schema-validated offline in
 this environment (no `ANTHROPIC_API_KEY` here to trigger a real run) — see
