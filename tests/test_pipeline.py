@@ -28,7 +28,7 @@ def test_master_csv_covers_all_funds(pipeline_workspace):
     statuses = {r["Status"] for r in rows}
     assert statuses == {"Qualified", "Disqualified"}
     qualified = sum(1 for r in rows if r["Status"] == "Qualified")
-    assert qualified == 134
+    assert qualified == 138
 
     for col in ("Fund Name", "Abbr", "Weighted Alpha (%)", "Risk Level", "Fund Type"):
         assert col in rows[0], f"missing column {col!r}"
@@ -63,7 +63,7 @@ def test_workbook_shape_and_metadata(pipeline_workspace):
     assert ws.max_column == 73
     fund_rows = [r for r in range(4, ws.max_row + 1) if ws.cell(r, 1).value]
     assert len(fund_rows) == 171
-    assert "134 Qualified / 171 Total Funds" in ws.cell(1, 1).value
+    assert "138 Qualified / 171 Total Funds" in ws.cell(1, 1).value
 
 
 # ── Weighted-alpha math on a hand-built fixture ───────────────────────────────
